@@ -1,0 +1,24 @@
+# permissions for end users to edit bundleinstallations.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bundleinstallation-editor-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - bundleinstallations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - bundleinstallations/status
+  verbs:
+  - get

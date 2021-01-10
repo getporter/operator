@@ -1,0 +1,7 @@
+apiVersion: porter.sh/v1
+kind: BundleInstallation
+metadata:
+  name: bundleinstallation-sample
+spec:
+  reference: "getporter/porter-hello:v0.1.1"
+  action: "install"

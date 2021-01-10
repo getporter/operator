@@ -1,0 +1,89 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: bundleinstallations.porter.sh
+spec:
+  group: porter.sh
+  names:
+    kind: BundleInstallation
+    listKind: BundleInstallationList
+    plural: bundleinstallations
+    singular: bundleinstallation
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: BundleInstallation is the Schema for the bundleinstallations
+          API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: BundleInstallationSpec defines the desired state of BundleInstallation
+            properties:
+              action:
+                description: Action defined in the bundle to execute. If unspecified,
+                  Porter will run an install if the installation does not exist, or
+                  an upgrade otherwise.
+                type: string
+              porterVersion:
+                description: PorterVersion is the version of the Porter CLI to use
+                  when executing the bundle. Defaults to "latest"
+                type: string
+              reference:
+                description: Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
+                type: string
+            required:
+            - action
+            - reference
+            type: object
+          status:
+            description: BundleInstallationStatus defines the observed state of BundleInstallation
+            properties:
+              activeJob:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              lastJob:
+                description: LocalObjectReference contains enough information to let
+                  you locate the referenced object inside the same namespace.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

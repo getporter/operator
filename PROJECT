@@ -1,0 +1,12 @@
+domain: porter.sh
+layout: go.kubebuilder.io/v3
+projectName: porter-operator
+repo: get.porter.sh/operator
+resources:
+- crdVersion: v1
+  kind: BundleInstallation
+  version: v1
+version: 3-alpha
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
