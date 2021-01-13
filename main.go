@@ -62,22 +62,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BundleReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Bundle"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Bundle")
-		os.Exit(1)
-	}
-	if err = (&controllers.BundleReferenceReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("BundleReference"),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BundleReference")
-		os.Exit(1)
-	}
 	if err = (&controllers.BundleInstallationReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("BundleInstallation"),

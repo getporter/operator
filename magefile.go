@@ -28,13 +28,12 @@ func EnsureMage() error {
 }
 
 func Deploy() error {
-	img := "IMG=carolynvs/test"
-	err := sh.RunV("make", "docker-build", "docker-push", img)
+	err := sh.RunV("make", "docker-build", "docker-push")
 	if err != nil {
 		return err
 	}
 
-	err = sh.RunV("make", "deploy", img)
+	err = sh.RunV("make", "deploy")
 	if err != nil {
 		return err
 	}
