@@ -9,6 +9,7 @@ import (
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // BundleInstallationSpec defines the desired state of BundleInstallation
+// TODO: rename to Installation and rely on the api group to disambiguate
 type BundleInstallationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
@@ -23,7 +24,14 @@ type BundleInstallationSpec struct {
 	// PorterVersion is the version of the Porter CLI to use when executing the bundle.
 	// Defaults to "latest"
 	PorterVersion string `json:"porterVersion,omitempty"`
-	// TODO: Define credential and parameter sets
+
+	// TODO: ServiceAccount, Force pull, debug and other flags
+
+	// Credentials is a list of credential set names.
+	Credentials []string `json:"credentials,omitempty"`
+
+	// Parameters is a list of parameter set names.
+	Parameters []string `json:"parameters,omitempty"`
 }
 
 // BundleInstallationStatus defines the observed state of BundleInstallation

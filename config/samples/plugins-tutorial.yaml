@@ -1,0 +1,9 @@
+apiVersion: porter.sh/v1
+kind: BundleInstallation
+metadata:
+  name: plugins-tutorial
+spec:
+  reference: "getporter/plugins-tutorial:v0.1.0"
+  action: "install"
+  credentials:
+    - plugins-tutorial

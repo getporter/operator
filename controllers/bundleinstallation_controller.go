@@ -29,6 +29,8 @@ type BundleInstallationReconciler struct {
 // +kubebuilder:rbac:groups=porter.sh,resources=bundleinstallations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=porter.sh,resources=bundleinstallations/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -41,15 +43,19 @@ type BundleInstallationReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithValues("bundleinstallation", req.NamespacedName)
+
+	cfg := &v1.ConfigMap{}
+	porterCfgName := types.NamespacedName{Name: "porter", Namespace: "porter-operator-system"}
+	err := r.Get(ctx, porterCfgName, cfg)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "cannot retrieve porter configmap: %s", porterCfgName)
+	}
 
 	// Retrieve the BundleInstallation
 	inst := &porterv1.BundleInstallation{}
-	err := r.Get(ctx, req.NamespacedName, inst)
+	err = r.Get(ctx, req.NamespacedName, inst)
 	if err != nil {
-		err = errors.Wrapf(err, "could not find bundle installation %s/%s", req.Namespace, req.Name)
-		log.Error(err, "")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, errors.Wrapf(err, "could not find bundle installation %s/%s", req.Namespace, req.Name)
 	}
 
 	// Retrieve the Job running the porter action
@@ -65,9 +71,7 @@ func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{}, err
 			}
 		} else {
-			err = errors.Wrapf(err, "could not query for the bundle installation job %s/%s", req.Namespace, porterJob.Name)
-			log.Error(err, "")
-			return ctrl.Result{}, err
+			return ctrl.Result{}, errors.Wrapf(err, "could not query for the bundle installation job %s/%s", req.Namespace, porterJob.Name)
 		}
 	}
 
@@ -87,13 +91,24 @@ func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Context, name string, inst *porterv1.BundleInstallation) error {
 	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for BundleInstallation %s/%s", inst.Namespace, name, inst.Namespace, inst.Name))
 
-	porterVersion := "latest"
-	if inst.Spec.PorterVersion != "" {
-		porterVersion = inst.Spec.PorterVersion
-	}
+	porterVersion, pullPolicy := r.getPorterImageVersion(ctx, inst)
 
+	// porter ACTION INSTALLATION_NAME --tag=REFERENCE --debug
 	// TODO: For now require the action, and when porter supports installorupgrade switch
-	porterAction := inst.Spec.Action
+	args := []string{
+		inst.Spec.Action,
+		inst.Name,
+		"--reference=" + inst.Spec.Reference,
+		"--debug",
+		"--debug-plugins",
+		"--driver=kubernetes",
+	}
+	for _, c := range inst.Spec.Credentials {
+		args = append(args, "--cred="+c)
+	}
+	for _, p := range inst.Spec.Parameters {
+		args = append(args, "--param="+p)
+	}
 
 	porterJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -135,22 +150,49 @@ func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Cont
 								},
 							},
 						},
+						{
+							Name: "porter-config",
+							VolumeSource: v1.VolumeSource{
+								Secret: &v1.SecretVolumeSource{
+									SecretName: "porter-config",
+								},
+							},
+						},
 					},
 					Containers: []v1.Container{
 						{
-							Name:  name,
-							Image: "getporter/porter:" + porterVersion,
-							// porter ACTION INSTALLATION_NAME --tag=REFERENCE --debug
-							Args: []string{
-								porterAction,
-								inst.Name,
-								"--tag=" + inst.Spec.Reference,
-								"--debug",
+							Name:            name,
+							Image:           "ghcr.io/getporter/porter:kubernetes-" + porterVersion,
+							ImagePullPolicy: pullPolicy,
+							Args:            args,
+							Env: []v1.EnvVar{
+								// Configuration for the Kubernetes Driver
+								{
+									Name:  "KUBE_NAMESPACE",
+									Value: inst.Namespace,
+								},
+								{
+									Name:  "IN_CLUSTER",
+									Value: "true",
+								},
+							},
+							EnvFrom: []v1.EnvFromSource{
+								{
+									SecretRef: &v1.SecretEnvSource{
+										LocalObjectReference: v1.LocalObjectReference{
+											Name: "porter-env",
+										},
+									},
+								},
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "docker-socket",
 									MountPath: "/var/run/docker.sock",
+								},
+								{
+									Name:      "porter-config",
+									MountPath: "/porter-config/",
 								},
 							},
 						},
@@ -165,6 +207,35 @@ func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Cont
 
 	err := r.Create(ctx, porterJob, &client.CreateOptions{})
 	return errors.Wrapf(err, "error creating job for BundleInstallation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
+}
+
+func (r *BundleInstallationReconciler) getPorterImageVersion(ctx context.Context, inst *porterv1.BundleInstallation) (porterVersion string, pullPolicy v1.PullPolicy) {
+	porterVersion = "latest"
+	if inst.Spec.PorterVersion != "" {
+		r.Log.Info("porter image version override")
+		// Use the version specified by the instance
+		porterVersion = inst.Spec.PorterVersion
+	} else {
+		// Check if the namespace has a default porter version configured
+		cfg := &v1.ConfigMap{}
+		err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: "porter-operator-system"}, cfg)
+		if err != nil {
+			r.Log.Info(fmt.Sprintf("WARN: cannot retrieve porter configmap %q, using default configuration", err))
+		}
+		if v, ok := cfg.Data["porter-version"]; ok {
+			r.Log.Info("porter image version defaulted from configmap")
+			porterVersion = v
+		}
+	}
+
+	r.Log.Info("resolved porter image version", "version", porterVersion)
+
+	pullPolicy = v1.PullIfNotPresent
+	if porterVersion == "canary" || porterVersion == "latest" {
+		pullPolicy = v1.PullAlways
+	}
+
+	return porterVersion, pullPolicy
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -17,6 +17,8 @@ spec:
     matchLabels:
       control-plane: controller-manager
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -30,6 +32,7 @@ spec:
         args:
         - --leader-elect
         image: ghcr.io/getporter/porterops-controller:latest
+        imagePullPolicy: Always
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

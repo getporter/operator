@@ -18,6 +18,47 @@ pipeline with support for GitOps.
 
 <p align="center">Learn all about Porter at <a href="https://porter.sh">porter.sh</a></p>
 
+## Define Secrets
+
+The operator uses secrets defined in namespace of the CRD being managed to populate
+Porter's config file and environment variables. For example the azure connection
+string, or service principal environment variables.
+
+TODO: Have porter help do these parts
+
+### porter-config
+These secrets are copied into the pod as files to tell Porter where to save its data
+and resolve secrets.
+
+```
+kubectl create secret generic porter-config -n porter-operator-system \
+  --from-file=config.toml=/Users/carolynvs/.porter/k8s.config.toml
+```
+
+### porter-env
+These secrets are copied into the pod as environment variables. Porter will use them to 
+for the plugins so that they can connect to remote services such storage or vault.
+
+```
+kubectl create secret generic porter-env \
+  --from-literal=AZURE_STORAGE_CONNECTION_STRING=$PORTER_TEST_AZURE_STORAGE_CONNECTION_STRING \
+  --from-literal=AZURE_CLIENT_SECRET=$PORTER_AZURE_CLIENT_SECRET \
+  --from-literal=AZURE_CLIENT_ID=$PORTER_AZURE_CLIENT_ID \
+  --from-literal=AZURE_TENANT_ID=$PORTER_AZURE_TENANT_ID
+``` 
+
+## Define Configuration
+
+### porter
+These are configuration settings for the Porter Operator.
+
+```
+kubectl create configmap porter --from-literal=porter-version=canary
+```
+
+See [Modify the porter agent](/CONTRIBUTING.md#modify-the-porter-agent) for details on 
+how this is created.
+
 # Contact
 
 * [Mailing List] - Great for following the project at a high level because it

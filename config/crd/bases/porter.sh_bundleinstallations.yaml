@@ -35,13 +35,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: BundleInstallationSpec defines the desired state of BundleInstallation
+            description: 'BundleInstallationSpec defines the desired state of BundleInstallation
+              TODO: rename to Installation and rely on the api group to disambiguate'
             properties:
               action:
                 description: Action defined in the bundle to execute. If unspecified,
                   Porter will run an install if the installation does not exist, or
                   an upgrade otherwise.
                 type: string
+              credentials:
+                description: Credentials is a list of credential set names.
+                items:
+                  type: string
+                type: array
+              parameters:
+                description: Parameters is a list of parameter set names.
+                items:
+                  type: string
+                type: array
               porterVersion:
                 description: PorterVersion is the version of the Porter CLI to use
                   when executing the bundle. Defaults to "latest"

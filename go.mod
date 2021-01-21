@@ -2,10 +2,8 @@ module get.porter.sh/operator
 
 go 1.15
 
-replace github.com/magefile/mage => github.com/carolynvs/mage v1.10.1-0.20201231152132-ef0b6bffd1ac
-
 require (
-	github.com/carolynvs/magex v0.3.0
+	github.com/carolynvs/magex v0.3.1-0.20210121165806-e2c237fbee9e
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
 	github.com/onsi/ginkgo v1.14.1
