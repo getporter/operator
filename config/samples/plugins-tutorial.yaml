@@ -1,5 +1,5 @@
 apiVersion: porter.sh/v1
-kind: BundleInstallation
+kind: Installation
 metadata:
   name: plugins-tutorial
 spec:

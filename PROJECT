@@ -4,7 +4,7 @@ projectName: porter-operator
 repo: get.porter.sh/operator
 resources:
 - crdVersion: v1
-  kind: BundleInstallation
+  kind: Installation
   version: v1
 version: 3-alpha
 plugins:

@@ -6,21 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: bundleinstallations.porter.sh
+  name: installations.porter.sh
 spec:
   group: porter.sh
   names:
-    kind: BundleInstallation
-    listKind: BundleInstallationList
-    plural: bundleinstallations
-    singular: bundleinstallation
+    kind: Installation
+    listKind: InstallationList
+    plural: installations
+    singular: installation
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: BundleInstallation is the Schema for the bundleinstallations
-          API
+        description: Installation is the Schema for the installations API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -35,8 +34,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: 'BundleInstallationSpec defines the desired state of BundleInstallation
-              TODO: rename to Installation and rely on the api group to disambiguate'
+            description: InstallationSpec defines the desired state of Installation
             properties:
               action:
                 description: Action defined in the bundle to execute. If unspecified,
@@ -65,7 +63,7 @@ spec:
             - reference
             type: object
           status:
-            description: BundleInstallationStatus defines the observed state of BundleInstallation
+            description: InstallationStatus defines the observed state of Installation
             properties:
               activeJob:
                 description: 'INSERT ADDITIONAL STATUS FIELD - define observed state

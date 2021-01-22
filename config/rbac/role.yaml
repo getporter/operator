@@ -51,7 +51,7 @@ rules:
 - apiGroups:
   - porter.sh
   resources:
-  - bundleinstallations
+  - installations
   verbs:
   - create
   - delete
@@ -63,13 +63,13 @@ rules:
 - apiGroups:
   - porter.sh
   resources:
-  - bundleinstallations/finalizers
+  - installations/finalizers
   verbs:
   - update
 - apiGroups:
   - porter.sh
   resources:
-  - bundleinstallations/status
+  - installations/status
   verbs:
   - get
   - patch

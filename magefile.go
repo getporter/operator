@@ -55,7 +55,7 @@ func Deploy() error {
 func Bump(sample string) error {
 	mg.Deps(EnsureCluster, EnsureYq)
 
-	data, err := kubectlCmd("get", "bundleinstallation", sample, "-o", "yaml").OutputE()
+	data, err := kubectlCmd("get", "installation.porter.sh", sample, "-o", "yaml").OutputE()
 	dataB := []byte(data)
 	if err != nil {
 		dataB, err = ioutil.ReadFile(fmt.Sprintf("config/samples/%s.yaml", sample))
@@ -92,8 +92,8 @@ func Bump(sample string) error {
 	return cmd.RunV()
 }
 
-func CleanupJobs() error {
-	return kubectl("delete", "jobs", "-l", "installation=porter-hello")
+func Clean() error {
+	return kubectl("delete", "jobs", "-l", "porter=true")
 }
 
 // Publish the docker image used to run the Porter jobs.

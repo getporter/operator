@@ -62,12 +62,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.BundleInstallationReconciler{
+	if err = (&controllers.InstallationReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("BundleInstallation"),
+		Log:    ctrl.Log.WithName("controllers").WithName("Installation"),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BundleInstallation")
+		setupLog.Error(err, "unable to create controller", "controller", "Installation")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

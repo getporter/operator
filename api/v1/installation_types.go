@@ -8,9 +8,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// BundleInstallationSpec defines the desired state of BundleInstallation
-// TODO: rename to Installation and rely on the api group to disambiguate
-type BundleInstallationSpec struct {
+// InstallationSpec defines the desired state of Installation
+type InstallationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
@@ -34,8 +33,8 @@ type BundleInstallationSpec struct {
 	Parameters []string `json:"parameters,omitempty"`
 }
 
-// BundleInstallationStatus defines the observed state of BundleInstallation
-type BundleInstallationStatus struct {
+// InstallationStatus defines the observed state of Installation
+type InstallationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	ActiveJob v1.LocalObjectReference `json:"activeJob,omitempty"`
@@ -46,24 +45,24 @@ type BundleInstallationStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// BundleInstallation is the Schema for the bundleinstallations API
-type BundleInstallation struct {
+// Installation is the Schema for the installations API
+type Installation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   BundleInstallationSpec   `json:"spec,omitempty"`
-	Status BundleInstallationStatus `json:"status,omitempty"`
+	Spec   InstallationSpec   `json:"spec,omitempty"`
+	Status InstallationStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// BundleInstallationList contains a list of BundleInstallation
-type BundleInstallationList struct {
+// InstallationList contains a list of Installation
+type InstallationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BundleInstallation `json:"items"`
+	Items           []Installation `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&BundleInstallation{}, &BundleInstallationList{})
+	SchemeBuilder.Register(&Installation{}, &InstallationList{})
 }

@@ -18,16 +18,16 @@ import (
 	porterv1 "get.porter.sh/operator/api/v1"
 )
 
-// BundleInstallationReconciler reconciles a BundleInstallation object
-type BundleInstallationReconciler struct {
+// InstallationReconciler reconciles a Installation object
+type InstallationReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=porter.sh,resources=bundleinstallations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=bundleinstallations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=porter.sh,resources=bundleinstallations/finalizers,verbs=update
+// +kubebuilder:rbac:groups=porter.sh,resources=installations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=porter.sh,resources=installations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=porter.sh,resources=installations/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;delete
@@ -36,13 +36,13 @@ type BundleInstallationReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the BundleInstallation object against the actual cluster state, and then
+// the Installation object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
-func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	cfg := &v1.ConfigMap{}
 	porterCfgName := types.NamespacedName{Name: "porter", Namespace: "porter-operator-system"}
@@ -51,8 +51,8 @@ func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, errors.Wrapf(err, "cannot retrieve porter configmap: %s", porterCfgName)
 	}
 
-	// Retrieve the BundleInstallation
-	inst := &porterv1.BundleInstallation{}
+	// Retrieve the Installation
+	inst := &porterv1.Installation{}
 	err = r.Get(ctx, req.NamespacedName, inst)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrapf(err, "could not find bundle installation %s/%s", req.Namespace, req.Name)
@@ -80,7 +80,7 @@ func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	//  1. * Requeue with backoff until we can run it (May run into problematic backoff behavior)
 	//  1. Use job dependencies with either init container (problematic because of init container timeouts)
 
-	// Update BundleInstallation events with job created
+	// Update Installation events with job created
 	// Can we do the status to have the deployments running? e.g. like how a deployment says 1/1 available/ready.
 	// Can we add last action and result to the bundle installation?
 	// how much do we want to replicate of porter's info in k8s? Just the k8s data?
@@ -88,8 +88,8 @@ func (r *BundleInstallationReconciler) Reconcile(ctx context.Context, req ctrl.R
 	return ctrl.Result{}, nil
 }
 
-func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Context, name string, inst *porterv1.BundleInstallation) error {
-	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for BundleInstallation %s/%s", inst.Namespace, name, inst.Namespace, inst.Name))
+func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, name string, inst *porterv1.Installation) error {
+	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for Installation %s/%s", inst.Namespace, name, inst.Namespace, inst.Name))
 
 	porterVersion, pullPolicy := r.getPorterImageVersion(ctx, inst)
 
@@ -197,7 +197,7 @@ func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Cont
 							},
 						},
 					},
-					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the BundleInstallation
+					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
 					ServiceAccountName: "",      // TODO: Make the service account configurable so that different bundles can use pod identity to read credentials from a secret store
 					ImagePullSecrets:   nil,     // TODO: Make pulling from a private registry possible
 				},
@@ -206,10 +206,10 @@ func (r *BundleInstallationReconciler) createJobForInstallation(ctx context.Cont
 	}
 
 	err := r.Create(ctx, porterJob, &client.CreateOptions{})
-	return errors.Wrapf(err, "error creating job for BundleInstallation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
+	return errors.Wrapf(err, "error creating job for Installation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
 }
 
-func (r *BundleInstallationReconciler) getPorterImageVersion(ctx context.Context, inst *porterv1.BundleInstallation) (porterVersion string, pullPolicy v1.PullPolicy) {
+func (r *InstallationReconciler) getPorterImageVersion(ctx context.Context, inst *porterv1.Installation) (porterVersion string, pullPolicy v1.PullPolicy) {
 	porterVersion = "latest"
 	if inst.Spec.PorterVersion != "" {
 		r.Log.Info("porter image version override")
@@ -239,9 +239,9 @@ func (r *BundleInstallationReconciler) getPorterImageVersion(ctx context.Context
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *BundleInstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&porterv1.BundleInstallation{}).
+		For(&porterv1.Installation{}).
 		Owns(&v1.Pod{}).
 		Complete(r)
 }
