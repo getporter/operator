@@ -17,6 +17,7 @@ spec:
     matchLabels:
       control-plane: controller-manager
   replicas: 1
+  revisionHistoryLimit: 1
   strategy:
     type: Recreate
   template:

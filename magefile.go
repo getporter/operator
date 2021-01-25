@@ -40,11 +40,20 @@ func EnsureMage() error {
 	return pkg.EnsureMage("v1.11.0")
 }
 
+func Build() error {
+	return runMake("all")
+}
+
+func Test() error {
+	mg.Deps(EnsureCluster)
+	return runMake("test")
+}
+
 // Build the controller and deploy it to the active cluster.
 func Deploy() error {
-	mg.Deps(EnsureCluster)
+	mg.Deps(EnsureCluster, Build)
 
-	err := runMake("manager", "docker-build", "docker-push", "deploy")
+	err := runMake("docker-build", "docker-push", "deploy")
 	if err != nil {
 		return err
 	}
@@ -93,7 +102,18 @@ func Bump(sample string) error {
 }
 
 func Clean() error {
-	return kubectl("delete", "jobs", "-l", "porter=true")
+	// Remove manual runs
+	err := kubectl("delete", "jobs", "-l", "porter=true")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+	}
+
+	// Remove test runs
+	err = kubectl("delete", "ns", "-l", "porter-test=true")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+	}
+	return nil
 }
 
 // Publish the docker image used to run the Porter jobs.
@@ -195,7 +215,12 @@ networking:
 		errors.Wrap(err, "could not create KIND cluster")
 	}
 
-	return setClusterNamespace()
+	err = setClusterNamespace()
+	if err != nil {
+		return err
+	}
+
+	return runMake("install")
 }
 
 // Delete the KIND cluster named porter.
@@ -274,4 +299,8 @@ func kubectlCmd(args ...string) shx.PreparedCommand {
 
 func EnsureYq() error {
 	return pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", "")
+}
+
+func EnsureGinkgo() error {
+	return pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "")
 }

@@ -7,11 +7,12 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,17 +44,9 @@ type InstallationReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-
-	cfg := &v1.ConfigMap{}
-	porterCfgName := types.NamespacedName{Name: "porter", Namespace: "porter-operator-system"}
-	err := r.Get(ctx, porterCfgName, cfg)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "cannot retrieve porter configmap: %s", porterCfgName)
-	}
-
 	// Retrieve the Installation
 	inst := &porterv1.Installation{}
-	err = r.Get(ctx, req.NamespacedName, inst)
+	err := r.Get(ctx, req.NamespacedName, inst)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrapf(err, "could not find bundle installation %s/%s", req.Namespace, req.Name)
 	}
@@ -92,6 +85,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for Installation %s/%s", inst.Namespace, name, inst.Namespace, inst.Name))
 
 	porterVersion, pullPolicy := r.getPorterImageVersion(ctx, inst)
+	serviceAccount := r.getPorterAgentServiceAccount(ctx, inst)
 
 	// porter ACTION INSTALLATION_NAME --tag=REFERENCE --debug
 	// TODO: For now require the action, and when porter supports installorupgrade switch
@@ -120,9 +114,9 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  Int32Ptr(1),
-			BackoffLimit: Int32Ptr(0),
-			Template: v1.PodTemplateSpec{
+			Completions:  pointer.Int32Ptr(1),
+			BackoffLimit: pointer.Int32Ptr(0),
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: name,
 					Namespace:    inst.Namespace,
@@ -136,36 +130,29 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 							Kind:               inst.Kind,
 							Name:               inst.Name,
 							UID:                inst.UID,
-							BlockOwnerDeletion: BoolPtr(true),
+							BlockOwnerDeletion: pointer.BoolPtr(true),
 						},
 					},
 				},
-				Spec: v1.PodSpec{
-					Volumes: []v1.Volume{
-						{
-							Name: "docker-socket",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: "/var/run/docker.sock",
-								},
-							},
-						},
+				Spec: corev1.PodSpec{
+					Volumes: []corev1.Volume{
 						{
 							Name: "porter-config",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "porter-config",
+									Optional:   pointer.BoolPtr(true),
 								},
 							},
 						},
 					},
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:            name,
 							Image:           "ghcr.io/getporter/porter:kubernetes-" + porterVersion,
 							ImagePullPolicy: pullPolicy,
 							Args:            args,
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								// Configuration for the Kubernetes Driver
 								{
 									Name:  "KUBE_NAMESPACE",
@@ -176,20 +163,18 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 									Value: "true",
 								},
 							},
-							EnvFrom: []v1.EnvFromSource{
+							EnvFrom: []corev1.EnvFromSource{
+								// Environtment variables for the plugins
 								{
-									SecretRef: &v1.SecretEnvSource{
-										LocalObjectReference: v1.LocalObjectReference{
+									SecretRef: &corev1.SecretEnvSource{
+										LocalObjectReference: corev1.LocalObjectReference{
 											Name: "porter-env",
 										},
+										Optional: pointer.BoolPtr(true),
 									},
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
-								{
-									Name:      "docker-socket",
-									MountPath: "/var/run/docker.sock",
-								},
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "porter-config",
 									MountPath: "/porter-config/",
@@ -198,8 +183,8 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 						},
 					},
 					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
-					ServiceAccountName: "",      // TODO: Make the service account configurable so that different bundles can use pod identity to read credentials from a secret store
-					ImagePullSecrets:   nil,     // TODO: Make pulling from a private registry possible
+					ServiceAccountName: serviceAccount,
+					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 				},
 			},
 		},
@@ -209,39 +194,63 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, n
 	return errors.Wrapf(err, "error creating job for Installation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
 }
 
-func (r *InstallationReconciler) getPorterImageVersion(ctx context.Context, inst *porterv1.Installation) (porterVersion string, pullPolicy v1.PullPolicy) {
+func (r *InstallationReconciler) getPorterImageVersion(ctx context.Context, inst *porterv1.Installation) (porterVersion string, pullPolicy corev1.PullPolicy) {
 	porterVersion = "latest"
 	if inst.Spec.PorterVersion != "" {
-		r.Log.Info("porter image version override")
+		r.Log.Info(fmt.Sprintf("porter image version override: %s", inst.Spec.PorterVersion))
 		// Use the version specified by the instance
 		porterVersion = inst.Spec.PorterVersion
 	} else {
 		// Check if the namespace has a default porter version configured
-		cfg := &v1.ConfigMap{}
-		err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: "porter-operator-system"}, cfg)
+		cfg := &corev1.ConfigMap{}
+		err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, cfg)
 		if err != nil {
 			r.Log.Info(fmt.Sprintf("WARN: cannot retrieve porter configmap %q, using default configuration", err))
 		}
-		if v, ok := cfg.Data["porter-version"]; ok {
-			r.Log.Info("porter image version defaulted from configmap")
+		if v, ok := cfg.Data["porterVersion"]; ok {
+			r.Log.Info(fmt.Sprintf("porter image version defaulted from configmap to %s", v))
 			porterVersion = v
 		}
 	}
 
 	r.Log.Info("resolved porter image version", "version", porterVersion)
 
-	pullPolicy = v1.PullIfNotPresent
+	pullPolicy = corev1.PullIfNotPresent
 	if porterVersion == "canary" || porterVersion == "latest" {
-		pullPolicy = v1.PullAlways
+		pullPolicy = corev1.PullAlways
 	}
 
 	return porterVersion, pullPolicy
+}
+
+func (r *InstallationReconciler) getPorterAgentServiceAccount(ctx context.Context, inst *porterv1.Installation) string {
+	serviceAccount := ""
+	if inst.Spec.ServiceAccount != "" {
+		r.Log.Info(fmt.Sprintf("porter agent service account override: %s", inst.Spec.ServiceAccount))
+		// Use the version specified by the instance
+		serviceAccount = inst.Spec.ServiceAccount
+	} else {
+		// Check if the namespace has a default service account configured
+		cfg := &corev1.ConfigMap{}
+		err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, cfg)
+		if err != nil {
+			r.Log.Info(fmt.Sprintf("WARN: cannot retrieve porter configmap %q, using default configuration", err))
+		}
+		if v, ok := cfg.Data["serviceAccount"]; ok {
+			r.Log.Info(fmt.Sprintf("porter agent service account defaulted from configmap to %s", v))
+			serviceAccount = v
+		}
+	}
+
+	r.Log.Info("resolved porter agent service account", "serviceAccount", serviceAccount)
+
+	return serviceAccount
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&porterv1.Installation{}).
-		Owns(&v1.Pod{}).
+		Owns(&corev1.Pod{}).
 		Complete(r)
 }

@@ -24,7 +24,9 @@ type InstallationSpec struct {
 	// Defaults to "latest"
 	PorterVersion string `json:"porterVersion,omitempty"`
 
-	// TODO: ServiceAccount, Force pull, debug and other flags
+	ServiceAccount string `json:"serviceAccount,omitempty"`
+
+	// TODO: Force pull, debug and other flags
 
 	// Credentials is a list of credential set names.
 	Credentials []string `json:"credentials,omitempty"`

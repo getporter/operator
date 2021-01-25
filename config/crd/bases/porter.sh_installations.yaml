@@ -58,6 +58,8 @@ spec:
               reference:
                 description: Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
                 type: string
+              serviceAccount:
+                type: string
             required:
             - action
             - reference

@@ -53,7 +53,7 @@ kubectl create secret generic porter-env \
 These are configuration settings for the Porter Operator.
 
 ```
-kubectl create configmap porter --from-literal=porter-version=canary
+kubectl create configmap porter --from-literal=porterVersion=canary
 ```
 
 See [Modify the porter agent](/CONTRIBUTING.md#modify-the-porter-agent) for details on 
