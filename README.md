@@ -31,7 +31,7 @@ These secrets are copied into the pod as files to tell Porter where to save its 
 and resolve secrets.
 
 ```
-kubectl create secret generic porter-config -n porter-operator-system \
+kubectl create secret generic porter-config \
   --from-file=config.toml=/Users/carolynvs/.porter/k8s.config.toml
 ```
 
@@ -53,7 +53,9 @@ kubectl create secret generic porter-env \
 These are configuration settings for the Porter Operator.
 
 ```
-kubectl create configmap porter --from-literal=porterVersion=canary
+kubectl create configmap porter \
+  --from-literal=porterVersion=canary \
+  --from-literal=serviceAccount=porter-agent
 ```
 
 See [Modify the porter agent](/CONTRIBUTING.md#modify-the-porter-agent) for details on 

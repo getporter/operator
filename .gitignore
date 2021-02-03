@@ -7,8 +7,8 @@
 bin
 testbin/*
 operator
-kind.config
-kind.config.yaml
+/kind.config
+/kind.config.yaml
 
 # Test binary, build with `go test -c`
 *.test

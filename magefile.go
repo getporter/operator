@@ -16,11 +16,11 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
-	"github.com/magefile/mage/sh"
 	"github.com/pkg/errors"
 )
 
@@ -29,42 +29,72 @@ import (
 // var Default = Build
 
 const (
-	kindVersion     = "v0.9.0"
+	// Version of KIND to install if not already present
+	kindVersion = "v0.9.0"
+
+	// Name of the KIND cluster used for testing
 	kindClusterName = "porter"
-	namespace       = "porter-operator-system"
-	kubeconfig      = "kind.config"
+
+	// Namespace where you can do manual testing
+	testNamespace = "test"
+
+	// Relative location of the KUBECONFIG for the test cluster
+	kubeconfig = "kind.config"
+
+	// Namespace of the porter operator
+	operatorNamespace = "porter-operator-system"
+
+	// Container name of the local registry
+	registryContainer = "registry"
 )
 
 // Install mage if necessary.
 func EnsureMage() error {
+
 	return pkg.EnsureMage("v1.11.0")
 }
 
+// Add GOPATH/bin to the path on the GitHub Actions agent
+func ensureGopathBin() error {
+	if _, ok := os.LookupEnv("CI"); !ok {
+		return nil
+	}
+
+	log.Println("Adding GOPATH/bin to the PATH for the GitHub Agent")
+	githubPath := os.Getenv("GITHUB_PATH")
+	gopathBin := pkg.GetGopathBin()
+	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
+}
+
 func Build() error {
-	return runMake("all")
+	return makefile("all").RunV()
 }
 
+// Run tests against the test cluster.
 func Test() error {
-	mg.Deps(EnsureCluster)
-	return runMake("test")
+	mg.Deps(CleanTests, EnsureGinkgo)
+
+	return makefile("test").RunV()
 }
 
-// Build the controller and deploy it to the active cluster.
+// Build the controller and deploy it to the test cluster.
 func Deploy() error {
-	mg.Deps(EnsureCluster, Build)
+	mg.Deps(EnsureCluster, StartDockerRegistry, Build)
 
-	err := runMake("docker-build", "docker-push", "deploy")
+	err := makefile("docker-build", "docker-push", "deploy").
+		Env("REGISTRY=localhost:5000").
+		RunV()
 	if err != nil {
 		return err
 	}
 
-	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", namespace)
+	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).Run()
 }
 
 func Bump(sample string) error {
-	mg.Deps(EnsureCluster, EnsureYq)
+	mg.Deps(EnsureTestNamespace, EnsureYq)
 
-	data, err := kubectlCmd("get", "installation.porter.sh", sample, "-o", "yaml").OutputE()
+	data, err := kubectl("get", "installation.porter.sh", sample, "-o", "yaml").OutputS()
 	dataB := []byte(data)
 	if err != nil {
 		dataB, err = ioutil.ReadFile(fmt.Sprintf("config/samples/%s.yaml", sample))
@@ -96,29 +126,115 @@ func Bump(sample string) error {
 	}
 
 	log.Println(crd)
-	cmd = kubectlCmd("apply", "-f", "-")
+	cmd = kubectl("apply", "-f", "-")
 	cmd.Cmd.Stdin = strings.NewReader(crd)
 	return cmd.RunV()
 }
 
-func Clean() error {
-	// Remove manual runs
-	err := kubectl("delete", "jobs", "-l", "porter=true")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+func EnsureTestNamespace() error {
+	if namespaceExists(testNamespace) {
+		return nil
 	}
 
-	// Remove test runs
-	err = kubectl("delete", "ns", "-l", "porter-test=true")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING: %v\n", err)
+	return setupTestNamespace()
+}
+
+func setupTestNamespace() error {
+	return SetupNamespace(testNamespace)
+}
+
+func namespaceExists(name string) bool {
+	err := kubectl("get", "namespace", name).RunS()
+	return err == nil
+}
+
+// Create a namespace and configure it to work with the operator
+func SetupNamespace(name string) error {
+	mg.Deps(EnsureCluster)
+
+	if namespaceExists(name) {
+		err := kubectl("delete", "ns", name, "--wait=true").RunS()
+		if err != nil {
+			return errors.Wrapf(err, "could not delete namespace %s", name)
+		}
 	}
+
+	err := kubectl("create", "namespace", name).RunE()
+	if err != nil {
+		return errors.Wrapf(err, "could not create namespace %s", name)
+	}
+
+	err = kubectl("label", "namespace", name, "porter-test=true").RunE()
+	if err != nil {
+		return errors.Wrapf(err, "could not label namespace %s", name)
+	}
+
+	err = kubectl("create", "configmap", "porter", "--namespace", name,
+		"--from-literal=porterVersion=canary",
+		"--from-literal=serviceAccount=porter-agent",
+		"--from-literal=outputsVolumeSize=64Mi").RunE()
+	if err != nil {
+		return errors.Wrap(err, "could not create porter configmap")
+	}
+
+	err = kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
+		"--from-file=config.toml=hack/porter-config.toml").RunE()
+	if err != nil {
+		return errors.Wrap(err, "could not create porter-config secret")
+	}
+
+	err = kubectl("create", "secret", "generic", "porter-env", "--namespace", name,
+		"--from-literal=AZURE_STORAGE_CONNECTION_STRING="+os.Getenv("PORTER_TEST_AZURE_STORAGE_CONNECTION_STRING"),
+		"--from-literal=AZURE_CLIENT_SECRET="+os.Getenv("PORTER_AZURE_CLIENT_SECRET"),
+		"--from-literal=AZURE_CLIENT_ID="+os.Getenv("PORTER_AZURE_CLIENT_ID"),
+		"--from-literal=AZURE_TENANT_ID="+os.Getenv("PORTER_AZURE_TENANT_ID")).RunE()
+	if err != nil {
+		return errors.Wrap(err, "could not create porter-env secret")
+	}
+
+	err = kubectl("create", "serviceaccount", "porter-agent", "--namespace", name).RunE()
+	if err != nil {
+		return errors.Wrapf(err, "could not create porter-agent service account in %s", name)
+	}
+
+	err = kubectl("create", "rolebinding", "porter-agent",
+		"--clusterrole", "porter-operator-agent-role",
+		"--serviceaccount", name+":porter-agent",
+		"--namespace", name).RunE()
+	if err != nil {
+		return errors.Wrapf(err, "could not create porter-agent service account in %s", name)
+	}
+
+	return setClusterNamespace(name)
+}
+
+func Clean() error {
+	mg.Deps(CleanManual, CleanTests)
 	return nil
+}
+
+// Remove data created by running the test suite
+func CleanTests() error {
+	mg.Deps(EnsureCluster)
+
+	return kubectl("delete", "ns", "-l", "porter-test=true").RunV()
+}
+
+// Remove any porter data in the cluster
+func CleanManual() error {
+	mg.Deps(EnsureCluster)
+
+	// Remove manual runs
+	err := kubectl("delete", "jobs", "-l", "porter=true").RunV()
+	if err != nil {
+		return err
+	}
+	return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
 }
 
 // Publish the docker image used to run the Porter jobs.
 func PublishAgent() error {
-	img := "ghcr.io/getporter/porter:kubernetes-canary"
+	img := "localhost:5000/porter:kubernetes-canary"
 	err := shx.RunV("docker", "build", "-t", img, "images/porter")
 	if err != nil {
 		return err
@@ -131,7 +247,7 @@ func PublishAgent() error {
 func Logs() error {
 	mg.Deps(EnsureKubectl)
 
-	return kubectl("logs", "-f", "deployment/porter-operator-controller-manager", "-c=manager", "--namespace", namespace)
+	return kubectl("logs", "-f", "deployment/porter-operator-controller-manager", "-c=manager", "--namespace", operatorNamespace).RunV()
 }
 
 // Install the operator-sdk if necessary
@@ -167,16 +283,16 @@ func EnsureCluster() error {
 	if err != nil {
 		errors.Wrapf(err, "error writing %s", kubeconfig)
 	}
-	return setClusterNamespace()
+	return setClusterNamespace(operatorNamespace)
 }
 
-func setClusterNamespace() error {
-	return shx.RunV("kubectl", "config", "set-context", "--current", "--namespace", "porter-operator-system")
+func setClusterNamespace(name string) error {
+	return shx.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
 }
 
 // Create a KIND cluster named porter.
 func CreateKindCluster() error {
-	mg.Deps(EnsureKind)
+	mg.Deps(EnsureKind, StartDockerRegistry)
 
 	// Determine host ip to populate kind config api server details
 	// https://kind.sigs.k8s.io/docs/user/configuration/#api-server
@@ -198,29 +314,50 @@ func CreateKindCluster() error {
 
 	pwd, _ := os.Getwd()
 	os.Setenv("KUBECONFIG", filepath.Join(pwd, kubeconfig))
-	kindCfg := "kind.config.yaml"
-	contents := fmt.Sprintf(`kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-networking:
-  apiServerAddress: %s
-`, ipAddress)
-	err = ioutil.WriteFile(kindCfg, []byte(contents), 0644)
+	kindCfg, err := ioutil.ReadFile("hack/kind.config.yaml")
+	if err != nil {
+		return errors.Wrap(err, "error reading hack/kind.config.yaml")
+	}
+	kindCfgTmpl, err := template.New("kind.config.yaml").Parse(string(kindCfg))
+	if err != nil {
+		return errors.Wrap(err, "error parsing Kind config template hack/kind.config.yaml")
+	}
+	var kindCfgContents bytes.Buffer
+	kindCfgData := struct {
+		Address string
+	}{
+		Address: ipAddress,
+	}
+	err = kindCfgTmpl.Execute(&kindCfgContents, kindCfgData)
+	err = ioutil.WriteFile("kind.config.yaml", kindCfgContents.Bytes(), 0644)
 	if err != nil {
 		return errors.Wrap(err, "could not write kind config file")
 	}
-	defer os.Remove(kindCfg)
+	defer os.Remove("kind.config.yaml")
 
-	err = shx.RunE("kind", "create", "cluster", "--name", kindClusterName)
+	err = shx.Run("kind", "create", "cluster", "--name", kindClusterName, "--config", "kind.config.yaml")
 	if err != nil {
 		errors.Wrap(err, "could not create KIND cluster")
 	}
 
-	err = setClusterNamespace()
+	// Connect the kind and registry containers on the same network
+	err = shx.Run("docker", "network", "connect", "kind", registryContainer)
+	if err != nil {
+		return errors.Wrap(err, "could not connect the test kind cluster to local docker registry")
+	}
+
+	// Document the local registry
+	err = kubectl("apply", "-f", "hack/local-registry.yaml").Run()
+	if err != nil {
+		return errors.Wrap(err, "could not apply hack/local-registry.yaml")
+	}
+
+	err = setClusterNamespace(operatorNamespace)
 	if err != nil {
 		return err
 	}
 
-	return runMake("install")
+	return makefile("install").RunV()
 }
 
 // Delete the KIND cluster named porter.
@@ -229,10 +366,21 @@ func DeleteKindCluster() error {
 
 	err := shx.RunE("kind", "delete", "cluster", "--name", kindClusterName)
 	if err != nil {
-		errors.Wrap(err, "could not delete KIND cluster")
+		return errors.Wrap(err, "could not delete KIND cluster")
+	}
+
+	if isOnDockerNetwork(registryContainer, "kind") {
+		err = shx.RunE("docker", "network", "disconnect", "kind", registryContainer)
+		return errors.Wrap(err, "could not disconnect the registry container from the docker network: kind")
 	}
 
 	return nil
+}
+
+func isOnDockerNetwork(container string, network string) bool {
+	networkId, _ := shx.OutputE("docker", "network", "inspect", network, "-f", "{{.Id}}")
+	networks, _ := shx.OutputE("docker", "inspect", container, "-f", "{{json .NetworkSettings.Networks}}")
+	return strings.Contains(networks, networkId)
 }
 
 // Install kind if necessary.
@@ -279,20 +427,15 @@ func EnsureKubectl() error {
 	return nil
 }
 
-func runMake(args ...string) error {
-	// Can't call this function make because it redefines the make keyword
-	env := map[string]string{
-		"KUBECONFIG": os.Getenv("KUBECONFIG"),
-	}
+// Run a makefile target
+func makefile(args ...string) shx.PreparedCommand {
+	cmd := shx.Command("make", args...)
+	cmd.Env("KUBECONFIG=" + os.Getenv("KUBECONFIG"))
 
-	return sh.RunWithV(env, "make", args...)
+	return cmd
 }
 
-func kubectl(args ...string) error {
-	return kubectlCmd(args...).RunV()
-}
-
-func kubectlCmd(args ...string) shx.PreparedCommand {
+func kubectl(args ...string) shx.PreparedCommand {
 	kubeconfig := fmt.Sprintf("KUBECONFIG=%s", os.Getenv("KUBECONFIG"))
 	return shx.Command("kubectl", args...).Env(kubeconfig)
 }
@@ -303,4 +446,46 @@ func EnsureYq() error {
 
 func EnsureGinkgo() error {
 	return pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "")
+}
+
+func StartDockerRegistry() error {
+	if isContainerRunning(registryContainer) {
+		return nil
+	}
+
+	err := StopDockerRegistry()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Starting local docker registry")
+	return shx.RunE("docker", "run", "-d", "-p", "5000:5000", "--name", registryContainer, "registry:2")
+}
+
+func StopDockerRegistry() error {
+	if containerExists(registryContainer) {
+		fmt.Println("Stopping local docker registry")
+		return removeContainer(registryContainer)
+	}
+	return nil
+}
+
+func isContainerRunning(name string) bool {
+	out, _ := shx.OutputS("docker", "container", "inspect", "-f", "{{.State.Running}}", name)
+	running, _ := strconv.ParseBool(out)
+	return running
+}
+
+func containerExists(name string) bool {
+	err := shx.RunS("docker", "inspect", name)
+	return err == nil
+}
+
+func removeContainer(name string) error {
+	stderr, err := shx.OutputE("docker", "rm", "-f", name)
+	// Gracefully handle the container already being gone
+	if err != nil && !strings.Contains(stderr, "No such container") {
+		return err
+	}
+	return nil
 }

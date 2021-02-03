@@ -17,6 +17,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - create
@@ -40,6 +47,18 @@ rules:
   - batch
   resources:
   - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs
   verbs:
   - create
   - delete

@@ -32,7 +32,7 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: ghcr.io/getporter/porterops-controller:latest
+        image: manager
         imagePullPolicy: Always
         name: manager
         securityContext:

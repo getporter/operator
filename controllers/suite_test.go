@@ -23,7 +23,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	portershv1 "get.porter.sh/operator/api/v1"
+	porterv1 "get.porter.sh/operator/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -56,7 +56,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = portershv1.AddToScheme(scheme.Scheme)
+	err = porterv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
@@ -160,15 +160,15 @@ debug-plugins = true
 	}
 	Expect(k8sClient.Create(ctx, porterCfg)).To(Succeed())
 
-	// porter configuration
-	porterOpsCfg := &v1.ConfigMap{
+	// Tweak porter agent config for testing
+	porterOpsCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "porter",
 			Namespace: ns.Name,
 		},
-		Data: map[string]string{
-			"porterVersion":  "canary",
-			"serviceAccount": svc.Name,
+		Spec: porterv1.AgentConfigSpec{
+			PorterVersion:  "canary",
+			ServiceAccount: svc.Name,
 		},
 	}
 	Expect(k8sClient.Create(ctx, porterOpsCfg)).To(Succeed())
@@ -183,7 +183,7 @@ func deleteNamespace(name string) {
 			Name: name,
 		},
 	}
-	var background metav1.DeletionPropagation = metav1.DeletePropagationBackground
+	var background = metav1.DeletePropagationBackground
 	err := k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{
 		GracePeriodSeconds: pointer.Int64Ptr(0),
 		PropagationPolicy:  &background,

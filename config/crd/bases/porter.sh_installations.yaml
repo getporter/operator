@@ -41,27 +41,60 @@ spec:
                   Porter will run an install if the installation does not exist, or
                   an upgrade otherwise.
                 type: string
-              credentials:
-                description: Credentials is a list of credential set names.
+              agentConfig:
+                description: AgentConfig overrides the Porter Agent configuration
+                  defined at the namespace or system level.
+                properties:
+                  porterRepository:
+                    description: PorterRepository is the repository for the Porter
+                      Agent image. Defaults to ghcr.io/getporter/porter
+                    type: string
+                  porterVersion:
+                    description: PorterVersion is the tag for the Porter Agent image.
+                      Defaults to latest.
+                    type: string
+                  pullPolicy:
+                    description: PullPolicy specifies when to pull the Porter Agent
+                      image. The default is to use PullAlways when the tag is canary
+                      or latest, and PullIfNotPresent otherwise.
+                    type: string
+                  serviceAccount:
+                    description: ServiceAccount is the service account to run the
+                      Porter Agent under.
+                    type: string
+                  volumeSize:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: VolumeSize is the size of the persistent volume that
+                      Porter will request when running the Porter Agent. It is used
+                      to share data between the Porter Agent and the bundle invocation
+                      image. It must be large enough to store any files used by the
+                      bundle including credentials, parameters and outputs.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                type: object
+              credentialSets:
+                description: CredentialSets is a list of credential set names.
+                items:
+                  type: string
+                type: array
+              parameterSets:
+                description: ParameterSets is a list of parameter set names.
                 items:
                   type: string
                 type: array
               parameters:
-                description: Parameters is a list of parameter set names.
-                items:
+                additionalProperties:
                   type: string
-                type: array
-              porterVersion:
-                description: PorterVersion is the version of the Porter CLI to use
-                  when executing the bundle. Defaults to "latest"
-                type: string
+                description: Parameters is a list of parameter set names.
+                type: object
               reference:
                 description: Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
                 type: string
-              serviceAccount:
-                type: string
             required:
             - action
+            - agentConfig
             - reference
             type: object
           status:

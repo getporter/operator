@@ -1,0 +1,15 @@
+debug = true
+debug-plugins = true
+default-storage-plugin = "azure.table"
+default-secrets = "porter"
+
+[[storage]]
+  name = "porter-test"
+  plugin = "azure.table"
+
+[[secrets]]
+  name = "porter"
+  plugin = "azure.keyvault"
+
+[secrets.config]
+  vault = "porter"

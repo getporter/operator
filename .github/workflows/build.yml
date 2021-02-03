@@ -11,10 +11,10 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: go run mage.go build deploy test
+      - run: go run mage.go -v build deploy test
       - name: Set Docker Metadata
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v1 # crazy-max is in fact legit
+        uses: crazy-max/ghaction-docker-meta@v1 # crazy-max is, in fact, legit
         with:
           images: ghcr.io/getporter/porterops-controller
           tag-semver: |

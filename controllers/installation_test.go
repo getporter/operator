@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
+	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,19 +40,18 @@ var _ = Describe("Installation controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: apiv1.InstallationSpec{
-					Reference:      "getporter/porter-hello:v0.1.1",
-					Action:         "install",
-					PorterVersion:  "canary",
-					ServiceAccount: "porter-agent",
+					Reference: "getporter/porter-hello:v0.1.1",
+					Action:    "install",
+					AgentConfig: apiv1.AgentConfigSpec{
+						PorterVersion:  "canary",
+						ServiceAccount: "porter-agent",
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 
-			jobs := &batchv1.JobList{}
-			inNamespace := client.InNamespace(testNamespace)
-			err := k8sClient.List(ctx, jobs, inNamespace)
-			Expect(err).Should(Succeed())
-			Expect(jobs.Items).Should(HaveLen(1))
+			// Wait for the job to be created
+			jobs := waitForJobStarted(ctx)
 
 			job := jobs.Items[0]
 			Expect(job.Labels).Should(gstruct.MatchKeys(gstruct.IgnoreMissing, gstruct.Keys{
@@ -72,18 +72,7 @@ var _ = Describe("Installation controller", func() {
 			Expect(container.VolumeMounts).Should(ContainElement(IsVolumeMount("porter-config")))
 
 			// Validate that the job succeeded
-			waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			defer cancel()
-			for {
-				err = k8sClient.Get(waitCtx, types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, &job)
-				Expect(err).ToNot(HaveOccurred())
-
-				if IsJobDone(job.Status) {
-					break
-				}
-
-				time.Sleep(500 * time.Millisecond)
-			}
+			job = waitForJobFinished(ctx, job)
 
 			// If the job failed, print some debug info
 			if job.Status.Succeeded == 0 {
@@ -101,6 +90,49 @@ var _ = Describe("Installation controller", func() {
 		})
 	})
 })
+
+func waitForJobStarted(ctx context.Context) batchv1.JobList {
+	jobs := batchv1.JobList{}
+	inNamespace := client.InNamespace(testNamespace)
+	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	for {
+		select {
+		case <-waitCtx.Done():
+			Fail(errors.Wrap(waitCtx.Err(), "timeout waiting for job to be created").Error())
+		default:
+			err := k8sClient.List(ctx, &jobs, inNamespace)
+			Expect(err).Should(Succeed())
+			if len(jobs.Items) > 0 {
+				return jobs
+			}
+
+			time.Sleep(time.Second)
+			continue
+		}
+	}
+}
+
+func waitForJobFinished(ctx context.Context, job batchv1.Job) batchv1.Job {
+	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	for {
+		select {
+		case <-waitCtx.Done():
+			fmt.Println(job.String())
+			Fail(errors.Wrapf(waitCtx.Err(), "timeout waiting for job %s/%s to complete", job.Namespace, job.Name).Error())
+		default:
+			jobName := types.NamespacedName{Name: job.Name, Namespace: job.Namespace}
+			Expect(k8sClient.Get(waitCtx, jobName, &job)).To(Succeed())
+
+			if IsJobDone(job.Status) {
+				return job
+			}
+
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+}
 
 func IsVolume(name string) gomegatypes.GomegaMatcher {
 	return WithTransform(func(v corev1.Volume) string { return v.Name }, Equal(name))
