@@ -48,26 +48,27 @@ const (
 	registryContainer = "registry"
 )
 
-// Install mage if necessary.
+// Ensure mage is installed.
 func EnsureMage() error {
-
+	addGopathBinOnGithubActions()
 	return pkg.EnsureMage("v1.11.0")
 }
 
 // Add GOPATH/bin to the path on the GitHub Actions agent
-func ensureGopathBin() error {
-	if _, ok := os.LookupEnv("CI"); !ok {
+func addGopathBinOnGithubActions() error {
+	githubPath := os.Getenv("GITHUB_PATH")
+	if githubPath == "" {
 		return nil
 	}
 
-	log.Println("Adding GOPATH/bin to the PATH for the GitHub Agent")
-	githubPath := os.Getenv("GITHUB_PATH")
+	log.Println("Adding GOPATH/bin to the PATH for the GitHub Actions Agent")
 	gopathBin := pkg.GetGopathBin()
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
+// Compile the operator and generate manifests.
 func Build() error {
-	return makefile("all").RunV()
+	return makefile("all", "manifests").RunV()
 }
 
 // Run tests against the test cluster.
@@ -77,7 +78,7 @@ func Test() error {
 	return makefile("test").RunV()
 }
 
-// Build the controller and deploy it to the test cluster.
+// Build the operator and deploy it to the test cluster.
 func Deploy() error {
 	mg.Deps(EnsureCluster, StartDockerRegistry, Build)
 
@@ -91,16 +92,14 @@ func Deploy() error {
 	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).Run()
 }
 
+// Reapply the file in config/samples, usage: mage bump porter-hello.
 func Bump(sample string) error {
 	mg.Deps(EnsureTestNamespace, EnsureYq)
 
-	data, err := kubectl("get", "installation.porter.sh", sample, "-o", "yaml").OutputS()
-	dataB := []byte(data)
+	sampleFile := fmt.Sprintf("config/samples/%s.yaml", sample)
+	dataB, err := ioutil.ReadFile(sampleFile)
 	if err != nil {
-		dataB, err = ioutil.ReadFile(fmt.Sprintf("config/samples/%s.yaml", sample))
-		if err != nil {
-			return errors.New("cannot find the definition for porter-hello")
-		}
+		return errors.Errorf("error reading installation definition %s", sampleFile)
 	}
 
 	retryCountField := ".metadata.annotations.retryCount"
@@ -115,7 +114,6 @@ func Bump(sample string) error {
 	if err != nil {
 		x = 0
 	}
-	log.Println("retry count =", retryCount)
 	retryCount = strconv.Itoa(x + 1)
 
 	cmd = shx.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-")
@@ -131,6 +129,7 @@ func Bump(sample string) error {
 	return cmd.RunV()
 }
 
+// Ensures that a namespace named "test" exists.
 func EnsureTestNamespace() error {
 	if namespaceExists(testNamespace) {
 		return nil
@@ -148,7 +147,8 @@ func namespaceExists(name string) bool {
 	return err == nil
 }
 
-// Create a namespace and configure it to work with the operator
+// Create a namespace, usage: mage SetupNamespace demo.
+// Configures the namespace for use with the operator.
 func SetupNamespace(name string) error {
 	mg.Deps(EnsureCluster)
 
@@ -208,6 +208,7 @@ func SetupNamespace(name string) error {
 	return setClusterNamespace(name)
 }
 
+// Delete operator data from the test cluster.
 func Clean() error {
 	mg.Deps(CleanManual, CleanTests)
 	return nil
@@ -232,7 +233,7 @@ func CleanManual() error {
 	return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
 }
 
-// Publish the docker image used to run the Porter jobs.
+// Publish the Porter agent image to the local docker registry.
 func PublishAgent() error {
 	img := "localhost:5000/porter:kubernetes-canary"
 	err := shx.RunV("docker", "build", "-t", img, "images/porter")
@@ -243,14 +244,14 @@ func PublishAgent() error {
 	return shx.RunV("docker", "push", img)
 }
 
-// Follow the logs for the controller.
+// Follow the logs for the operator.
 func Logs() error {
 	mg.Deps(EnsureKubectl)
 
 	return kubectl("logs", "-f", "deployment/porter-operator-controller-manager", "-c=manager", "--namespace", operatorNamespace).RunV()
 }
 
-// Install the operator-sdk if necessary
+// Ensure operator-sdk is installed.
 func EnsureOperatorSDK() error {
 	const version = "v1.3.0"
 
@@ -383,7 +384,7 @@ func isOnDockerNetwork(container string, network string) bool {
 	return strings.Contains(networks, networkId)
 }
 
-// Install kind if necessary.
+// Ensure kind is installed.
 func EnsureKind() error {
 	if ok, _ := pkg.IsCommandAvailable("kind", ""); ok {
 		return nil
@@ -398,7 +399,7 @@ func EnsureKind() error {
 	return nil
 }
 
-// Install kubectl if necessary.
+// Ensure kubectl is installed.
 func EnsureKubectl() error {
 	if ok, _ := pkg.IsCommandAvailable("kubectl", ""); ok {
 		return nil
@@ -440,14 +441,17 @@ func kubectl(args ...string) shx.PreparedCommand {
 	return shx.Command("kubectl", args...).Env(kubeconfig)
 }
 
+// Ensures that yq is installed.
 func EnsureYq() error {
 	return pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", "")
 }
 
+// Ensures that ginkgo is installed.
 func EnsureGinkgo() error {
 	return pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "")
 }
 
+// Ensure that a local docker registry is running.
 func StartDockerRegistry() error {
 	if isContainerRunning(registryContainer) {
 		return nil
@@ -462,6 +466,7 @@ func StartDockerRegistry() error {
 	return shx.RunE("docker", "run", "-d", "-p", "5000:5000", "--name", registryContainer, "registry:2")
 }
 
+// Stops the local docker registry.
 func StopDockerRegistry() error {
 	if containerExists(registryContainer) {
 		fmt.Println("Stopping local docker registry")

@@ -24,6 +24,7 @@ type InstallationSpec struct {
 	Action string `json:"action"`
 
 	// AgentConfig overrides the Porter Agent configuration defined at the namespace or system level.
+	// +optional
 	AgentConfig AgentConfigSpec `json:"agentConfig,omitEmpty"`
 
 	// TODO: Force pull, debug and other flags

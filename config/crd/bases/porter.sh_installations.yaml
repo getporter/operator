@@ -94,7 +94,6 @@ spec:
                 type: string
             required:
             - action
-            - agentConfig
             - reference
             type: object
           status:
