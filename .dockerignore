@@ -7,3 +7,5 @@
 # Don't pull in the dependencies for mage
 mage.go
 magefile.go
+bin
+testbin

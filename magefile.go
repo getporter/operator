@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -48,6 +49,12 @@ const (
 	registryContainer = "registry"
 )
 
+var (
+	Registry        = "localhost:5000"
+	ControllerImage = path.Join(Registry, "porterops-controller:canary")
+	AgentImage      = path.Join(Registry, "porter:kubernetes-canary")
+)
+
 // Ensure mage is installed.
 func EnsureMage() error {
 	addGopathBinOnGithubActions()
@@ -66,9 +73,40 @@ func addGopathBinOnGithubActions() error {
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
-// Compile the operator and generate manifests.
+func Generate() error {
+	return shx.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
+}
+
+func Fmt() error {
+	return shx.RunV("go", "fmt", "./...")
+}
+
+func Vet() error {
+	return shx.RunV("go", "vet", "./...")
+}
+
+// Compile the operator.
 func Build() error {
-	return makefile("all", "manifests").RunV()
+	mg.Deps(Fmt, Vet)
+	return shx.RunV("go", "build", "-o", "bin/manager", "main.go")
+}
+
+func Bundle() error {
+	mg.Deps(BuildManifests)
+	return nil
+}
+
+func BuildManifests() error {
+	mg.Deps(EnsureKustomize, EnsureControllerGen)
+
+	// Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
+
+	err := shx.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
+	if err != nil {
+		return err
+	}
+	return kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
 }
 
 // Run tests against the test cluster.
@@ -82,14 +120,51 @@ func Test() error {
 func Deploy() error {
 	mg.Deps(EnsureCluster, StartDockerRegistry, Build)
 
-	err := makefile("docker-build", "docker-push", "deploy").
-		Env("REGISTRY=localhost:5000").
-		RunV()
+	err := kustomize("edit", "set", "image", "manager="+ControllerImage).In("config/manager").Run()
 	if err != nil {
 		return err
 	}
 
-	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).Run()
+	err = BuildManifests()
+	if err != nil {
+		return err
+	}
+
+	err = kubectl("apply", "-f", "manifests.yaml").Run()
+	if err != nil {
+		return err
+	}
+
+	err = PublishController()
+	if err != nil {
+		return err
+	}
+
+	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
+}
+
+func PublishImages() error {
+	mg.Deps(PublishAgent, PublishController)
+	return nil
+}
+
+// Publish the Porter agent image to the local docker registry.
+func PublishAgent() error {
+	err := shx.RunV("docker", "build", "-t", AgentImage, "images/porter")
+	if err != nil {
+		return err
+	}
+
+	return shx.RunV("docker", "push", AgentImage)
+}
+
+func PublishController() error {
+	err := shx.RunV("docker", "build", "-t", ControllerImage, ".")
+	if err != nil {
+		return err
+	}
+
+	return shx.RunV("docker", "build", "-t", ControllerImage, ".")
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.
@@ -231,17 +306,6 @@ func CleanManual() error {
 		return err
 	}
 	return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
-}
-
-// Publish the Porter agent image to the local docker registry.
-func PublishAgent() error {
-	img := "localhost:5000/porter:kubernetes-canary"
-	err := shx.RunV("docker", "build", "-t", img, "images/porter")
-	if err != nil {
-		return err
-	}
-
-	return shx.RunV("docker", "push", img)
 }
 
 // Follow the logs for the operator.
@@ -441,14 +505,31 @@ func kubectl(args ...string) shx.PreparedCommand {
 	return shx.Command("kubectl", args...).Env(kubeconfig)
 }
 
-// Ensures that yq is installed.
+func kustomize(args ...string) shx.PreparedCommand {
+	pwd, _ := os.Getwd()
+	cmd := filepath.Join(pwd, "bin/kustomize")
+	return shx.Command(cmd, args...)
+}
+
+// Ensure yq is installed.
 func EnsureYq() error {
 	return pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", "")
 }
 
-// Ensures that ginkgo is installed.
+// Ensure ginkgo is installed.
 func EnsureGinkgo() error {
 	return pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "")
+}
+
+// Ensure kustomize is installed.
+func EnsureKustomize() error {
+	// TODO: implement installing from a URL that is tgz
+	return makefile("kustomize").Run()
+}
+
+// Ensure controller-gen is installed.
+func EnsureControllerGen() error {
+	return pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.4.1", "--version")
 }
 
 // Ensure that a local docker registry is running.

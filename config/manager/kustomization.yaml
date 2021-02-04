@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: manager
   newName: localhost:5000/porterops-controller
-  newTag: latest
+  newTag: canary

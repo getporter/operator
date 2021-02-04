@@ -16,8 +16,6 @@ REGISTRY ?= localhost:5000
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${REGISTRY}/porterops-controller:latest
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -37,7 +35,7 @@ test: generate fmt vet manifests
 
 # Build manager binary
 manager: generate fmt vet
-	go build -o bin/manager main.go
+	go run mage.go manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet manifests
@@ -53,36 +51,31 @@ uninstall: manifests kustomize
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests kustomize
-	cd config/manager && $(KUSTOMIZE) edit set image manager=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	go run mage.go deploy
 
 # UnDeploy controller from the configured Kubernetes cluster in ~/.kube/config
 undeploy:
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
-manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+manifests:
+	go run mage.go BuildManifests
 
 # Run go fmt against code
 fmt:
-	go fmt ./...
+	go run mage.go fmt
 
 # Run go vet against code
 vet:
-	go vet ./...
+	go run mage.go vet
 
 # Generate code
-generate: controller-gen
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-# Build the docker image
-docker-build:
-	docker build -t ${IMG} .
+generate:
+	go run mage.go generate
 
 # Push the docker image
 docker-push:
-	docker push ${IMG}
+	go run mage.go PublishImages
 
 # Download controller-gen locally if necessary
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
