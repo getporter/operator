@@ -12,13 +12,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 
+	. "get.porter.sh/operator/mage"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
@@ -31,7 +31,7 @@ import (
 
 const (
 	// Version of KIND to install if not already present
-	kindVersion = "v0.9.0"
+	kindVersion = "v0.10.0"
 
 	// Name of the KIND cluster used for testing
 	kindClusterName = "porter"
@@ -47,12 +47,6 @@ const (
 
 	// Container name of the local registry
 	registryContainer = "registry"
-)
-
-var (
-	Registry        = "localhost:5000"
-	ControllerImage = path.Join(Registry, "porterops-controller:canary")
-	AgentImage      = path.Join(Registry, "porter:kubernetes-canary")
 )
 
 // Ensure mage is installed.
@@ -88,24 +82,44 @@ func Vet() error {
 // Compile the operator.
 func Build() error {
 	mg.Deps(Fmt, Vet)
+
+	LoadMetadatda()
+
 	return shx.RunV("go", "build", "-o", "bin/manager", "main.go")
 }
 
 func Bundle() error {
-	mg.Deps(BuildManifests)
-	return nil
+	mg.SerialDeps(UseProductionEnvironment, BuildManifests)
+
+	err := shx.Copy("manifests.yaml", "installer/")
+	if err != nil {
+		return err
+	}
+
+	// TODO: set --version
+	return shx.Command("porter", "publish", "--debug").In("installer").RunV()
 }
 
 func BuildManifests() error {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
-	// Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
-
-	err := shx.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
+	fmt.Println("Using environment", Env.Name)
+	err := kustomize("edit", "set", "image", "manager="+Env.ControllerImage).In("config/manager").Run()
 	if err != nil {
 		return err
 	}
+
+	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "could not remove generated manifests directory")
+	}
+
+	// Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
+	err = shx.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
+	if err != nil {
+		return err
+	}
+
 	return kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
 }
 
@@ -122,7 +136,7 @@ func TestUnit() error {
 
 // Run integration tests against the test cluster.
 func TestIntegration() error {
-	mg.Deps(CleanTests, EnsureGinkgo)
+	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo)
 
 	if !isDeployed() {
 		mg.Deps(Deploy)
@@ -133,14 +147,9 @@ func TestIntegration() error {
 
 // Build the operator and deploy it to the test cluster.
 func Deploy() error {
-	mg.Deps(EnsureCluster, StartDockerRegistry, Build)
+	mg.Deps(UseTestEnvironment, EnsureCluster, StartDockerRegistry, Build)
 
-	err := kustomize("edit", "set", "image", "manager="+ControllerImage).In("config/manager").Run()
-	if err != nil {
-		return err
-	}
-
-	err = BuildManifests()
+	err := BuildManifests()
 	if err != nil {
 		return err
 	}
@@ -173,21 +182,21 @@ func PublishImages() error {
 
 // Publish the Porter agent image to the local docker registry.
 func PublishAgent() error {
-	err := shx.RunV("docker", "build", "-t", AgentImage, "images/porter")
+	err := shx.RunV("docker", "build", "-t", Env.AgentImage, "images/porter")
 	if err != nil {
 		return err
 	}
 
-	return shx.RunV("docker", "push", AgentImage)
+	return shx.RunV("docker", "push", Env.AgentImage)
 }
 
 func PublishController() error {
-	err := shx.RunV("docker", "build", "-t", ControllerImage, ".")
+	err := shx.RunV("docker", "build", "-t", Env.ControllerImage, ".")
 	if err != nil {
 		return err
 	}
 
-	return shx.RunV("docker", "build", "-t", ControllerImage, ".")
+	return shx.RunV("docker", "build", "-t", Env.ControllerImage, ".")
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.

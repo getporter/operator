@@ -1,0 +1,43 @@
+name: porter-operator
+version: 0.1.0
+description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
+registry: ghcr.io/getporter
+
+credentials:
+  - name: kubeconfig
+    description: Kubeconfig file for cluster where the operator should be installed
+    path: /root/.kube/config
+
+mixins:
+  - exec
+  - kubernetes
+
+install:
+  - kubernetes:
+      description: "Apply manifests"
+      manifests:
+        - manifests.yaml
+      wait: true
+
+upgrade:
+  - kubernetes:
+      description: "Apply manifests"
+      manifests:
+        - manifests.yaml
+      wait: true
+  - exec:
+      description: "Restart operator deployment"
+      command: kubectl
+      arguments:
+        - rollout
+        - restart
+        - deployment/porter-operator-controller-manager
+      flags:
+        namespace: porter-operator-system
+
+uninstall:
+  - kubernetes:
+      description: "Apply manifests"
+      manifests:
+        - manifests.yaml
+      wait: true
