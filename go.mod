@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	get.porter.sh/porter v0.32.0
-	github.com/carolynvs/magex v0.3.1-0.20210121165806-e2c237fbee9e
+	github.com/carolynvs/magex v0.4.2-0.20210204161411-11a3ed79dee6
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
 	github.com/onsi/ginkgo v1.14.1
