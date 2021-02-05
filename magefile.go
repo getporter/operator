@@ -117,7 +117,7 @@ func Test() error {
 
 // Run unit tests.
 func TestUnit() error {
-	return shx.RunV("go", "test", "./...", "-coverprofile", "coverage-integration.out")
+	return shx.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
 }
 
 // Run integration tests against the test cluster.

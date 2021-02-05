@@ -22,7 +22,17 @@ jobs:
       - name: Build
         run: mage -v build
       - name: Test
-        run: mage -v deploy test
+        run: mage -v test
+      - name: Report Unit Test Coverage
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage-unit.out
+          flags: unit-tests
+      - name: Report Integraion Test Coverage
+        uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage-integration.out
+          flags: integration-tests
       - name: Set Docker Metadata
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1 # crazy-max is, in fact, legit
