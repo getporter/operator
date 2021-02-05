@@ -1,3 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
 resources:
 - manager.yaml
 
@@ -8,9 +11,8 @@ configMapGenerator:
 - files:
   - controller_manager_config.yaml
   name: manager-config
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+
 images:
 - name: manager
-  newName: localhost:5000/porterops-controller
+  newName: ghcr.io/getporter/porterops-controller
   newTag: canary
