@@ -109,11 +109,26 @@ func BuildManifests() error {
 	return kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
 }
 
-// Run tests against the test cluster.
+// Run all tests
 func Test() error {
+	mg.Deps(TestUnit, TestIntegration)
+	return nil
+}
+
+// Run unit tests.
+func TestUnit() error {
+	return shx.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
+}
+
+// Run integration tests against the test cluster.
+func TestIntegration() error {
 	mg.Deps(CleanTests, EnsureGinkgo)
 
-	return makefile("test").RunV()
+	if !isDeployed() {
+		mg.Deps(Deploy)
+	}
+
+	return shx.Run("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
 }
 
 // Build the operator and deploy it to the test cluster.
@@ -141,6 +156,14 @@ func Deploy() error {
 	}
 
 	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
+}
+
+func isDeployed() bool {
+	if ok, _ := useCluster(); ok {
+		err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).RunS()
+		return err == nil
+	}
+	return false
 }
 
 func PublishImages() error {
@@ -291,21 +314,23 @@ func Clean() error {
 
 // Remove data created by running the test suite
 func CleanTests() error {
-	mg.Deps(EnsureCluster)
-
-	return kubectl("delete", "ns", "-l", "porter-test=true").RunV()
+	if ok, _ := useCluster(); ok {
+		return kubectl("delete", "ns", "-l", "porter-test=true").RunV()
+	}
+	return nil
 }
 
 // Remove any porter data in the cluster
 func CleanManual() error {
-	mg.Deps(EnsureCluster)
+	if ok, _ := useCluster(); ok {
+		err := kubectl("delete", "jobs", "-l", "porter=true").RunV()
+		if err != nil {
+			return err
+		}
 
-	// Remove manual runs
-	err := kubectl("delete", "jobs", "-l", "porter=true").RunV()
-	if err != nil {
-		return err
+		return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
 	}
-	return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
+	return nil
 }
 
 // Follow the logs for the operator.
@@ -331,24 +356,50 @@ func EnsureOperatorSDK() error {
 func EnsureCluster() error {
 	mg.Deps(EnsureKubectl)
 
-	contents, err := shx.OutputE("kind", "get", "kubeconfig", "--name", kindClusterName)
+	ok, err := useCluster()
 	if err != nil {
-		return CreateKindCluster()
+		return err
 	}
 
-	log.Println("Reusing existing kind cluster")
-	pwd, _ := os.Getwd()
-	userKubeConfig, _ := filepath.Abs(os.Getenv("KUBECONFIG"))
-	currentKubeConfig := filepath.Join(pwd, kubeconfig)
-	if userKubeConfig != currentKubeConfig {
-		fmt.Printf("ATTENTION! You should set your KUBECONFIG to match the cluster used by this project\n\n\texport KUBECONFIG=%s\n\n", currentKubeConfig)
+	if !ok {
+		return CreateKindCluster()
 	}
-	os.Setenv("KUBECONFIG", currentKubeConfig)
-	err = ioutil.WriteFile(kubeconfig, []byte(contents), 0644)
-	if err != nil {
-		errors.Wrapf(err, "error writing %s", kubeconfig)
+	return nil
+}
+
+// get the config of the current kind cluster, if available
+func getClusterConfig() (kubeconfig string, ok bool) {
+	contents, err := shx.OutputE("kind", "get", "kubeconfig", "--name", kindClusterName)
+	return contents, err == nil
+}
+
+// setup environment to use the current kind cluster, if availabe
+func useCluster() (bool, error) {
+	contents, ok := getClusterConfig()
+	if ok {
+		log.Println("Reusing existing kind cluster")
+
+		userKubeConfig, _ := filepath.Abs(os.Getenv("KUBECONFIG"))
+		currentKubeConfig := filepath.Join(pwd(), kubeconfig)
+		if userKubeConfig != currentKubeConfig {
+			fmt.Printf("ATTENTION! You should set your KUBECONFIG to match the cluster used by this project\n\n\texport KUBECONFIG=%s\n\n", currentKubeConfig)
+		}
+		os.Setenv("KUBECONFIG", currentKubeConfig)
+
+		err := ioutil.WriteFile(kubeconfig, []byte(contents), 0644)
+		if err != nil {
+			errors.Wrapf(err, "error writing %s", kubeconfig)
+		}
+
+		err = setClusterNamespace(operatorNamespace)
+		if err != nil {
+			return false, err
+		}
+
+		return true, nil
 	}
-	return setClusterNamespace(operatorNamespace)
+
+	return false, nil
 }
 
 func setClusterNamespace(name string) error {
@@ -377,8 +428,7 @@ func CreateKindCluster() error {
 		}
 	}
 
-	pwd, _ := os.Getwd()
-	os.Setenv("KUBECONFIG", filepath.Join(pwd, kubeconfig))
+	os.Setenv("KUBECONFIG", filepath.Join(pwd(), kubeconfig))
 	kindCfg, err := ioutil.ReadFile("hack/kind.config.yaml")
 	if err != nil {
 		return errors.Wrap(err, "error reading hack/kind.config.yaml")
@@ -506,8 +556,7 @@ func kubectl(args ...string) shx.PreparedCommand {
 }
 
 func kustomize(args ...string) shx.PreparedCommand {
-	pwd, _ := os.Getwd()
-	cmd := filepath.Join(pwd, "bin/kustomize")
+	cmd := filepath.Join(pwd(), "bin/kustomize")
 	return shx.Command(cmd, args...)
 }
 
@@ -574,4 +623,9 @@ func removeContainer(name string) error {
 		return err
 	}
 	return nil
+}
+
+func pwd() string {
+	wd, _ := os.Getwd()
+	return wd
 }
