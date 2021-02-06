@@ -1,0 +1,55 @@
+name: olm
+version: 0.1.0
+description: "Installs the Operator Lifecycle Manager (OLM)"
+registry: ghcr.io/getporter
+
+credentials:
+  - name: kubeconfig
+    description: A Kubernetes config file with privileges to create new Namespaces, Deployments, ClusterRoles, ClusterRoleBindings and CustomResourceDefinitions.
+    path: /root/.kube/config
+
+parameters:
+  - name: version
+    description: The version of OLM
+    type: string
+    env: OLM_VERSION
+    path: /cnab/app/version.txt
+    default: latest
+    source:
+      output: version
+
+outputs:
+  - name: version
+    description: Installed version of OLM
+    type: string
+    path: /cnab/app/version.txt
+    applyTo:
+      - install
+      - upgrade
+
+mixins:
+  - exec
+  - jq
+  - kubernetes:
+      clientVersion: v1.20.2
+
+install:
+  - exec:
+      description: "Install Operator Lifecycle Manager (OLM)"
+      command: ./helpers.sh
+      arguments:
+        - install
+
+upgrade:
+  - exec:
+      description: "Upgrade Operator Lifecycle Manager (OLM)"
+      command: ./helpers.sh
+      arguments:
+        - upgrade
+
+uninstall:
+  - exec:
+      description: "Uninstall Operator Lifecycle Manager (OLM)"
+      command: ./helpers.sh
+      arguments:
+        - uninstall
