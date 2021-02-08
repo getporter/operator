@@ -198,7 +198,7 @@ func PublishController() error {
 		return err
 	}
 
-	return shx.RunV("docker", "build", "-t", Env.ControllerImage, ".")
+	return shx.RunV("docker", "push", Env.ControllerImage)
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.
@@ -478,12 +478,7 @@ func CreateKindCluster() error {
 		return errors.Wrap(err, "could not apply hack/local-registry.yaml")
 	}
 
-	err = setClusterNamespace(operatorNamespace)
-	if err != nil {
-		return err
-	}
-
-	return makefile("install").RunV()
+	return setClusterNamespace(operatorNamespace)
 }
 
 // Delete the KIND cluster named porter.

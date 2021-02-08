@@ -16,14 +16,20 @@ install:
   - kubernetes:
       description: "Apply manifests"
       manifests:
-        - manifests.yaml
+        - manifests/operator.yaml
       wait: true
+  - exec:
+      description: "Wait for deployment"
+      command: kubectl
+      arguments:
+        - rollout
+        - status
 
 upgrade:
   - kubernetes:
       description: "Apply manifests"
       manifests:
-        - manifests.yaml
+        - manifests/operator.yaml
       wait: true
   - exec:
       description: "Restart operator deployment"
@@ -34,10 +40,25 @@ upgrade:
         - deployment/porter-operator-controller-manager
       flags:
         namespace: porter-operator-system
+  - exec:
+      description: "Wait for deployment"
+      command: kubectl
+      arguments:
+        - rollout
+        - status
+
+create-namespace:
+  - kubernetes:
+      description: |-
+        Configure a namespace for the Porter Operator.
+        Create a namespace with a porter-agent service account with the porter-agent role.
+      namespace: "{{ bundle.parameters.namespace }}"
+      manifests:
+        -
 
 uninstall:
   - kubernetes:
       description: "Apply manifests"
       manifests:
-        - manifests.yaml
+        - manifests/operator.yaml
       wait: true
