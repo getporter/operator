@@ -182,7 +182,8 @@ func PublishImages() error {
 
 // Publish the Porter agent image to the local docker registry.
 func PublishAgent() error {
-	err := shx.RunV("docker", "build", "-t", Env.AgentImage, "images/porter")
+	err := shx.Command("docker", "build", "-t", Env.AgentImage, "images/porter").
+		Env("DOCKER_BUILDKIT=1").RunV()
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,8 @@ func PublishAgent() error {
 }
 
 func PublishController() error {
-	err := shx.RunV("docker", "build", "-t", Env.ControllerImage, ".")
+	err := shx.Command("docker", "build", "-t", Env.ControllerImage, ".").
+		Env("DOCKER_BUILDKIT=1").RunV()
 	if err != nil {
 		return err
 	}
