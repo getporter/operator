@@ -186,9 +186,8 @@ func Bump(sample string) {
 	mgx.Must(errors.Errorf("error reading installation definition %s", sampleFile))
 
 	retryCountField := ".metadata.annotations.retryCount"
-	cmd := must.Command("yq", "eval", retryCountField, "-")
-	cmd.Cmd.Stdin = bytes.NewReader(dataB)
-	retryCount, _ := cmd.OutputE()
+	retryCount, _ := must.Command("yq", "eval", retryCountField, "-").
+		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	x, err := strconv.Atoi(retryCount)
 	if err != nil {
@@ -196,14 +195,11 @@ func Bump(sample string) {
 	}
 	retryCount = strconv.Itoa(x + 1)
 
-	cmd = must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-")
-	cmd.Cmd.Stdin = bytes.NewReader(dataB)
-	crd, _ := cmd.OutputE()
+	crd, _ := must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-").
+		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	log.Println(crd)
-	cmd = kubectl("apply", "-f", "-")
-	cmd.Cmd.Stdin = strings.NewReader(crd)
-	cmd.RunV()
+	kubectl("apply", "-f", "-").Stdin(strings.NewReader(crd)).RunV()
 }
 
 // Ensures that a namespace named "test" exists.
