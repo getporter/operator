@@ -14,5 +14,5 @@ configMapGenerator:
 
 images:
 - name: manager
-  newName: ghcr.io/getporter/porterops-controller
+  newName: localhost:5000/porterops-controller
   newTag: canary
