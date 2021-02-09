@@ -19,6 +19,7 @@ import (
 	"text/template"
 
 	. "get.porter.sh/operator/mage"
+	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
@@ -49,6 +50,9 @@ const (
 	registryContainer = "registry"
 )
 
+// Build a command that stops the build on if the command fails
+var must = shx.CommandBuilder{StopOnError: true}
+
 // Ensure mage is installed.
 func EnsureMage() error {
 	addGopathBinOnGithubActions()
@@ -56,6 +60,7 @@ func EnsureMage() error {
 }
 
 // Add GOPATH/bin to the path on the GitHub Actions agent
+// TODO: Add to magex
 func addGopathBinOnGithubActions() error {
 	githubPath := os.Getenv("GITHUB_PATH")
 	if githubPath == "" {
@@ -67,157 +72,122 @@ func addGopathBinOnGithubActions() error {
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
-func Generate() error {
-	return shx.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
+func Generate() {
+	must.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
 }
 
-func Fmt() error {
-	return shx.RunV("go", "fmt", "./...")
+func Fmt() {
+	must.RunV("go", "fmt", "./...")
 }
 
-func Vet() error {
-	return shx.RunV("go", "vet", "./...")
+func Vet() {
+	must.RunV("go", "vet", "./...")
 }
 
 // Compile the operator.
-func Build() error {
+func Build() {
 	mg.Deps(Fmt, Vet)
 
 	LoadMetadatda()
 
-	return shx.RunV("go", "build", "-o", "bin/manager", "main.go")
+	must.RunV("go", "build", "-o", "bin/manager", "main.go")
 }
 
-func Bundle() error {
+func Bundle() {
 	mg.SerialDeps(UseProductionEnvironment, BuildManifests)
 
-	err := shx.Copy("manifests.yaml", "installer/")
-	if err != nil {
-		return err
-	}
+	mgx.Must(shx.Copy("manifests.yaml", "installer/"))
 
 	// TODO: set --version
-	return shx.Command("porter", "publish", "--debug").In("installer").RunV()
+	must.Command("porter", "publish", "--debug").In("installer").RunV()
 }
 
-func BuildManifests() error {
+func BuildManifests() {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
 	fmt.Println("Using environment", Env.Name)
-	err := kustomize("edit", "set", "image", "manager="+Env.ControllerImage).In("config/manager").Run()
-	if err != nil {
-		return err
-	}
+	kustomize("edit", "set", "image", "manager="+Env.ControllerImage).In("config/manager").Run()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "could not remove generated manifests directory")
+		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
 	}
 
 	// Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
-	err = shx.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
-	if err != nil {
-		return err
-	}
 
-	return kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
+	must.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
+	kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
 }
 
 // Run all tests
-func Test() error {
+func Test() {
 	mg.Deps(TestUnit, TestIntegration)
-	return nil
 }
 
 // Run unit tests.
-func TestUnit() error {
-	return shx.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
+func TestUnit() {
+	must.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
 }
 
 // Run integration tests against the test cluster.
-func TestIntegration() error {
+func TestIntegration() {
 	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo)
 
 	if !isDeployed() {
-		mg.Deps(Deploy)
+		Deploy()
 	}
 
-	return shx.Run("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
+	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
 }
 
 // Build the operator and deploy it to the test cluster.
-func Deploy() error {
+func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureCluster, StartDockerRegistry, Build)
 
-	err := BuildManifests()
-	if err != nil {
-		return err
-	}
-
-	err = kubectl("apply", "-f", "manifests.yaml").Run()
-	if err != nil {
-		return err
-	}
-
-	err = PublishController()
-	if err != nil {
-		return err
-	}
-
-	return kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
+	BuildManifests()
+	kubectl("apply", "-f", "manifests.yaml").Run()
+	PublishController()
+	kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
 }
 
 func isDeployed() bool {
-	if ok, _ := useCluster(); ok {
-		err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).RunS()
+	if useCluster() {
+		err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).Must(false).RunS()
 		return err == nil
 	}
 	return false
 }
 
-func PublishImages() error {
+func PublishImages() {
 	mg.Deps(PublishAgent, PublishController)
-	return nil
 }
 
 // Publish the Porter agent image to the local docker registry.
-func PublishAgent() error {
-	err := shx.Command("docker", "build", "-t", Env.AgentImage, "images/porter").
+func PublishAgent() {
+	must.Command("docker", "build", "-t", Env.AgentImage, "images/porter").
 		Env("DOCKER_BUILDKIT=1").RunV()
-	if err != nil {
-		return err
-	}
 
-	return shx.RunV("docker", "push", Env.AgentImage)
+	must.RunV("docker", "push", Env.AgentImage)
 }
 
-func PublishController() error {
-	err := shx.Command("docker", "build", "-t", Env.ControllerImage, ".").
+func PublishController() {
+	must.Command("docker", "build", "-t", Env.ControllerImage, ".").
 		Env("DOCKER_BUILDKIT=1").RunV()
-	if err != nil {
-		return err
-	}
 
-	return shx.RunV("docker", "push", Env.ControllerImage)
+	must.RunV("docker", "push", Env.ControllerImage)
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.
-func Bump(sample string) error {
+func Bump(sample string) {
 	mg.Deps(EnsureTestNamespace, EnsureYq)
 
 	sampleFile := fmt.Sprintf("config/samples/%s.yaml", sample)
 	dataB, err := ioutil.ReadFile(sampleFile)
-	if err != nil {
-		return errors.Errorf("error reading installation definition %s", sampleFile)
-	}
+	mgx.Must(errors.Errorf("error reading installation definition %s", sampleFile))
 
 	retryCountField := ".metadata.annotations.retryCount"
-	cmd := shx.Command("yq", "eval", retryCountField, "-")
-	cmd.Cmd.Stdin = bytes.NewReader(dataB)
-	retryCount, err := cmd.OutputE()
-	if err != nil {
-		return err
-	}
+	retryCount, _ := must.Command("yq", "eval", retryCountField, "-").
+		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	x, err := strconv.Atoi(retryCount)
 	if err != nil {
@@ -225,30 +195,22 @@ func Bump(sample string) error {
 	}
 	retryCount = strconv.Itoa(x + 1)
 
-	cmd = shx.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-")
-	cmd.Cmd.Stdin = bytes.NewReader(dataB)
-	crd, err := cmd.OutputE()
-	if err != nil {
-		return err
-	}
+	crd, _ := must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-").
+		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	log.Println(crd)
-	cmd = kubectl("apply", "-f", "-")
-	cmd.Cmd.Stdin = strings.NewReader(crd)
-	return cmd.RunV()
+	kubectl("apply", "-f", "-").Stdin(strings.NewReader(crd)).RunV()
 }
 
 // Ensures that a namespace named "test" exists.
-func EnsureTestNamespace() error {
-	if namespaceExists(testNamespace) {
-		return nil
+func EnsureTestNamespace() {
+	if !namespaceExists(testNamespace) {
+		setupTestNamespace()
 	}
-
-	return setupTestNamespace()
 }
 
-func setupTestNamespace() error {
-	return SetupNamespace(testNamespace)
+func setupTestNamespace() {
+	SetupNamespace(testNamespace)
 }
 
 func namespaceExists(name string) bool {
@@ -258,124 +220,86 @@ func namespaceExists(name string) bool {
 
 // Create a namespace, usage: mage SetupNamespace demo.
 // Configures the namespace for use with the operator.
-func SetupNamespace(name string) error {
+func SetupNamespace(name string) {
 	mg.Deps(EnsureCluster)
 
 	if namespaceExists(name) {
-		err := kubectl("delete", "ns", name, "--wait=true").RunS()
-		if err != nil {
-			return errors.Wrapf(err, "could not delete namespace %s", name)
-		}
+		kubectl("delete", "ns", name, "--wait=true").RunS()
 	}
 
-	err := kubectl("create", "namespace", name).RunE()
-	if err != nil {
-		return errors.Wrapf(err, "could not create namespace %s", name)
-	}
+	kubectl("create", "namespace", name).RunE()
+	kubectl("label", "namespace", name, "porter-test=true").RunE()
 
-	err = kubectl("label", "namespace", name, "porter-test=true").RunE()
-	if err != nil {
-		return errors.Wrapf(err, "could not label namespace %s", name)
-	}
-
-	err = kubectl("create", "configmap", "porter", "--namespace", name,
+	kubectl("create", "configmap", "porter", "--namespace", name,
 		"--from-literal=porterVersion=canary",
 		"--from-literal=serviceAccount=porter-agent",
 		"--from-literal=outputsVolumeSize=64Mi").RunE()
-	if err != nil {
-		return errors.Wrap(err, "could not create porter configmap")
-	}
 
-	err = kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
+	kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
 		"--from-file=config.toml=hack/porter-config.toml").RunE()
-	if err != nil {
-		return errors.Wrap(err, "could not create porter-config secret")
-	}
 
-	err = kubectl("create", "secret", "generic", "porter-env", "--namespace", name,
+	kubectl("create", "secret", "generic", "porter-env", "--namespace", name,
 		"--from-literal=AZURE_STORAGE_CONNECTION_STRING="+os.Getenv("PORTER_TEST_AZURE_STORAGE_CONNECTION_STRING"),
 		"--from-literal=AZURE_CLIENT_SECRET="+os.Getenv("PORTER_AZURE_CLIENT_SECRET"),
 		"--from-literal=AZURE_CLIENT_ID="+os.Getenv("PORTER_AZURE_CLIENT_ID"),
 		"--from-literal=AZURE_TENANT_ID="+os.Getenv("PORTER_AZURE_TENANT_ID")).RunE()
-	if err != nil {
-		return errors.Wrap(err, "could not create porter-env secret")
-	}
 
-	err = kubectl("create", "serviceaccount", "porter-agent", "--namespace", name).RunE()
-	if err != nil {
-		return errors.Wrapf(err, "could not create porter-agent service account in %s", name)
-	}
+	kubectl("create", "serviceaccount", "porter-agent", "--namespace", name).RunE()
 
-	err = kubectl("create", "rolebinding", "porter-agent",
+	kubectl("create", "rolebinding", "porter-agent",
 		"--clusterrole", "porter-operator-agent-role",
 		"--serviceaccount", name+":porter-agent",
 		"--namespace", name).RunE()
-	if err != nil {
-		return errors.Wrapf(err, "could not create porter-agent service account in %s", name)
-	}
 
-	return setClusterNamespace(name)
+	setClusterNamespace(name)
 }
 
 // Delete operator data from the test cluster.
-func Clean() error {
+func Clean() {
 	mg.Deps(CleanManual, CleanTests)
-	return nil
 }
 
 // Remove data created by running the test suite
-func CleanTests() error {
-	if ok, _ := useCluster(); ok {
-		return kubectl("delete", "ns", "-l", "porter-test=true").RunV()
+func CleanTests() {
+	if useCluster() {
+		kubectl("delete", "ns", "-l", "porter-test=true").RunV()
 	}
-	return nil
 }
 
 // Remove any porter data in the cluster
-func CleanManual() error {
-	if ok, _ := useCluster(); ok {
-		err := kubectl("delete", "jobs", "-l", "porter=true").RunV()
-		if err != nil {
-			return err
-		}
-
-		return kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
+func CleanManual() {
+	if useCluster() {
+		kubectl("delete", "jobs", "-l", "porter=true").RunV()
+		kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
 	}
-	return nil
 }
 
 // Follow the logs for the operator.
-func Logs() error {
+func Logs() {
 	mg.Deps(EnsureKubectl)
 
-	return kubectl("logs", "-f", "deployment/porter-operator-controller-manager", "-c=manager", "--namespace", operatorNamespace).RunV()
+	kubectl("logs", "-f", "deployment/porter-operator-controller-manager", "-c=manager", "--namespace", operatorNamespace).RunV()
 }
 
 // Ensure operator-sdk is installed.
-func EnsureOperatorSDK() error {
+func EnsureOperatorSDK() {
 	const version = "v1.3.0"
 
 	if runtime.GOOS == "windows" {
-		return errors.New("Sorry, OperatorSDK does not support Windows. In order to contribute to this repository, you will need to use WSL.")
+		mgx.Must(errors.New("Sorry, OperatorSDK does not support Windows. In order to contribute to this repository, you will need to use WSL."))
 	}
 
 	url := "https://github.com/operator-framework/operator-sdk/releases/{{.VERSION}}/download/operator-sdk_{{.GOOS}}_{{.GOARCH}}"
-	return pkg.DownloadToGopathBin(url, "operator-sdk", version)
+	mgx.Must(pkg.DownloadToGopathBin(url, "operator-sdk", version))
 }
 
 // Ensure that the test KIND cluster is up.
-func EnsureCluster() error {
+func EnsureCluster() {
 	mg.Deps(EnsureKubectl)
 
-	ok, err := useCluster()
-	if err != nil {
-		return err
+	if !useCluster() {
+		CreateKindCluster()
 	}
-
-	if !ok {
-		return CreateKindCluster()
-	}
-	return nil
 }
 
 // get the config of the current kind cluster, if available
@@ -384,8 +308,8 @@ func getClusterConfig() (kubeconfig string, ok bool) {
 	return contents, err == nil
 }
 
-// setup environment to use the current kind cluster, if availabe
-func useCluster() (bool, error) {
+// setup environment to use the current kind cluster, if available
+func useCluster() bool {
 	contents, ok := getClusterConfig()
 	if ok {
 		log.Println("Reusing existing kind cluster")
@@ -398,35 +322,27 @@ func useCluster() (bool, error) {
 		os.Setenv("KUBECONFIG", currentKubeConfig)
 
 		err := ioutil.WriteFile(kubeconfig, []byte(contents), 0644)
-		if err != nil {
-			errors.Wrapf(err, "error writing %s", kubeconfig)
-		}
+		mgx.Must(errors.Wrapf(err, "error writing %s", kubeconfig))
 
-		err = setClusterNamespace(operatorNamespace)
-		if err != nil {
-			return false, err
-		}
-
-		return true, nil
+		setClusterNamespace(operatorNamespace)
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
-func setClusterNamespace(name string) error {
-	return shx.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
+func setClusterNamespace(name string) {
+	must.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
 }
 
 // Create a KIND cluster named porter.
-func CreateKindCluster() error {
+func CreateKindCluster() {
 	mg.Deps(EnsureKind, StartDockerRegistry)
 
 	// Determine host ip to populate kind config api server details
 	// https://kind.sigs.k8s.io/docs/user/configuration/#api-server
 	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return errors.Wrap(err, "could not get a list of network interfaces")
-	}
+	mgx.Must(errors.Wrap(err, "could not get a list of network interfaces"))
 
 	var ipAddress string
 	for _, address := range addrs {
@@ -441,13 +357,11 @@ func CreateKindCluster() error {
 
 	os.Setenv("KUBECONFIG", filepath.Join(pwd(), kubeconfig))
 	kindCfg, err := ioutil.ReadFile("hack/kind.config.yaml")
-	if err != nil {
-		return errors.Wrap(err, "error reading hack/kind.config.yaml")
-	}
+	mgx.Must(errors.Wrap(err, "error reading hack/kind.config.yaml"))
+
 	kindCfgTmpl, err := template.New("kind.config.yaml").Parse(string(kindCfg))
-	if err != nil {
-		return errors.Wrap(err, "error parsing Kind config template hack/kind.config.yaml")
-	}
+	mgx.Must(errors.Wrap(err, "error parsing Kind config template hack/kind.config.yaml"))
+
 	var kindCfgContents bytes.Buffer
 	kindCfgData := struct {
 		Address string
@@ -456,46 +370,28 @@ func CreateKindCluster() error {
 	}
 	err = kindCfgTmpl.Execute(&kindCfgContents, kindCfgData)
 	err = ioutil.WriteFile("kind.config.yaml", kindCfgContents.Bytes(), 0644)
-	if err != nil {
-		return errors.Wrap(err, "could not write kind config file")
-	}
+	mgx.Must(errors.Wrap(err, "could not write kind config file"))
 	defer os.Remove("kind.config.yaml")
 
-	err = shx.Run("kind", "create", "cluster", "--name", kindClusterName, "--config", "kind.config.yaml")
-	if err != nil {
-		errors.Wrap(err, "could not create KIND cluster")
-	}
+	must.Run("kind", "create", "cluster", "--name", kindClusterName, "--config", "kind.config.yaml")
 
 	// Connect the kind and registry containers on the same network
-	err = shx.Run("docker", "network", "connect", "kind", registryContainer)
-	if err != nil {
-		return errors.Wrap(err, "could not connect the test kind cluster to local docker registry")
-	}
+	must.Run("docker", "network", "connect", "kind", registryContainer)
 
 	// Document the local registry
-	err = kubectl("apply", "-f", "hack/local-registry.yaml").Run()
-	if err != nil {
-		return errors.Wrap(err, "could not apply hack/local-registry.yaml")
-	}
-
-	return setClusterNamespace(operatorNamespace)
+	kubectl("apply", "-f", "hack/local-registry.yaml").Run()
+	setClusterNamespace(operatorNamespace)
 }
 
 // Delete the KIND cluster named porter.
-func DeleteKindCluster() error {
+func DeleteKindCluster() {
 	mg.Deps(EnsureKind)
 
-	err := shx.RunE("kind", "delete", "cluster", "--name", kindClusterName)
-	if err != nil {
-		return errors.Wrap(err, "could not delete KIND cluster")
-	}
+	must.RunE("kind", "delete", "cluster", "--name", kindClusterName)
 
 	if isOnDockerNetwork(registryContainer, "kind") {
-		err = shx.RunE("docker", "network", "disconnect", "kind", registryContainer)
-		return errors.Wrap(err, "could not disconnect the registry container from the docker network: kind")
+		must.RunE("docker", "network", "disconnect", "kind", registryContainer)
 	}
-
-	return nil
 }
 
 func isOnDockerNetwork(container string, network string) bool {
@@ -505,52 +401,40 @@ func isOnDockerNetwork(container string, network string) bool {
 }
 
 // Ensure kind is installed.
-func EnsureKind() error {
+func EnsureKind() {
 	if ok, _ := pkg.IsCommandAvailable("kind", ""); ok {
-		return nil
+		return
 	}
 
 	kindURL := "https://github.com/kubernetes-sigs/kind/releases/download/{{.VERSION}}/kind-{{.GOOS}}-{{.GOARCH}}"
-	err := pkg.DownloadToGopathBin(kindURL, "kind", kindVersion)
-	if err != nil {
-		return errors.Wrap(err, "could not download kind")
-	}
-
-	return nil
+	mgx.Must(pkg.DownloadToGopathBin(kindURL, "kind", kindVersion))
 }
 
 // Ensure kubectl is installed.
-func EnsureKubectl() error {
+func EnsureKubectl() {
 	if ok, _ := pkg.IsCommandAvailable("kubectl", ""); ok {
-		return nil
+		return
 	}
 
 	versionURL := "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
 	versionResp, err := http.Get(versionURL)
-	if err != nil {
-		return errors.Wrapf(err, "unable to determine the latest version of kubectl")
-	}
+	mgx.Must(errors.Wrapf(err, "unable to determine the latest version of kubectl"))
+
 	if versionResp.StatusCode > 299 {
-		return errors.Errorf("GET %s (%s): %s", versionURL, versionResp.StatusCode, versionResp.Status)
+		mgx.Must(errors.Errorf("GET %s (%s): %s", versionURL, versionResp.StatusCode, versionResp.Status))
 	}
 	defer versionResp.Body.Close()
+
 	kubectlVersion, err := ioutil.ReadAll(versionResp.Body)
-	if err != nil {
-		return errors.Wrapf(err, "error reading response from %s", versionURL)
-	}
+	mgx.Must(errors.Wrapf(err, "error reading response from %s", versionURL))
 
 	kindURL := "https://storage.googleapis.com/kubernetes-release/release/{{.VERSION}}/bin/{{.GOOS}}/{{.GOARCH}}/kubectl{{.EXT}}"
-	err = pkg.DownloadToGopathBin(kindURL, "kubectl", string(kubectlVersion))
-	if err != nil {
-		return errors.Wrap(err, "could not download kubectl")
-	}
-
-	return nil
+	mgx.Must(pkg.DownloadToGopathBin(kindURL, "kubectl", string(kubectlVersion)))
 }
 
 // Run a makefile target
 func makefile(args ...string) shx.PreparedCommand {
-	cmd := shx.Command("make", args...)
+	cmd := must.Command("make", args...)
 	cmd.Env("KUBECONFIG=" + os.Getenv("KUBECONFIG"))
 
 	return cmd
@@ -558,57 +442,53 @@ func makefile(args ...string) shx.PreparedCommand {
 
 func kubectl(args ...string) shx.PreparedCommand {
 	kubeconfig := fmt.Sprintf("KUBECONFIG=%s", os.Getenv("KUBECONFIG"))
-	return shx.Command("kubectl", args...).Env(kubeconfig)
+	return must.Command("kubectl", args...).Env(kubeconfig)
 }
 
 func kustomize(args ...string) shx.PreparedCommand {
 	cmd := filepath.Join(pwd(), "bin/kustomize")
-	return shx.Command(cmd, args...)
+	return must.Command(cmd, args...)
 }
 
 // Ensure yq is installed.
-func EnsureYq() error {
-	return pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", "")
+func EnsureYq() {
+	mgx.Must(pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", ""))
 }
 
 // Ensure ginkgo is installed.
-func EnsureGinkgo() error {
-	return pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "")
+func EnsureGinkgo() {
+	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", ""))
 }
 
 // Ensure kustomize is installed.
-func EnsureKustomize() error {
+func EnsureKustomize() {
 	// TODO: implement installing from a URL that is tgz
-	return makefile("kustomize").Run()
+	makefile("kustomize").Run()
 }
 
 // Ensure controller-gen is installed.
-func EnsureControllerGen() error {
-	return pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.4.1", "--version")
+func EnsureControllerGen() {
+	mgx.Must(pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.4.1", "--version"))
 }
 
 // Ensure that a local docker registry is running.
-func StartDockerRegistry() error {
+func StartDockerRegistry() {
 	if isContainerRunning(registryContainer) {
-		return nil
+		return
 	}
 
-	err := StopDockerRegistry()
-	if err != nil {
-		return err
-	}
+	StopDockerRegistry()
 
 	fmt.Println("Starting local docker registry")
-	return shx.RunE("docker", "run", "-d", "-p", "5000:5000", "--name", registryContainer, "registry:2")
+	must.RunE("docker", "run", "-d", "-p", "5000:5000", "--name", registryContainer, "registry:2")
 }
 
 // Stops the local docker registry.
-func StopDockerRegistry() error {
+func StopDockerRegistry() {
 	if containerExists(registryContainer) {
 		fmt.Println("Stopping local docker registry")
-		return removeContainer(registryContainer)
+		removeContainer(registryContainer)
 	}
-	return nil
 }
 
 func isContainerRunning(name string) bool {
@@ -622,13 +502,12 @@ func containerExists(name string) bool {
 	return err == nil
 }
 
-func removeContainer(name string) error {
+func removeContainer(name string) {
 	stderr, err := shx.OutputE("docker", "rm", "-f", name)
 	// Gracefully handle the container already being gone
 	if err != nil && !strings.Contains(stderr, "No such container") {
-		return err
+		mgx.Must(err)
 	}
-	return nil
 }
 
 func pwd() string {

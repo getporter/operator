@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/shx"
 	"github.com/pkg/errors"
 )
@@ -13,6 +14,7 @@ import (
 var gitMetadata GitMetadata
 var loadMetadata sync.Once
 
+// TODO: Add to magex
 type GitMetadata struct {
 	// Permalink is the version alias, e.g. latest, or canary
 	Permalink string
@@ -57,7 +59,7 @@ func LoadMetadatda() GitMetadata {
 
 	if githubEnv, ok := os.LookupEnv("GITHUB_ENV"); ok {
 		err := ioutil.WriteFile(githubEnv, []byte("PERMALINK="+gitMetadata.Permalink), 0644)
-		Must(errors.Wrapf(err, "couldn't persist PERMALINK to a GitHub Actions environment variable"))
+		mgx.Must(errors.Wrapf(err, "couldn't persist PERMALINK to a GitHub Actions environment variable"))
 	}
 
 	return gitMetadata
