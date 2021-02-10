@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: porter-agent
+  namespace: REPLACE
+  labels:
+    porter: "true"

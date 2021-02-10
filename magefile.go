@@ -96,10 +96,11 @@ func Build() {
 func Bundle() {
 	mg.SerialDeps(UseProductionEnvironment, BuildManifests)
 
-	mgx.Must(shx.Copy("manifests.yaml", "installer/"))
+	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
 	// TODO: set --version
-	must.Command("porter", "publish", "--debug").In("installer").RunV()
+	must.Command("porter", "build").In("installer").RunV()
+	must.Command("porter", "publish").In("installer").RunV()
 }
 
 func BuildManifests() {
