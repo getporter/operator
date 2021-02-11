@@ -66,3 +66,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: porter publish
         working-directory: installer
+      - name: Porter Publish Canary # TODO: This is hacky and sad
+        if: ${{ github.event_name != 'pull_request' }}
+        run: porter publish --tag canary
+        working-directory: installer
