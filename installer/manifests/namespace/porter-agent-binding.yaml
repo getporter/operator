@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: porter-agent
+  namespace: REPLACE
+  labels:
+    porter: "true"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: porter-operator-agent-role
+subjects:
+- kind: ServiceAccount
+  name: porter-agent
+  namespace: REPLACE

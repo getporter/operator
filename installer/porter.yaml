@@ -2,11 +2,68 @@ name: porter-operator
 version: 0.1.0
 description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
 registry: ghcr.io/getporter
+dockerfile: Dockerfile.tmpl
+
+parameters:
+  - name: namespace
+    type: string
+    applyTo:
+      - configure-namespace
+  - name: volumeSize
+    description: Size of the volume shared between Porter and the bundles it executes. Defaults to 64Mi.
+    type: string
+    path: /cnab/app/manifests/namespace/porter-config/volumeSize
+    default: ""
+    applyTo:
+      - configure-namespace
+  - name: porterRepository
+    description: Docker image repository of the Porter agent. Defaults to ghcr.io/getporter/porter.
+    type: string
+    path: /cnab/app/manifests/namespace/porter-config/porterVersion
+    default: ""
+    applyTo:
+      - configure-namespace
+  - name: porterVersion
+    description: Version of the Porter agent, e.g. latest, canary, v0.33.0. Defaults to latest.
+    type: string
+    path: /cnab/app/manifests/namespace/porter-config/porterVersion
+    default: ""
+    applyTo:
+      - configure-namespace
+  - name: pullPolicy
+    description: Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled. Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.
+    type: string
+    path: /cnab/app/manifests/namespace/porter-config/pullPolicy
+    default: ""
+    applyTo:
+      - configure-namespace
+  - name: serviceAccount
+    description: Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configure-namespace custom action.
+    type: string
+    path: /cnab/app/manifests/namespace/porter-config/serviceAccount
+    default: "porter-agent"
+    applyTo:
+      - configure-namespace
 
 credentials:
   - name: kubeconfig
     description: Kubeconfig file for cluster where the operator should be installed
     path: /root/.kube/config
+  - name: config.toml
+    description: Porter configuration file found in ~/.porter/config.toml
+    path: /cnab/app/manifests/namespace/config.toml
+  - name: azure-storage-connection-string
+    description: Connection string for the azure storage plugin
+    env: AZURE_STORAGE_CONNECTION_STRING
+  - name: azure-tenant-id
+    description: Tenant ID for the azure secrets plugin
+    env: AZURE_TENANT_ID
+  - name: azure-client-id
+    description: Client ID for the azure secrets plugin
+    env: AZURE_CLIENT_ID
+  - name: azure-client-secret
+    description: Password for the azure secrets plugin
+    env: AZURE_CLIENT_SECRET
 
 mixins:
   - exec
@@ -24,6 +81,9 @@ install:
       arguments:
         - rollout
         - status
+        - deploy/porter-operator-controller-manager
+      flags:
+        namespace: porter-operator-system
 
 upgrade:
   - kubernetes:
@@ -46,15 +106,11 @@ upgrade:
       arguments:
         - rollout
         - status
+        - deploy/porter-operator-controller-manager
+      flags:
+        namespace: porter-operator-system
 
-create-namespace:
-  - kubernetes:
-      description: |-
-        Configure a namespace for the Porter Operator.
-        Create a namespace with a porter-agent service account with the porter-agent role.
-      namespace: "{{ bundle.parameters.namespace }}"
-      manifests:
-        -
+# TODO: Add a test action that runs a test bundle to check if everything is configured properly
 
 uninstall:
   - kubernetes:
@@ -62,3 +118,14 @@ uninstall:
       manifests:
         - manifests/operator.yaml
       wait: true
+
+customActions:
+  configure-namespace:
+    description: Add necessary rbac, service account and configuration to use Porter Operator in a namespace. Creates the namespace if it does not already exist.
+
+configure-namespace:
+  - exec:
+      description: "Configure Porter Operator"
+      command: ./helpers.sh
+      arguments:
+        - configure-namespace
