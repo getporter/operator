@@ -93,21 +93,32 @@ func Build() {
 	must.RunV("go", "build", "-o", "bin/manager", "main.go")
 }
 
-func Bundle() {
-	mg.SerialDeps(UseProductionEnvironment, BuildManifests)
+// Build the porter-operator bundle.
+func BuildBundle() {
+	mg.SerialDeps(BuildManifests)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
-	// TODO: set --version
-	must.Command("porter", "build").In("installer").RunV()
-	must.Command("porter", "publish").In("installer").RunV()
+	meta := LoadMetadatda()
+	must.Command("porter", "build", "--version", strings.TrimPrefix(meta.Version, "v")).In("installer").RunV()
+}
+
+// Push the porter-operator bundle to a registry. Defaults to the local test registry.
+func PublishBundle() {
+	mg.Deps(BuildBundle)
+	must.Command("porter", "publish", "--registry", Env.Registry).In("installer").RunV()
+
+	meta := LoadMetadatda()
+	must.Command("porter", "publish", "--registry", Env.Registry, "--tag", meta.Permalink).In("installer").RunV()
 }
 
 func BuildManifests() {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
 	fmt.Println("Using environment", Env.Name)
-	kustomize("edit", "set", "image", "manager="+Env.ControllerImage).In("config/manager").Run()
+	meta := LoadMetadatda()
+	img := Env.ControllerImagePrefix + meta.Version
+	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
@@ -165,17 +176,21 @@ func PublishImages() {
 
 // Publish the Porter agent image to the local docker registry.
 func PublishAgent() {
-	must.Command("docker", "build", "-t", Env.AgentImage, "images/porter").
+	meta := LoadMetadatda()
+	img := Env.AgentImagePrefix + meta.Version
+	must.Command("docker", "build", "-t", img, "images/porter").
 		Env("DOCKER_BUILDKIT=1").RunV()
 
-	must.RunV("docker", "push", Env.AgentImage)
+	must.RunV("docker", "push", img)
 }
 
 func PublishController() {
-	must.Command("docker", "build", "-t", Env.ControllerImage, ".").
+	meta := LoadMetadatda()
+	img := Env.AgentImagePrefix + meta.Version
+	must.Command("docker", "build", "-t", img, ".").
 		Env("DOCKER_BUILDKIT=1").RunV()
 
-	must.RunV("docker", "push", Env.ControllerImage)
+	must.RunV("docker", "push", img)
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.

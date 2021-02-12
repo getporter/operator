@@ -36,7 +36,7 @@ func LoadMetadatda() GitMetadata {
 		if err == nil {
 			gitMetadata.Version = version
 		} else {
-			gitMetadata.Version = "v0"
+			gitMetadata.Version = "v0.0.0"
 		}
 
 		// Use latest for tagged commits, otherwise it's a canary build
