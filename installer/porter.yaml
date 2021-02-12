@@ -12,35 +12,35 @@ parameters:
   - name: volumeSize
     description: Size of the volume shared between Porter and the bundles it executes. Defaults to 64Mi.
     type: string
-    path: /cnab/app/manifests/namespace/porter-config/volumeSize
+    path: /cnab/app/manifests/namespace/agentconfig/volumeSize
     default: ""
     applyTo:
       - configure-namespace
   - name: porterRepository
     description: Docker image repository of the Porter agent. Defaults to ghcr.io/getporter/porter.
     type: string
-    path: /cnab/app/manifests/namespace/porter-config/porterVersion
+    path: /cnab/app/manifests/namespace/agentconfig/porterVersion
     default: ""
     applyTo:
       - configure-namespace
   - name: porterVersion
     description: Version of the Porter agent, e.g. latest, canary, v0.33.0. Defaults to latest.
     type: string
-    path: /cnab/app/manifests/namespace/porter-config/porterVersion
+    path: /cnab/app/manifests/namespace/agentconfig/porterVersion
     default: ""
     applyTo:
       - configure-namespace
   - name: pullPolicy
     description: Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled. Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.
     type: string
-    path: /cnab/app/manifests/namespace/porter-config/pullPolicy
+    path: /cnab/app/manifests/namespace/agentconfig/pullPolicy
     default: ""
     applyTo:
       - configure-namespace
   - name: serviceAccount
     description: Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configure-namespace custom action.
     type: string
-    path: /cnab/app/manifests/namespace/porter-config/serviceAccount
+    path: /cnab/app/manifests/namespace/agentconfig/serviceAccount
     default: "porter-agent"
     applyTo:
       - configure-namespace

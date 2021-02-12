@@ -4,7 +4,7 @@
 
 # PorterOps: Porter Operator
 
-🚨 This is a new project and the goals below are aspirational and not all implemented yet.
+🚨 This is a new project; the goals below are aspirational and not all implemented yet.
 
 PorterOps not only gives you a native, integrated experience for managing your
 bundles with Kubernetes but is the recommended way to automate your bundle
@@ -99,8 +99,10 @@ however you could use "favorite-color: blue", changing the value each time, and
 it would still trigger Porter to retry it. 
 
 # Configure the Operator
+
 This section breaks down what the configure-namespace action of the bundle is
-doing under the hood.
+doing under the hood. If you end up having to manually configure these values,
+let us know! That means the custom action in our bundle isn't working out.
 
 ## Define Secrets
 
@@ -109,8 +111,10 @@ Porter's config file and environment variables. For example the azure connection
 string, or service principal environment variables.
 
 ### porter-config
-These secrets are copied into the pod as files to tell Porter where to save its data
-and resolve secrets.
+
+These secrets are copied into the pod as files to tell Porter where to save its
+data and resolve secrets. This is generated for you by the
+**configure-namespace** custom action of the porter-operator bundle.
 
 ```
 kubectl create secret generic porter-config \
@@ -118,8 +122,11 @@ kubectl create secret generic porter-config \
 ```
 
 ### porter-env
-These secrets are copied into the pod as environment variables. Porter will use them to 
-for the plugins so that they can connect to remote services such storage or vault.
+
+These secrets are copied into the pod as environment variables. Porter will use
+them to for the plugins so that they can connect to remote services such storage
+or vault. This is generated for you by the **configure-namespace** custom action
+of the porter-operator bundle.
 
 ```
 kubectl create secret generic porter-env \
@@ -131,24 +138,32 @@ kubectl create secret generic porter-env \
 
 Right now the bundle only works with azure plugin.
 
-## Define Configuration
+## AgentConfig
 
-### porter
-These are configuration settings for the Porter Operator.
+The operator has a CRD, agentconfig.porter.sh, that contains settings for the
+porter operator. These values are used by the job that runs porter. Only
+serviceAccount is required, the rest may be omitted or set to "". This is generated
+for you by the **configure-namespace** custom action of the porter-operator bundle.
 
+```yaml
+apiVersion: porter.sh/v1
+kind: AgentConfig
+metadata:
+  name: porter
+spec:
+  serviceAccount: porter-agent # Required. ServiceAccount to run the Porter Agent under.
+  pullPolicy: Always # Optional. Policy for pulling new versions of the Porter Agent image. Defaults to Always for latest and canary, IfNotPresent otherwise.
+  porterVersion: canary # Optional. Version of the Porter Agent image. Allowed values: latest, canary, vX.Y.Z
+  porterRepository: ghcr.io/getporter/porter # Optional. The Porter Agent repository to use.
+  volumeSize: 
 ```
-kubectl create configmap porter \
-  --from-literal=serviceAccount=porter-agent \
-  --from-literal=porterVersion=canary \
-  --from-literal=porterRepository=ghcr.io/getporter/porter-operator \
-  --from-literal=volumeSize=64Mi \
-  --from-literal=pullPolicy=Always
-```
 
-Only serviceAccount is required, the rest can be omitted.
+The agent configuration has a hierarchy and values are merged from all three
+(empty values are ignored):
 
-See [Modify the porter agent](/CONTRIBUTING.md#modify-the-porter-agent) for details on 
-how this is created.
+1. Defined on the Installation (highest)
+2. Defined in the Installation Namespace
+3. Defined in the Operator Namespace (lowest)
 
 # Contact
 
