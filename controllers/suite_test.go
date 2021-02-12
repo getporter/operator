@@ -147,7 +147,7 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	Expect(k8sClient.Create(ctx, svcRole)).To(Succeed())
 
-	// porter-config secret
+	// agentconfig secret
 	porterCfg := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "porter-config",

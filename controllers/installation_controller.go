@@ -36,7 +36,6 @@ type InstallationReconciler struct {
 // +kubebuilder:rbac:groups=porter.sh,resources=installations/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=porter.sh,resources=installations/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=create;delete
@@ -271,12 +270,23 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 }
 
 func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *porterv1.Installation) (porterv1.AgentConfigSpec, error) {
+	logConfig := func(name string, config porterv1.AgentConfigSpec) {
+		r.Log.Info(fmt.Sprintf("Found %s level porter agent configuration", name),
+			"porterRepository", config.PorterRepository,
+			"porterVersion", config.PorterVersion,
+			"pullPolicy", config.PullPolicy,
+			"serviceAccount", config.ServiceAccount,
+			"volumeSize", config.VolumeSize,
+		)
+	}
+
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.AgentConfig{}
 	err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
+	logConfig("system", systemCfg.Spec)
 
 	// Read agent configuration defined at the system level
 	nsCfg := &porterv1.AgentConfig{}
@@ -284,6 +294,9 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
 	}
+	logConfig("namespace", nsCfg.Spec)
+
+	logConfig("instance", inst.Spec.AgentConfig)
 
 	// Apply overrides
 	cfg := systemCfg.Spec.

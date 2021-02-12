@@ -13,12 +13,12 @@ configure-namespace() {
   yq eval ".stringData.AZURE_CLIENT_ID = \"$AZURE_CLIENT_ID\"" -i porter-env-secret.yaml
   yq eval ".stringData.AZURE_CLIENT_SECRET = \"$AZURE_CLIENT_SECRET\"" -i porter-env-secret.yaml
 
-  # If settings were specified for the porter operator, create a configmap with them included
-  cfgFiles=`ls porter-config`
+  # If settings were specified for the porter operator, create a AgentCOnfig with them included
+  cfgFiles=`ls agentconfig`
   for cfg in $cfgFiles; do
-    contents=`cat porter-config/$cfg`
+    contents=`cat agentconfig/$cfg`
     if [[ $contents != "" ]]; then
-      yq eval ".data.$cfg = \"$contents\"" -i porter-configmap.yaml
+      yq eval ".spec.$cfg = \"$contents\"" -i porter-agentconfig.yaml
     fi
   done
 

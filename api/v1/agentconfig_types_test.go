@@ -61,3 +61,41 @@ func TestAgentConfigSpec_GetVolumeSize(t *testing.T) {
 		assert.Equal(t, qty, c.GetVolumeSize())
 	})
 }
+
+func TestAgentConfigSpec_MergeConfig(t *testing.T) {
+	t.Run("empty is ignored", func(t *testing.T) {
+		nsConfig := AgentConfigSpec{
+			ServiceAccount: "porter-agent",
+		}
+
+		instConfig := AgentConfigSpec{}
+
+		config := nsConfig.MergeConfig(instConfig)
+		assert.Equal(t, "porter-agent", config.ServiceAccount)
+	})
+
+	t.Run("override", func(t *testing.T) {
+		nsConfig := AgentConfigSpec{
+			PorterRepository: "base",
+			PorterVersion:    "base",
+			ServiceAccount:   "base",
+			VolumeSize:       resource.MustParse("1Mi"),
+			PullPolicy:       v1.PullIfNotPresent,
+		}
+
+		instConfig := AgentConfigSpec{
+			PorterRepository: "override",
+			PorterVersion:    "override",
+			ServiceAccount:   "override",
+			VolumeSize:       resource.MustParse("2Mi"),
+			PullPolicy:       v1.PullAlways,
+		}
+
+		config := nsConfig.MergeConfig(instConfig)
+		assert.Equal(t, "override", config.PorterRepository)
+		assert.Equal(t, "override", config.PorterVersion)
+		assert.Equal(t, "override", config.ServiceAccount)
+		assert.Equal(t, "2Mi", config.VolumeSize.String())
+		assert.Equal(t, v1.PullAlways, config.PullPolicy)
+	})
+}

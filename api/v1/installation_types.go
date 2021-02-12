@@ -7,9 +7,6 @@ import (
 
 // InstallationSpec defines the desired state of Installation
 type InstallationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
 	Reference string `json:"reference"`
 
@@ -19,7 +16,9 @@ type InstallationSpec struct {
 
 	// AgentConfig overrides the Porter Agent configuration defined at the namespace or system level.
 	// +optional
-	AgentConfig AgentConfigSpec `json:"agentConfig,omitEmpty"`
+	AgentConfig AgentConfigSpec `json:"agentConfig,omitEmpty"` // TODO: Make this a reference
+
+	// TODO: Add reference to a porter config.toml secret
 
 	// TODO: Force pull, debug and other flags
 
@@ -35,8 +34,6 @@ type InstallationSpec struct {
 
 // InstallationStatus defines the observed state of Installation
 type InstallationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	ActiveJob v1.LocalObjectReference `json:"activeJob,omitempty"`
 	LastJob   v1.LocalObjectReference `json:"lastJob,omitempty"`
 	// TODO: Include values from the claim such as success/failure, last action

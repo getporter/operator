@@ -90,6 +90,10 @@ func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) AgentConfigSpec {
 		c.VolumeSize = override.VolumeSize
 	}
 
+	if override.PullPolicy != "" {
+		c.PullPolicy = override.PullPolicy
+	}
+
 	return c
 }
 

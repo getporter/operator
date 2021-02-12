@@ -1,6 +1,12 @@
 package mage
 
-import "path"
+import (
+	"os"
+	"path"
+
+	"github.com/carolynvs/magex/mgx"
+	"github.com/pkg/errors"
+)
 
 const (
 	ProductionRegistry = "ghcr.io/getporter"
@@ -8,7 +14,7 @@ const (
 )
 
 var (
-	Env = GetTestEnvironment()
+	Env = getAmbientEnvironment()
 )
 
 type Environment struct {
@@ -16,6 +22,19 @@ type Environment struct {
 	Registry        string
 	ControllerImage string
 	AgentImage      string
+}
+
+func getAmbientEnvironment() Environment {
+	name := os.Getenv("ENV")
+	switch name {
+	case "prod", "production":
+		return GetProductionEnvironment()
+	case "test", "":
+		return GetTestEnvironment()
+	default:
+		mgx.Must(errors.Errorf("invalid ENV %q", name))
+		return Environment{}
+	}
 }
 
 func UseTestEnvironment() {

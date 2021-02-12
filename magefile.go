@@ -224,6 +224,8 @@ func namespaceExists(name string) bool {
 func SetupNamespace(name string) {
 	mg.Deps(EnsureCluster)
 
+	// TODO: Use a bundle to install porter in a local dev env and invoke configure-namespace
+
 	if namespaceExists(name) {
 		kubectl("delete", "ns", name, "--wait=true").RunS()
 	}
@@ -231,10 +233,18 @@ func SetupNamespace(name string) {
 	kubectl("create", "namespace", name).RunE()
 	kubectl("label", "namespace", name, "porter-test=true").RunE()
 
-	kubectl("create", "configmap", "porter", "--namespace", name,
-		"--from-literal=porterVersion=canary",
-		"--from-literal=serviceAccount=porter-agent",
-		"--from-literal=outputsVolumeSize=64Mi").RunE()
+	agentCfg := `apiVersion: porter.sh/v1
+kind: AgentConfig
+metadata:
+  name: porter
+  labels:
+    porter: "true"
+spec:
+	porterVersion=canary
+	serviceAccount=porter-agent
+`
+	kubectl("apply", "-f", "--namespace", name, "-").
+		Stdin(strings.NewReader(agentCfg)).RunE()
 
 	kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
 		"--from-file=config.toml=hack/porter-config.toml").RunE()
