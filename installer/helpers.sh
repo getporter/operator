@@ -35,5 +35,18 @@ configure-namespace() {
   echo "Namespace $NAMESPACE is ready to use with the Porter Operator"
 }
 
+remove-data() {
+  kubectl delete namespace -l porter=true --wait
+  kubectl delete agentconfigs.porter.sh -l porter=true --wait
+  kubectl delete installations.porter.sh -l porter=true --wait
+  kubectl delete jobs -l porter=true --wait
+  kubectl delete secrets -l porter=true --wait
+  kubectl delete pods -l porter=true --wait
+}
+
+uninstall() {
+  kubectl delete -f manifests/operator.yaml --ignore-not-found=true --wait
+}
+
 # Call the requested function and pass the arguments as-is
 "$@"
