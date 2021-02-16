@@ -103,6 +103,10 @@ func BuildBundle() {
 	must.Command("porter", "build", "--version", strings.TrimPrefix(meta.Version, "v")).In("installer").RunV()
 }
 
+func Publish() {
+	mg.Deps(PublishController, PublishAgent, PublishBundle)
+}
+
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.Deps(BuildBundle)
@@ -178,19 +182,37 @@ func PublishImages() {
 func PublishAgent() {
 	meta := LoadMetadatda()
 	img := Env.AgentImagePrefix + meta.Version
+	log.Println("Building", img)
 	must.Command("docker", "build", "-t", img, "images/porter").
 		Env("DOCKER_BUILDKIT=1").RunV()
 
+	imgPermalink := Env.AgentImagePrefix + meta.Permalink
+	log.Println("Tagging as", imgPermalink)
+	must.RunV("docker", "tag", img, imgPermalink)
+
+	log.Println("Pushing", img)
 	must.RunV("docker", "push", img)
+
+	log.Println("Pushing", imgPermalink)
+	must.RunV("docker", "push", imgPermalink)
 }
 
 func PublishController() {
 	meta := LoadMetadatda()
-	img := Env.AgentImagePrefix + meta.Version
+	img := Env.ControllerImagePrefix + meta.Version
+	log.Println("Building", img)
 	must.Command("docker", "build", "-t", img, ".").
 		Env("DOCKER_BUILDKIT=1").RunV()
 
+	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+	log.Println("Tagging as", imgPermalink)
+	must.RunV("docker", "tag", img, imgPermalink)
+
+	log.Println("Pushing", img)
 	must.RunV("docker", "push", img)
+
+	log.Println("Pushing", imgPermalink)
+	must.RunV("docker", "push", imgPermalink)
 }
 
 // Reapply the file in config/samples, usage: mage bump porter-hello.
