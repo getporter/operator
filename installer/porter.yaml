@@ -84,6 +84,7 @@ install:
         - deploy/porter-operator-controller-manager
       flags:
         namespace: porter-operator-system
+        timeout: 30s
 
 upgrade:
   - kubernetes:
@@ -109,6 +110,7 @@ upgrade:
         - deploy/porter-operator-controller-manager
       flags:
         namespace: porter-operator-system
+        timeout: 30s
 
 # TODO: Add a test action that runs a test bundle to check if everything is configured properly
 
