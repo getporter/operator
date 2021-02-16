@@ -1,5 +1,5 @@
 name: porter-operator
-version: 0.1.0
+version: 0.0.0
 description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
 registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
