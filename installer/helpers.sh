@@ -44,9 +44,5 @@ remove-data() {
   kubectl delete pods -l porter=true --wait
 }
 
-uninstall() {
-  kubectl delete -f manifests/operator.yaml --ignore-not-found=true --wait
-}
-
 # Call the requested function and pass the arguments as-is
 "$@"

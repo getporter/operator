@@ -123,11 +123,11 @@ remove-data:
 
 uninstall:
   # using exec instead of kubernetes because of https://github.com/getporter/kubernetes-mixin/issues/25
-  - exec:
+  - kubernetes:
       description: "Uninstall manifests"
-      command: ./helpers.sh
-      arguments:
-        - uninstall
+      manifests:
+        - manifests/operator.yaml
+      wait: true
 
 customActions:
   configure-namespace:
