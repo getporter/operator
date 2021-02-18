@@ -84,6 +84,7 @@ install:
         - deploy/porter-operator-controller-manager
       flags:
         namespace: porter-operator-system
+        timeout: 30s
 
 upgrade:
   - kubernetes:
@@ -109,19 +110,30 @@ upgrade:
         - deploy/porter-operator-controller-manager
       flags:
         namespace: porter-operator-system
+        timeout: 30s
 
 # TODO: Add a test action that runs a test bundle to check if everything is configured properly
 
+remove-data:
+  - exec:
+      description: "Remove Porter Operator Data"
+      command: ./helpers.sh
+      arguments:
+        - remove-data
+
 uninstall:
-  - kubernetes:
-      description: "Apply manifests"
-      manifests:
-        - manifests/operator.yaml
-      wait: true
+  # using exec instead of kubernetes because of https://github.com/getporter/kubernetes-mixin/issues/25
+  - exec:
+      description: "Uninstall manifests"
+      command: ./helpers.sh
+      arguments:
+        - uninstall
 
 customActions:
   configure-namespace:
     description: Add necessary rbac, service account and configuration to use Porter Operator in a namespace. Creates the namespace if it does not already exist.
+  remove-data:
+    description: Remove Porter Operator data, such as namespaces used with configure-namespace, configuration, jobs, etc. These are not removed during uninstall.
 
 configure-namespace:
   - exec:
