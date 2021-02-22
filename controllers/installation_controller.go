@@ -234,6 +234,10 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 									Name:  "CLEANUP_JOBS",
 									Value: "false",
 								},
+								{
+									Name:  "SERVICE_ACCOUNT",
+									Value: agentCfg.ServiceAccount,
+								},
 							},
 							EnvFrom: []corev1.EnvFromSource{
 								// Environtment variables for the plugins
