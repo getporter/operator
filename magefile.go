@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	. "get.porter.sh/operator/mage"
 	"github.com/carolynvs/magex/mgx"
@@ -147,13 +148,15 @@ func TestUnit() {
 
 // Run integration tests against the test cluster.
 func TestIntegration() {
-	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo)
+	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo, EnsureDeployed)
 
+	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
+}
+
+func EnsureDeployed() {
 	if !isDeployed() {
 		Deploy()
 	}
-
-	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
 }
 
 // Build the operator and deploy it to the test cluster.
@@ -221,27 +224,20 @@ func Bump(sample string) {
 
 	sampleFile := fmt.Sprintf("config/samples/%s.yaml", sample)
 	dataB, err := ioutil.ReadFile(sampleFile)
-	mgx.Must(errors.Errorf("error reading installation definition %s", sampleFile))
+	mgx.Must(errors.Wrapf(err, "error reading installation definition %s", sampleFile))
 
-	retryCountField := ".metadata.annotations.retryCount"
-	retryCount, _ := must.Command("yq", "eval", retryCountField, "-").
-		Stdin(bytes.NewReader(dataB)).OutputE()
+	retryCountField := ".metadata.annotations.retry"
 
-	x, err := strconv.Atoi(retryCount)
-	if err != nil {
-		x = 0
-	}
-	retryCount = strconv.Itoa(x + 1)
-
-	crd, _ := must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, retryCount), "-").
+	crd, _ := must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, time.Now().String()), "-").
 		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	log.Println(crd)
-	kubectl("apply", "-f", "-").Stdin(strings.NewReader(crd)).RunV()
+	kubectl("apply", "--namespace", testNamespace, "-f", "-").Stdin(strings.NewReader(crd)).RunV()
 }
 
 // Ensures that a namespace named "test" exists.
 func EnsureTestNamespace() {
+	mg.Deps(EnsureDeployed)
 	if !namespaceExists(testNamespace) {
 		setupTestNamespace()
 	}
@@ -252,7 +248,7 @@ func setupTestNamespace() {
 }
 
 func namespaceExists(name string) bool {
-	err := kubectl("get", "namespace", name).RunS()
+	err := kubectl("get", "namespace", name).Must(false).RunS()
 	return err == nil
 }
 
@@ -277,11 +273,12 @@ metadata:
   labels:
     porter: "true"
 spec:
-	porterVersion=canary
-	serviceAccount=porter-agent
+  porterRepository: localhost:5000/porter
+  porterVersion: canary
+  serviceAccount: porter-agent
 `
-	kubectl("apply", "-f", "--namespace", name, "-").
-		Stdin(strings.NewReader(agentCfg)).RunE()
+	kubectl("apply", "--namespace", name, "-f", "-").
+		Stdin(strings.NewReader(agentCfg)).RunV()
 
 	kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
 		"--from-file=config.toml=hack/porter-config.toml").RunE()
