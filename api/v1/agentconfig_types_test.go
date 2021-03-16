@@ -13,22 +13,22 @@ import (
 func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Equal(t, "ghcr.io/getporter/porter:kubernetes-latest", c.GetPorterImage())
+		assert.Equal(t, "ghcr.io/getporter/porter-agent:latest", c.GetPorterImage())
 	})
 
 	t.Run("porter version set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterVersion: "canary"}
-		assert.Equal(t, "ghcr.io/getporter/porter:kubernetes-canary", c.GetPorterImage())
+		assert.Equal(t, "ghcr.io/getporter/porter-agent:canary", c.GetPorterImage())
 	})
 
 	t.Run("porter repository set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter"}
-		assert.Equal(t, "localhost:5000/myporter:kubernetes-latest", c.GetPorterImage())
+		assert.Equal(t, "localhost:5000/myporter:latest", c.GetPorterImage())
 	})
 
 	t.Run("porter repository and version set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter", PorterVersion: "v1.2.3"}
-		assert.Equal(t, "localhost:5000/myporter:kubernetes-v1.2.3", c.GetPorterImage())
+		assert.Equal(t, "localhost:5000/myporter:v1.2.3", c.GetPorterImage())
 	})
 }
 
