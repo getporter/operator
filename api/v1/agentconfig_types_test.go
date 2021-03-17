@@ -30,6 +30,13 @@ func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter", PorterVersion: "v1.2.3"}
 		assert.Equal(t, "localhost:5000/myporter:v1.2.3", c.GetPorterImage())
 	})
+
+	t.Run("digest set", func(t *testing.T) {
+		c := AgentConfigSpec{
+			PorterVersion: "sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da",
+		}
+		assert.Equal(t, "ghcr.io/getporter/porter-agent@sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da", c.GetPorterImage())
+	})
 }
 
 func TestAgentConfigSpec_GetPullPolicy(t *testing.T) {

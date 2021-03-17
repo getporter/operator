@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 
+	"github.com/opencontainers/go-digest"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,7 +12,7 @@ import (
 // AgentConfigSpec defines the configuration for the Porter agent.
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
-	// Defaults to ghcr.io/getporter/porter
+	// Defaults to ghcr.io/getporter/porter-agent
 	PorterRepository string `json:"porterRepository,omitempty"`
 
 	// PorterVersion is the tag for the Porter Agent image.
@@ -43,9 +44,14 @@ func (c AgentConfigSpec) GetPorterImage() string {
 	}
 	repo := c.PorterRepository
 	if repo == "" {
-		repo = "ghcr.io/getporter/porter"
+		repo = "ghcr.io/getporter/porter-agent"
 	}
-	return fmt.Sprintf("%s:kubernetes-%s", repo, version)
+
+	if digest, err := digest.Parse(version); err == nil {
+		return fmt.Sprintf("%s@%s", repo, digest)
+	}
+
+	return fmt.Sprintf("%s:%s", repo, version)
 }
 
 // GetPullPolicy returns the PullPolicy that should be used for the Porter Agent
