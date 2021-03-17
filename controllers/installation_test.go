@@ -63,7 +63,7 @@ var _ = Describe("Installation controller", func() {
 			Expect(job.Spec.Template.Spec.Containers).Should(HaveLen(1))
 
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.Image).Should(Equal("ghcr.io/getporter/porter:kubernetes-canary"))
+			Expect(container.Image).Should(Equal("ghcr.io/getporter/porter-agent:canary"))
 			Expect(container.Args).Should(Equal([]string{inst.Spec.Action, InstallationName, "--reference=" + inst.Spec.Reference, "--debug", "--debug-plugins", "--driver=kubernetes"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))

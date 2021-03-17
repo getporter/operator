@@ -154,7 +154,7 @@ spec:
   serviceAccount: porter-agent # Required. ServiceAccount to run the Porter Agent under.
   pullPolicy: Always # Optional. Policy for pulling new versions of the Porter Agent image. Defaults to Always for latest and canary, IfNotPresent otherwise.
   porterVersion: canary # Optional. Version of the Porter Agent image. Allowed values: latest, canary, vX.Y.Z
-  porterRepository: ghcr.io/getporter/porter # Optional. The Porter Agent repository to use.
+  porterRepository: ghcr.io/getporter/porter-agent # Optional. The Porter Agent repository to use.
   volumeSize: 
 ```
 

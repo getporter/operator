@@ -105,7 +105,7 @@ func BuildBundle() {
 }
 
 func Publish() {
-	mg.Deps(PublishController, PublishAgent, PublishBundle)
+	mg.Deps(PublishController, PublishBundle)
 }
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
@@ -178,26 +178,7 @@ func isDeployed() bool {
 }
 
 func PublishImages() {
-	mg.Deps(PublishAgent, PublishController)
-}
-
-// Publish the Porter agent image to the local docker registry.
-func PublishAgent() {
-	meta := LoadMetadatda()
-	img := Env.AgentImagePrefix + meta.Version
-	log.Println("Building", img)
-	must.Command("docker", "build", "-t", img, "images/porter").
-		Env("DOCKER_BUILDKIT=1").RunV()
-
-	imgPermalink := Env.AgentImagePrefix + meta.Permalink
-	log.Println("Tagging as", imgPermalink)
-	must.RunV("docker", "tag", img, imgPermalink)
-
-	log.Println("Pushing", img)
-	must.RunV("docker", "push", img)
-
-	log.Println("Pushing", imgPermalink)
-	must.RunV("docker", "push", imgPermalink)
+	mg.Deps(PublishController)
 }
 
 func PublishController() {
