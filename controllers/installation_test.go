@@ -45,8 +45,9 @@ var _ = Describe("Installation controller", func() {
 					Reference: "getporter/porter-hello:v0.1.1",
 					Action:    "install",
 					AgentConfig: apiv1.AgentConfigSpec{
-						PorterVersion:  "canary",
-						ServiceAccount: "porter-agent",
+						PorterVersion:              "canary",
+						ServiceAccount:             "porter-agent",
+						InstallationServiceAccount: "installation-agent",
 					},
 				},
 			}
@@ -67,6 +68,7 @@ var _ = Describe("Installation controller", func() {
 			Expect(container.Args).Should(Equal([]string{inst.Spec.Action, InstallationName, "--reference=" + inst.Spec.Reference, "--debug", "--debug-plugins", "--driver=kubernetes"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))
+			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "SERVICE_ACCOUNT", Value: "installation-agent"}))
 
 			Expect(container.EnvFrom[0].SecretRef.Name).Should(Equal("porter-env"))
 

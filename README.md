@@ -156,6 +156,7 @@ spec:
   porterVersion: canary # Optional. Version of the Porter Agent image. Allowed values: latest, canary, vX.Y.Z
   porterRepository: ghcr.io/getporter/porter-agent # Optional. The Porter Agent repository to use.
   volumeSize: 
+  installationServiceAccount: # Optional. ServiceAccount to run the installation under, service account must exist in the namespace that the installation is run in.
 ```
 
 The agent configuration has a hierarchy and values are merged from all three

@@ -72,7 +72,8 @@ func TestAgentConfigSpec_GetVolumeSize(t *testing.T) {
 func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 	t.Run("empty is ignored", func(t *testing.T) {
 		nsConfig := AgentConfigSpec{
-			ServiceAccount: "porter-agent",
+			ServiceAccount:             "porter-agent",
+			InstallationServiceAccount: "installation-service-account",
 		}
 
 		instConfig := AgentConfigSpec{}
@@ -83,19 +84,21 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 
 	t.Run("override", func(t *testing.T) {
 		nsConfig := AgentConfigSpec{
-			PorterRepository: "base",
-			PorterVersion:    "base",
-			ServiceAccount:   "base",
-			VolumeSize:       resource.MustParse("1Mi"),
-			PullPolicy:       v1.PullIfNotPresent,
+			PorterRepository:           "base",
+			PorterVersion:              "base",
+			ServiceAccount:             "base",
+			VolumeSize:                 resource.MustParse("1Mi"),
+			PullPolicy:                 v1.PullIfNotPresent,
+			InstallationServiceAccount: "base",
 		}
 
 		instConfig := AgentConfigSpec{
-			PorterRepository: "override",
-			PorterVersion:    "override",
-			ServiceAccount:   "override",
-			VolumeSize:       resource.MustParse("2Mi"),
-			PullPolicy:       v1.PullAlways,
+			PorterRepository:           "override",
+			PorterVersion:              "override",
+			ServiceAccount:             "override",
+			VolumeSize:                 resource.MustParse("2Mi"),
+			PullPolicy:                 v1.PullAlways,
+			InstallationServiceAccount: "override",
 		}
 
 		config := nsConfig.MergeConfig(instConfig)
@@ -104,5 +107,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "override", config.ServiceAccount)
 		assert.Equal(t, "2Mi", config.VolumeSize.String())
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
+		assert.Equal(t, "override", config.InstallationServiceAccount)
 	})
 }

@@ -233,6 +233,10 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 									Name:  "CLEANUP_JOBS",
 									Value: "false",
 								},
+								{
+									Name:  "SERVICE_ACCOUNT",
+									Value: agentCfg.InstallationServiceAccount,
+								},
 							},
 							EnvFrom: []corev1.EnvFromSource{
 								// Environtment variables for the plugins
@@ -277,6 +281,7 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 			"pullPolicy", config.PullPolicy,
 			"serviceAccount", config.ServiceAccount,
 			"volumeSize", config.VolumeSize,
+			"installationServiceAccount", config.InstallationServiceAccount,
 		)
 	}
 
@@ -308,6 +313,7 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 		"pullPolicy", cfg.GetPullPolicy(),
 		"serviceAccount", cfg.ServiceAccount,
 		"volumeSize", cfg.GetVolumeSize(),
+		"installationServiceAccount", cfg.InstallationServiceAccount,
 	)
 
 	return cfg, nil

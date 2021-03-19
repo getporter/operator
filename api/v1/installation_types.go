@@ -16,7 +16,7 @@ type InstallationSpec struct {
 
 	// AgentConfig overrides the Porter Agent configuration defined at the namespace or system level.
 	// +optional
-	AgentConfig AgentConfigSpec `json:"agentConfig,omitEmpty"` // TODO: Make this a reference
+	AgentConfig AgentConfigSpec `json:"agentConfig,omitempty"` // TODO: Make this a reference
 
 	// TODO: Add reference to a porter config.toml secret
 
