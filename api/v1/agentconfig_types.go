@@ -33,6 +33,11 @@ type AgentConfigSpec struct {
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
 	// otherwise.
 	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
+
+	// InstallationServiceAccount specifies a service account to run the Kubernetes pod/job for the installation image.
+	// The default is to run without a service account.
+	// This can be useful for a bundle which is targetting the kuernetes cluster that the operator is installed in.
+	InstallationServiceAccount string `json:"installationServiceAccount,omitempty"`
 }
 
 // GetPorterImage returns the fully qualified image name of the Porter Agent
@@ -98,6 +103,10 @@ func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) AgentConfigSpec {
 
 	if override.PullPolicy != "" {
 		c.PullPolicy = override.PullPolicy
+	}
+
+	if override.InstallationServiceAccount != "" {
+		c.InstallationServiceAccount = override.InstallationServiceAccount
 	}
 
 	return c

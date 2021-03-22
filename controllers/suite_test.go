@@ -147,6 +147,15 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	Expect(k8sClient.Create(ctx, svcRole)).To(Succeed())
 
+	// installation image service account
+	instsa := &v1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "installation-agent",
+			Namespace: ns.Name,
+		},
+	}
+	Expect(k8sClient.Create(ctx, instsa)).To(Succeed())
+
 	// agentconfig secret
 	porterCfg := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

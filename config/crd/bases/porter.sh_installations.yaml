@@ -45,9 +45,16 @@ spec:
                 description: AgentConfig overrides the Porter Agent configuration
                   defined at the namespace or system level.
                 properties:
+                  installationServiceAccount:
+                    description: InstallationServiceAccount specifies a service account
+                      to run the Kubernetes pod/job for the installation image. The
+                      default is to run without a service account. This can be useful
+                      for a bundle which is targetting the kuernetes cluster that
+                      the operator is installed in.
+                    type: string
                   porterRepository:
                     description: PorterRepository is the repository for the Porter
-                      Agent image. Defaults to ghcr.io/getporter/porter
+                      Agent image. Defaults to ghcr.io/getporter/porter-agent
                     type: string
                   porterVersion:
                     description: PorterVersion is the tag for the Porter Agent image.

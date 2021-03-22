@@ -277,6 +277,8 @@ spec:
 		"--serviceaccount", name+":porter-agent",
 		"--namespace", name).RunE()
 
+	kubectl("create", "serviceaccount", "installation-service-account", "--namespace", name).RunE()
+
 	setClusterNamespace(name)
 }
 
