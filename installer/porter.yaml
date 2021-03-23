@@ -44,6 +44,12 @@ parameters:
     default: "porter-agent"
     applyTo:
       - configure-namespace
+  - name: installationServiceAccount
+    description: Name of the service account to run installation with. If set, you are responsible for creating this service account and giving it required permissions.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/installationServiceAccount
+    applyTo:
+      - configure-namespace
 
 credentials:
   - name: kubeconfig
