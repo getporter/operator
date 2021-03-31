@@ -103,9 +103,10 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 			Name:      jobName,
 			Namespace: inst.Namespace,
 			Labels: map[string]string{
-				"porter":       "true",
-				"installation": inst.Name,
-				"job":          jobName,
+				"porter":               "true",
+				"installation":         inst.Name,
+				"installation-version": inst.ResourceVersion,
+				"job":                  jobName,
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
@@ -156,8 +157,9 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 			Name:      jobName,
 			Namespace: inst.Namespace,
 			Labels: map[string]string{
-				"porter":       "true",
-				"installation": inst.Name,
+				"porter":               "true",
+				"installation":         inst.Name,
+				"installation-version": inst.ResourceVersion,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -168,8 +170,9 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 					GenerateName: jobName,
 					Namespace:    inst.Namespace,
 					Labels: map[string]string{
-						"porter":       "true",
-						"installation": inst.Name,
+						"porter":               "true",
+						"installation":         inst.Name,
+						"installation-version": inst.ResourceVersion,
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -219,7 +222,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 								},
 								{
 									Name:  "LABELS",
-									Value: "porter=true installation=" + inst.Name,
+									Value: fmt.Sprintf("porter=true installation=%s installation-version=%s", inst.Name, inst.ResourceVersion),
 								},
 								{
 									Name:  "JOB_VOLUME_NAME",
@@ -236,6 +239,10 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 								{
 									Name:  "SERVICE_ACCOUNT",
 									Value: agentCfg.InstallationServiceAccount,
+								},
+								{
+									Name:  "AFFINITY_MATCH_LABELS",
+									Value: fmt.Sprintf("installation=%s installation-version=%s", inst.Name, inst.ResourceVersion),
 								},
 							},
 							EnvFrom: []corev1.EnvFromSource{

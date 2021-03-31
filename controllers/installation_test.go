@@ -25,7 +25,8 @@ var _ = Describe("Installation controller", func() {
 
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
-		InstallationName = "porter-hello"
+		InstallationName        = "porter-hello"
+		AffinityMatchLabelValue = "installation=" + InstallationName + " installation-version="
 	)
 
 	Context("When working with Porter", func() {
@@ -56,11 +57,18 @@ var _ = Describe("Installation controller", func() {
 			// Wait for the job to be created
 			jobs := waitForJobStarted(ctx)
 
+			expectedLabelsMatcher := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
+				"porter":               Equal("true"),
+				"installation":         Equal(InstallationName),
+				"installation-version": Equal(inst.ObjectMeta.ResourceVersion),
+			})
+
 			job := jobs.Items[0]
-			Expect(job.Labels).Should(gstruct.MatchKeys(gstruct.IgnoreMissing, gstruct.Keys{
-				"porter":       Equal("true"),
-				"installation": Equal(InstallationName),
-			}))
+
+			Expect(job.Labels).Should(expectedLabelsMatcher)
+
+			Expect(job.Spec.Template.Labels).Should(expectedLabelsMatcher)
+
 			Expect(job.Spec.Template.Spec.Containers).Should(HaveLen(1))
 
 			container := job.Spec.Template.Spec.Containers[0]
@@ -69,6 +77,7 @@ var _ = Describe("Installation controller", func() {
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "SERVICE_ACCOUNT", Value: "installation-agent"}))
+			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "AFFINITY_MATCH_LABELS", Value: fmt.Sprintf("%s%s", AffinityMatchLabelValue, inst.ObjectMeta.ResourceVersion)}))
 
 			Expect(container.EnvFrom[0].SecretRef.Name).Should(Equal("porter-env"))
 
