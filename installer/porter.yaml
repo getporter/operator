@@ -5,6 +5,10 @@ registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 
 parameters:
+  - name: plugin
+    type: string
+    default: kubernetes
+    description: The name of the plugin to use, can ether be azure or kubernetes .
   - name: namespace
     type: string
     applyTo:
@@ -56,18 +60,23 @@ credentials:
     description: Kubeconfig file for cluster where the operator should be installed
     path: /root/.kube/config
   - name: config.toml
-    description: Porter configuration file found in ~/.porter/config.toml
+    required: false
+    description: Porter configuration file found in ~/.porter/config.toml. This is only required if you are not using the default kubernetes plugin
     path: /cnab/app/manifests/namespace/config.toml
   - name: azure-storage-connection-string
+    required: false
     description: Connection string for the azure storage plugin
     env: AZURE_STORAGE_CONNECTION_STRING
   - name: azure-tenant-id
+    required: false
     description: Tenant ID for the azure secrets plugin
     env: AZURE_TENANT_ID
   - name: azure-client-id
+    required: false
     description: Client ID for the azure secrets plugin
     env: AZURE_CLIENT_ID
   - name: azure-client-secret
+    required: false
     description: Password for the azure secrets plugin
     env: AZURE_CLIENT_SECRET
 

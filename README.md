@@ -27,7 +27,7 @@ Use explain to see what credentials and parameters you can use when installing a
 porter explain -r ghcr.io/getporter/porter-operator:canary
 ```
 
-Generate a credential set for the bundle
+Generate a credential set for the bundle, the only required credential for the operator is a kubeconfig for the cluster that the operator is to be installed in.
 ```
 porter credentials generate porterops -r ghcr.io/getporter/porter-operator:canary
 ```
@@ -136,7 +136,7 @@ kubectl create secret generic porter-env \
   --from-literal=AZURE_TENANT_ID=$AZURE_TENANT_ID
 ``` 
 
-Right now the bundle only works with azure plugin.
+Right now the bundle only works with the kubernetes and azure plugins, by default it uses the kubernetes plugin which does not need any further configuration, the secrets above are only required if you want to use the [Azure plugin](https://github.com/getporter/kubernetes-plugins) .
 
 ## AgentConfig
 
