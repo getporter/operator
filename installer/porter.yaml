@@ -52,6 +52,7 @@ parameters:
     description: Name of the service account to run installation with. If set, you are responsible for creating this service account and giving it required permissions.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/installationServiceAccount
+    default: ""
     applyTo:
       - configure-namespace
 
