@@ -61,23 +61,23 @@ credentials:
     description: Kubeconfig file for cluster where the operator should be installed
     path: /root/.kube/config
   - name: config.toml
-    required: false
+    default: ""
     description: Porter configuration file found in ~/.porter/config.toml. This is only required if you are not using the default kubernetes plugin
     path: /cnab/app/manifests/namespace/config.toml
   - name: azure-storage-connection-string
-    required: false
+    default: ""
     description: Connection string for the azure storage plugin
     env: AZURE_STORAGE_CONNECTION_STRING
   - name: azure-tenant-id
-    required: false
+    default: ""
     description: Tenant ID for the azure secrets plugin
     env: AZURE_TENANT_ID
   - name: azure-client-id
-    required: false
+    default: ""
     description: Client ID for the azure secrets plugin
     env: AZURE_CLIENT_ID
   - name: azure-client-secret
-    required: false
+    default: ""
     description: Password for the azure secrets plugin
     env: AZURE_CLIENT_SECRET
 
