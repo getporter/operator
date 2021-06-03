@@ -254,8 +254,8 @@ metadata:
   labels:
     porter: "true"
 spec:
-  porterRepository: localhost:5000/porter
-  porterVersion: canary
+  porterRepository: getporter/porter-agent
+  porterVersion: latest
   serviceAccount: porter-agent
 `
 	kubectl("apply", "--namespace", name, "-f", "-").
