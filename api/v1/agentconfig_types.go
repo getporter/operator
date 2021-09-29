@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/go-digest"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -27,7 +28,7 @@ type AgentConfigSpec struct {
 	// between the Porter Agent and the bundle invocation image. It must
 	// be large enough to store any files used by the bundle including credentials,
 	// parameters and outputs.
-	VolumeSize resource.Quantity `json:"volumeSize,omitempty"`
+	VolumeSize string `json:"volumeSize,omitempty"`
 
 	// PullPolicy specifies when to pull the Porter Agent image. The default
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
@@ -76,40 +77,33 @@ func (c AgentConfigSpec) GetPullPolicy() v1.PullPolicy {
 // GetVolumeSize returns the size of the shared volume to mount between the
 // Porter Agent and the bundle's invocation image. Defaults to 64Mi.
 func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
-	if c.VolumeSize.IsZero() {
+	q, err := resource.ParseQuantity(c.VolumeSize)
+	if err != nil || q.IsZero() {
 		return resource.MustParse("64Mi")
 	}
-	return c.VolumeSize
+	return q
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
 // only when they are not empty.
-func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) AgentConfigSpec {
-	if override.PorterRepository != "" {
-		c.PorterRepository = override.PorterRepository
+func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) (AgentConfigSpec, error) {
+	var targetRaw map[string]interface{}
+	if err := mapstructure.Decode(c, &targetRaw); err != nil {
+		return AgentConfigSpec{}, err
 	}
 
-	if override.PorterVersion != "" {
-		c.PorterVersion = override.PorterVersion
+	var overrideRaw map[string]interface{}
+	if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+		return AgentConfigSpec{}, err
 	}
 
-	if override.ServiceAccount != "" {
-		c.ServiceAccount = override.ServiceAccount
+	MergeMap(targetRaw, overrideRaw)
+
+	if err := mapstructure.Decode(targetRaw, &c); err != nil {
+		return AgentConfigSpec{}, err
 	}
 
-	if !override.VolumeSize.IsZero() {
-		c.VolumeSize = override.VolumeSize
-	}
-
-	if override.PullPolicy != "" {
-		c.PullPolicy = override.PullPolicy
-	}
-
-	if override.InstallationServiceAccount != "" {
-		c.InstallationServiceAccount = override.InstallationServiceAccount
-	}
-
-	return c
+	return c, nil
 }
 
 // +kubebuilder:object:root=true

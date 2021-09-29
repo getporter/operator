@@ -6,6 +6,7 @@ require (
 	github.com/carolynvs/magex v0.5.0
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/opencontainers/go-digest v1.0.0-rc1

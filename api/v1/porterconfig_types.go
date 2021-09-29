@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 
+	"github.com/mitchellh/mapstructure"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -75,6 +76,37 @@ type PorterConfig struct {
 
 	Spec   PorterConfigSpec   `json:"spec,omitempty"`
 	Status PorterConfigStatus `json:"status,omitempty"`
+}
+
+// MergeConfig from another PorterConfigSpec. The values from the override are applied
+// only when they are not empty.
+func (c PorterConfigSpec) MergeConfig(override PorterConfigSpec) (PorterConfigSpec, error) {
+	var targetRaw map[string]interface{}
+	if err := mapstructure.Decode(c, &targetRaw); err != nil {
+		return PorterConfigSpec{}, err
+	}
+
+	var overrideRaw map[string]interface{}
+	if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+		return PorterConfigSpec{}, err
+	}
+
+	MergeMap(targetRaw, overrideRaw)
+
+	if err := mapstructure.Decode(targetRaw, &c); err != nil {
+		return PorterConfigSpec{}, err
+	}
+
+	return c, nil
+}
+
+// MergeConfig from another PorterConfigSpec. The values from the override are applied
+// only when they are not empty.
+func MergeMap(target, override map[string]interface{}) map[string]interface{} {
+	for k, v := range override {
+		target[k] = v
+	}
+	return target
 }
 
 // +kubebuilder:object:root=true
