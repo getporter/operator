@@ -1,19 +1,20 @@
 package v1
 
 import (
+	"encoding/json"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // InstallationSpec defines the desired state of Installation
 type InstallationSpec struct {
-	// AgentConfig is the name of an AgentConfig to use instead of the Porter Agent configuration defined at the namespace or system level.
+	// AgentConfig is the name of an AgentConfig to use instead of the AgentConfig defined at the namespace or system level.
 	// +optional
 	AgentConfig v1.LocalObjectReference `json:"agentConfig,omitempty"`
 
-	// TODO: Add reference to a porter config.toml secret
-
-	// TODO: Force pull, debug and other flags
+	// PorterConfig is the name of a PorterConfig to use instead of the PorterConfig defined at the namespace or system level.
+	PorterConfig v1.LocalObjectReference `json:"porterConfig,omitempty"`
 
 	//
 	// These are fields from the Porter installation resource
@@ -45,7 +46,7 @@ type InstallationSpec struct {
 
 	// Parameters specified by the user through overrides.
 	// Does not include defaults, or values resolved from parameter sources.
-	Parameters map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty" toml:"parameters,omitempty"`
+	Parameters map[string]json.RawMessage `json:"parameters,omitempty" yaml:"parameters,omitempty" toml:"parameters,omitempty"`
 
 	// CredentialSets that should be included when the bundle is reconciled.
 	CredentialSets []string `json:"credentialSets,omitempty" yaml:"credentialSets,omitempty" toml:"credentialSets,omitempty"`

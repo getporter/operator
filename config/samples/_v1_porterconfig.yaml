@@ -1,0 +1,7 @@
+apiVersion: porter.sh/v1
+kind: PorterConfig
+metadata:
+  name: porterconfig-sample
+spec:
+  # Add fields here
+  foo: bar
