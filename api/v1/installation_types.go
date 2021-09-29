@@ -7,29 +7,51 @@ import (
 
 // InstallationSpec defines the desired state of Installation
 type InstallationSpec struct {
-	// Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
-	Reference string `json:"reference"`
-
-	// Action defined in the bundle to execute. If unspecified, Porter will run an
-	// install if the installation does not exist, or an upgrade otherwise.
-	Action string `json:"action"`
-
-	// AgentConfig overrides the Porter Agent configuration defined at the namespace or system level.
+	// AgentConfig is the name of an AgentConfig to use instead of the Porter Agent configuration defined at the namespace or system level.
 	// +optional
-	AgentConfig AgentConfigSpec `json:"agentConfig,omitempty"` // TODO: Make this a reference
+	AgentConfig v1.LocalObjectReference `json:"agentConfig,omitempty"`
 
 	// TODO: Add reference to a porter config.toml secret
 
 	// TODO: Force pull, debug and other flags
 
-	// CredentialSets is a list of credential set names.
-	CredentialSets []string `json:"credentialSets,omitempty"`
+	//
+	// These are fields from the Porter installation resource
+	//
 
-	// ParameterSets is a list of parameter set names.
-	ParameterSets []string `json:"parameterSets,omitempty"`
+	// SchemaVersion is the version of the installation state schema.
+	SchemaVersion string `json:"schemaVersion"`
 
-	// Parameters is a list of parameter set names.
-	Parameters map[string]string `json:"parameters,omitempty"`
+	// InstallationName is the name of the installation in Porter. Immutable.
+	InstallationName string `json:"installationName"`
+
+	// TargetNamespace (in Porter) where the installation is defined.
+	TargetNamespace string `json:"targetNamespace"`
+
+	// BundleRepository is the OCI repository of the current bundle definition.
+	BundleRepository string `json:"bundleRepository,omitempty"`
+
+	// BundleVersion is the current version of the bundle.
+	BundleVersion string `json:"bundleVersion,omitempty"`
+
+	// BundleDigest is the current digest of the bundle.
+	BundleDigest string `json:"bundleDigest,omitempty"`
+
+	// BundleTag is the OCI tag of the current bundle definition.
+	BundleTag string `json:"bundleTag,omitempty"`
+
+	// Labels applied to the installation.
+	InstallationLabels map[string]string `json:"installationLabels,omitempty"`
+
+	// Parameters specified by the user through overrides.
+	// Does not include defaults, or values resolved from parameter sources.
+	Parameters map[string]interface{} `json:"parameters,omitempty" yaml:"parameters,omitempty" toml:"parameters,omitempty"`
+
+	// CredentialSets that should be included when the bundle is reconciled.
+	CredentialSets []string `json:"credentialSets,omitempty" yaml:"credentialSets,omitempty" toml:"credentialSets,omitempty"`
+
+	// ParameterSets that should be included when the bundle is reconciled.
+	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty" toml:"parameterSets,omitempty"`
 }
 
 // InstallationStatus defines the observed state of Installation

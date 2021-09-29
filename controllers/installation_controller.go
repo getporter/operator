@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	porterv1 "get.porter.sh/operator/api/v1"
-	"get.porter.sh/porter/pkg/manifest"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
@@ -40,21 +39,14 @@ type InstallationReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=create;delete
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Installation object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
+// Reconcile is responsible for calling porter when an Installation resource changes.
+// Porter itself handles reconciling the resource with the current state of the installation.
 func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// Retrieve the Installation
 	inst := &porterv1.Installation{}
 	err := r.Get(ctx, req.NamespacedName, inst)
 	if err != nil {
-		// TODO: cleanup deleted installations
+		// TODO: Register a finalizer and then either delete or uninstall the resource from Porter
 		r.Log.Info("Installation has been deleted", "installation", fmt.Sprintf("%s/%s", req.Namespace, req.Name))
 		return ctrl.Result{Requeue: false}, nil
 	}
@@ -89,25 +81,30 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
+const labelPrefix = "porter.sh/"
+
 func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, jobName string, inst *porterv1.Installation) error {
 	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for Installation %s/%s", inst.Namespace, jobName, inst.Namespace, inst.Name))
 
 	// Create a volume to share data between porter and the invocation image
-	agentCfg, err := r.getPorterConfig(ctx, inst)
+	agentCfg, err := r.resolveAgentConfig(ctx, inst)
 	if err != nil {
 		return err
+	}
+
+	sharedLabels := map[string]string{
+		labelPrefix + "managed":          "true",
+		labelPrefix + "resource-name":    inst.Name,
+		labelPrefix + "resource-version": inst.ResourceVersion,
+		labelPrefix + "resource-type":    "installation",
+		labelPrefix + "job":              jobName,
 	}
 
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: inst.Namespace,
-			Labels: map[string]string{
-				"porter":               "true",
-				"installation":         inst.Name,
-				"installation-version": inst.ResourceVersion,
-				"job":                  jobName,
-			},
+			Labels:    sharedLabels,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -118,49 +115,41 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 			},
 		},
 	}
+
 	err = r.Create(ctx, pvc)
 	if err != nil {
 		return err
 	}
 
-	log := r.Log.WithValues("installation", inst.Name, "namespace", inst.Namespace, "resourceVersion", inst.ResourceVersion)
+	log := r.Log.WithValues("resourceType", "installation", "resourceName", inst.Name, "resourceNamespace", inst.Namespace, "resourceVersion", inst.ResourceVersion)
 	log.Info("Using " + agentCfg.GetPorterImage())
 
-	// porter ACTION INSTALLATION_NAME --tag=REFERENCE --debug
-	// TODO: For now require the action, and when porter supports installorupgrade switch
-	var args []string
-	if manifest.IsCoreAction(inst.Spec.Action) {
-		args = append(args, inst.Spec.Action)
-	} else {
-		args = append(args, "invoke", "--action="+inst.Spec.Action)
-	}
+	// TODO: create a secret with all the files that should be copied into the agent
+	// copy the porter-config secret into a new secret and append to it
+	/*
+		agentInput := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      jobName,
+				Namespace: inst.Namespace,
+				Labels:    sharedLabels,
+			},
+			Type:       corev1.SecretTypeOpaque,
+			Immutable:  pointer.BoolPtr(true),
+			StringData: nil,
+		}
+	*/
 
-	args = append(args,
-		inst.Name,
-		"--reference="+inst.Spec.Reference,
-		"--debug",
-		"--debug-plugins",
-		"--driver=kubernetes")
+	// porter installation apply installation.yaml
+	porterCommand := []string{"installation", "apply", "/porter-config/installation.yaml"}
 
-	for _, c := range inst.Spec.CredentialSets {
-		args = append(args, "-c="+c)
-	}
-	for _, p := range inst.Spec.ParameterSets {
-		args = append(args, "-p="+p)
-	}
-	for k, v := range inst.Spec.Parameters {
-		args = append(args, fmt.Sprintf("--param=%s=%s", k, v))
-	}
-
+	// TODO: generate installation.yaml from the CRD spec
+	// TODO: somehow get that file into the job we are creating (through the pvc? by creating a secret?)
+	// TODO: there are execution flags that I need to set for install that I don't know how to set through apply. Maybe set them in the porter config file or env vars?
 	porterJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: inst.Namespace,
-			Labels: map[string]string{
-				"porter":               "true",
-				"installation":         inst.Name,
-				"installation-version": inst.ResourceVersion,
-			},
+			Labels:    sharedLabels,
 		},
 		Spec: batchv1.JobSpec{
 			Completions:  pointer.Int32Ptr(1),
@@ -169,11 +158,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: jobName,
 					Namespace:    inst.Namespace,
-					Labels: map[string]string{
-						"porter":               "true",
-						"installation":         inst.Name,
-						"installation-version": inst.ResourceVersion,
-					},
+					Labels:       sharedLabels,
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							APIVersion:         inst.APIVersion,
@@ -209,8 +194,13 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 							Name:            jobName,
 							Image:           agentCfg.GetPorterImage(),
 							ImagePullPolicy: agentCfg.GetPullPolicy(),
-							Args:            args,
+							Args:            porterCommand,
 							Env: []corev1.EnvVar{
+								// Configuration for Porter
+								{
+									Name:  "PORTER_DRIVER",
+									Value: "kubernetes",
+								},
 								// Configuration for the Kubernetes Driver
 								{
 									Name:  "KUBE_NAMESPACE",
@@ -246,7 +236,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 								},
 							},
 							EnvFrom: []corev1.EnvFromSource{
-								// Environtment variables for the plugins
+								// Environment variables for the plugins
 								{
 									SecretRef: &corev1.SecretEnvSource{
 										LocalObjectReference: corev1.LocalObjectReference{
@@ -280,7 +270,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 	return errors.Wrapf(err, "error creating job for Installation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
 }
 
-func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *porterv1.Installation) (porterv1.AgentConfigSpec, error) {
+func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *porterv1.Installation) (porterv1.AgentConfigSpec, error) {
 	logConfig := func(name string, config porterv1.AgentConfigSpec) {
 		r.Log.Info(fmt.Sprintf("Found %s level porter agent configuration", name),
 			"porterRepository", config.PorterRepository,
@@ -300,7 +290,7 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 	}
 	logConfig("system", systemCfg.Spec)
 
-	// Read agent configuration defined at the system level
+	// Read agent configuration defined at the namespace level
 	nsCfg := &porterv1.AgentConfig{}
 	err = r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, nsCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -308,12 +298,18 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 	}
 	logConfig("namespace", nsCfg.Spec)
 
-	logConfig("instance", inst.Spec.AgentConfig)
+	// Read agent configuration defines on the installation
+	instCfg := &porterv1.AgentConfig{}
+	err = r.Get(ctx, types.NamespacedName{Name: inst.Spec.AgentConfig.Name, Namespace: inst.Namespace}, instCfg)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return porterv1.AgentConfigSpec{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the installation", inst.Spec.AgentConfig.Name)
+	}
+	logConfig("instance", instCfg.Spec)
 
 	// Apply overrides
 	cfg := systemCfg.Spec.
 		MergeConfig(nsCfg.Spec).
-		MergeConfig(inst.Spec.AgentConfig)
+		MergeConfig(instCfg.Spec)
 
 	r.Log.Info("resolved porter agent configuration",
 		"porterImage", cfg.GetPorterImage(),
@@ -324,6 +320,48 @@ func (r *InstallationReconciler) getPorterConfig(ctx context.Context, inst *port
 	)
 
 	return cfg, nil
+}
+
+func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *porterv1.Installation) (corev1.Secret, error) {
+	/*	logConfig := func(name string, config corev1.Secret) {
+			r.Log.Info(fmt.Sprintf("Found %s level porter config file secret", name))
+		}
+
+		// Read agent configuration defined at the system level
+		systemCfg := &corev1.Secret{}
+		err := r.Get(ctx, types.NamespacedName{Name: "porter-config", Namespace: operatorNamespace}, systemCfg)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return corev1.Secret{}, errors.Wrap(err, "cannot retrieve system level porter config file")
+		}
+		logConfig("system", systemCfg)
+
+		// Read agent configuration defined at the namespace level
+		nsCfg := &corev1.Secret{}
+		err = r.Get(ctx, types.NamespacedName{Name: "porter-config", Namespace: inst.Namespace}, nsCfg)
+		if err != nil && !apierrors.IsNotFound(err) {
+			return corev1.Secret{}, errors.Wrap(err, "cannot retrieve namespace level porter config file")
+		}
+		logConfig("namespace", nsCfg)
+
+		logConfig("instance", inst.Spec.AgentConfig)
+
+		// Apply overrides
+		cfg := systemCfg.Spec.
+			MergeConfig(nsCfg.Spec).
+			MergeConfig(inst.Spec.AgentConfig)
+
+		r.Log.Info("resolved porter agent configuration",
+			"porterImage", cfg.GetPorterImage(),
+			"pullPolicy", cfg.GetPullPolicy(),
+			"serviceAccount", cfg.ServiceAccount,
+			"volumeSize", cfg.GetVolumeSize(),
+			"installationServiceAccount", cfg.InstallationServiceAccount,
+		)
+
+		return cfg, nil
+
+	*/
+	return corev1.Secret{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
