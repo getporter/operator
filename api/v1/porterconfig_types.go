@@ -80,23 +80,24 @@ type PorterConfig struct {
 
 // MergeConfig from another PorterConfigSpec. The values from the override are applied
 // only when they are not empty.
-func (c PorterConfigSpec) MergeConfig(override PorterConfigSpec) (PorterConfigSpec, error) {
+func (c PorterConfigSpec) MergeConfig(overrides ...PorterConfigSpec) (PorterConfigSpec, error) {
 	var targetRaw map[string]interface{}
 	if err := mapstructure.Decode(c, &targetRaw); err != nil {
 		return PorterConfigSpec{}, err
 	}
 
-	var overrideRaw map[string]interface{}
-	if err := mapstructure.Decode(override, &overrideRaw); err != nil {
-		return PorterConfigSpec{}, err
-	}
+	for _, override := range overrides {
+		var overrideRaw map[string]interface{}
+		if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+			return PorterConfigSpec{}, err
+		}
 
-	MergeMap(targetRaw, overrideRaw)
+		MergeMap(targetRaw, overrideRaw)
+	}
 
 	if err := mapstructure.Decode(targetRaw, &c); err != nil {
 		return PorterConfigSpec{}, err
 	}
-
 	return c, nil
 }
 

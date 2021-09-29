@@ -86,23 +86,24 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
 // only when they are not empty.
-func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) (AgentConfigSpec, error) {
+func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigSpec, error) {
 	var targetRaw map[string]interface{}
 	if err := mapstructure.Decode(c, &targetRaw); err != nil {
 		return AgentConfigSpec{}, err
 	}
 
-	var overrideRaw map[string]interface{}
-	if err := mapstructure.Decode(override, &overrideRaw); err != nil {
-		return AgentConfigSpec{}, err
-	}
+	for _, override := range overrides {
+		var overrideRaw map[string]interface{}
+		if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+			return AgentConfigSpec{}, err
+		}
 
-	MergeMap(targetRaw, overrideRaw)
+		MergeMap(targetRaw, overrideRaw)
+	}
 
 	if err := mapstructure.Decode(targetRaw, &c); err != nil {
 		return AgentConfigSpec{}, err
 	}
-
 	return c, nil
 }
 

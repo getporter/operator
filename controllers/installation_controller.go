@@ -307,9 +307,10 @@ func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *p
 	logConfig("instance", instCfg.Spec)
 
 	// Apply overrides
-	cfg := systemCfg.Spec.
-		MergeConfig(nsCfg.Spec).
-		MergeConfig(instCfg.Spec)
+	cfg, err := systemCfg.Spec.MergeConfig(nsCfg.Spec, instCfg.Spec)
+	if err != nil {
+		return porterv1.AgentConfigSpec{}, err
+	}
 
 	r.Log.Info("resolved porter agent configuration",
 		"porterImage", cfg.GetPorterImage(),
@@ -318,50 +319,45 @@ func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *p
 		"volumeSize", cfg.GetVolumeSize(),
 		"installationServiceAccount", cfg.InstallationServiceAccount,
 	)
-
 	return cfg, nil
 }
 
-func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *porterv1.Installation) (corev1.Secret, error) {
-	/*	logConfig := func(name string, config corev1.Secret) {
-			r.Log.Info(fmt.Sprintf("Found %s level porter config file secret", name))
-		}
+func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *porterv1.Installation) (porterv1.PorterConfigSpec, error) {
+	logConfig := func(name string, config porterv1.PorterConfigSpec) {
+		r.Log.Info(fmt.Sprintf("Found %s level porter config file", name))
+	}
 
-		// Read agent configuration defined at the system level
-		systemCfg := &corev1.Secret{}
-		err := r.Get(ctx, types.NamespacedName{Name: "porter-config", Namespace: operatorNamespace}, systemCfg)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return corev1.Secret{}, errors.Wrap(err, "cannot retrieve system level porter config file")
-		}
-		logConfig("system", systemCfg)
+	// Read agent configuration defined at the system level
+	systemCfg := &porterv1.PorterConfig{}
+	err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: operatorNamespace}, systemCfg)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return porterv1.PorterConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
+	}
+	logConfig("system", systemCfg.Spec)
 
-		// Read agent configuration defined at the namespace level
-		nsCfg := &corev1.Secret{}
-		err = r.Get(ctx, types.NamespacedName{Name: "porter-config", Namespace: inst.Namespace}, nsCfg)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return corev1.Secret{}, errors.Wrap(err, "cannot retrieve namespace level porter config file")
-		}
-		logConfig("namespace", nsCfg)
+	// Read agent configuration defined at the namespace level
+	nsCfg := &porterv1.PorterConfig{}
+	err = r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, nsCfg)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return porterv1.PorterConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
+	}
+	logConfig("namespace", nsCfg.Spec)
 
-		logConfig("instance", inst.Spec.AgentConfig)
+	// Read agent configuration defines on the installation
+	instCfg := &porterv1.PorterConfig{}
+	err = r.Get(ctx, types.NamespacedName{Name: inst.Spec.AgentConfig.Name, Namespace: inst.Namespace}, instCfg)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return porterv1.PorterConfigSpec{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the installation", inst.Spec.AgentConfig.Name)
+	}
+	logConfig("instance", instCfg.Spec)
 
-		// Apply overrides
-		cfg := systemCfg.Spec.
-			MergeConfig(nsCfg.Spec).
-			MergeConfig(inst.Spec.AgentConfig)
+	// Apply overrides
+	cfg, err := systemCfg.Spec.MergeConfig(nsCfg.Spec, instCfg.Spec)
+	if err != nil {
+		return porterv1.PorterConfigSpec{}, err
+	}
 
-		r.Log.Info("resolved porter agent configuration",
-			"porterImage", cfg.GetPorterImage(),
-			"pullPolicy", cfg.GetPullPolicy(),
-			"serviceAccount", cfg.ServiceAccount,
-			"volumeSize", cfg.GetVolumeSize(),
-			"installationServiceAccount", cfg.InstallationServiceAccount,
-		)
-
-		return cfg, nil
-
-	*/
-	return corev1.Secret{}, nil
+	return cfg, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
