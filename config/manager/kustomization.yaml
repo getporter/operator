@@ -15,4 +15,4 @@ configMapGenerator:
 images:
 - name: manager
   newName: localhost:5000/porterops-controller
-  newTag: v0.2.0-4-ga06cd59
+  newTag: v0.2.0-5-g4cc041f

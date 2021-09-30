@@ -230,7 +230,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 							Env: []corev1.EnvVar{
 								// Configuration for Porter
 								{
-									Name:  "PORTER_DRIVER",
+									Name:  "PORTER_RUNTIME_DRIVER",
 									Value: "kubernetes",
 								},
 								// Configuration for the Kubernetes Driver
@@ -264,7 +264,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 								},
 								{
 									Name:  "AFFINITY_MATCH_LABELS",
-									Value: fmt.Sprintf("installation=%s installation-version=%s", inst.Name, inst.ResourceVersion),
+									Value: fmt.Sprintf("porter.sh/resource-name=%s porter.sh/resource-version=%s", inst.Name, inst.ResourceVersion),
 								},
 							},
 							EnvFrom: []corev1.EnvFromSource{
