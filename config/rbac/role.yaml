@@ -85,3 +85,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - porter.sh
+  resources:
+  - porterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

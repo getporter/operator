@@ -33,6 +33,22 @@ var _ = Describe("Installation controller", func() {
 		It("Should execute Porter", func() {
 			By("By creating a new Installation")
 			ctx := context.Background()
+			instCfg := &apiv1.AgentConfig{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "porter.sh/v1",
+					Kind:       "AgentConfig",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      InstallationName,
+					Namespace: testNamespace,
+				},
+				Spec: apiv1.AgentConfigSpec{
+					PorterVersion:              "canary",
+					ServiceAccount:             "porter-agent",
+					InstallationServiceAccount: "installation-agent",
+				},
+			}
+			Expect(k8sClient.Create(ctx, instCfg)).Should(Succeed())
 			inst := &apiv1.Installation{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "porter.sh/v1",
@@ -43,13 +59,9 @@ var _ = Describe("Installation controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: apiv1.InstallationSpec{
-					Reference: "getporter/porter-hello:v0.1.1",
-					Action:    "install",
-					AgentConfig: apiv1.AgentConfigSpec{
-						PorterVersion:              "canary",
-						ServiceAccount:             "porter-agent",
-						InstallationServiceAccount: "installation-agent",
-					},
+					BundleRepository: "getporter/porter-hello",
+					BundleVersion:    "0.1.1",
+					AgentConfig:      corev1.LocalObjectReference{Name: InstallationName},
 				},
 			}
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
@@ -73,7 +85,8 @@ var _ = Describe("Installation controller", func() {
 
 			container := job.Spec.Template.Spec.Containers[0]
 			Expect(container.Image).Should(Equal("ghcr.io/getporter/porter-agent:canary"))
-			Expect(container.Args).Should(Equal([]string{inst.Spec.Action, InstallationName, "--reference=" + inst.Spec.Reference, "--debug", "--debug-plugins", "--driver=kubernetes"}))
+			Expect(container.Args).Should(Equal([]string{"installation", "apply", "/porter-config/installation.yaml"}))
+			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "PORTER_DRIVER", Value: "kubernetes"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "SERVICE_ACCOUNT", Value: "installation-agent"}))

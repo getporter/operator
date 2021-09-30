@@ -36,72 +36,81 @@ spec:
           spec:
             description: InstallationSpec defines the desired state of Installation
             properties:
-              action:
-                description: Action defined in the bundle to execute. If unspecified,
-                  Porter will run an install if the installation does not exist, or
-                  an upgrade otherwise.
-                type: string
               agentConfig:
-                description: AgentConfig overrides the Porter Agent configuration
-                  defined at the namespace or system level.
+                description: AgentConfig is the name of an AgentConfig to use instead
+                  of the AgentConfig defined at the namespace or system level.
                 properties:
-                  installationServiceAccount:
-                    description: InstallationServiceAccount specifies a service account
-                      to run the Kubernetes pod/job for the installation image. The
-                      default is to run without a service account. This can be useful
-                      for a bundle which is targetting the kuernetes cluster that
-                      the operator is installed in.
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
-                  porterRepository:
-                    description: PorterRepository is the repository for the Porter
-                      Agent image. Defaults to ghcr.io/getporter/porter-agent
-                    type: string
-                  porterVersion:
-                    description: PorterVersion is the tag for the Porter Agent image.
-                      Defaults to latest.
-                    type: string
-                  pullPolicy:
-                    description: PullPolicy specifies when to pull the Porter Agent
-                      image. The default is to use PullAlways when the tag is canary
-                      or latest, and PullIfNotPresent otherwise.
-                    type: string
-                  serviceAccount:
-                    description: ServiceAccount is the service account to run the
-                      Porter Agent under.
-                    type: string
-                  volumeSize:
-                    anyOf:
-                    - type: integer
-                    - type: string
-                    description: VolumeSize is the size of the persistent volume that
-                      Porter will request when running the Porter Agent. It is used
-                      to share data between the Porter Agent and the bundle invocation
-                      image. It must be large enough to store any files used by the
-                      bundle including credentials, parameters and outputs.
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
                 type: object
+              bundleDigest:
+                description: BundleDigest is the current digest of the bundle.
+                type: string
+              bundleRepository:
+                description: BundleRepository is the OCI repository of the current
+                  bundle definition.
+                type: string
+              bundleTag:
+                description: BundleTag is the OCI tag of the current bundle definition.
+                type: string
+              bundleVersion:
+                description: BundleVersion is the current version of the bundle.
+                type: string
               credentialSets:
-                description: CredentialSets is a list of credential set names.
+                description: CredentialSets that should be included when the bundle
+                  is reconciled.
                 items:
                   type: string
                 type: array
+              installationLabels:
+                additionalProperties:
+                  type: string
+                description: Labels applied to the installation.
+                type: object
+              installationName:
+                description: InstallationName is the name of the installation in Porter.
+                  Immutable.
+                type: string
               parameterSets:
-                description: ParameterSets is a list of parameter set names.
+                description: ParameterSets that should be included when the bundle
+                  is reconciled.
                 items:
                   type: string
                 type: array
               parameters:
                 additionalProperties:
+                  description: RawMessage is a raw encoded JSON value. It implements
+                    Marshaler and Unmarshaler and can be used to delay JSON decoding
+                    or precompute a JSON encoding.
+                  format: byte
                   type: string
-                description: Parameters is a list of parameter set names.
+                description: Parameters specified by the user through overrides. Does
+                  not include defaults, or values resolved from parameter sources.
                 type: object
-              reference:
-                description: Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
+              porterConfig:
+                description: PorterConfig is the name of a PorterConfig to use instead
+                  of the PorterConfig defined at the namespace or system level.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              schemaVersion:
+                description: SchemaVersion is the version of the installation state
+                  schema.
+                type: string
+              targetNamespace:
+                description: TargetNamespace (in Porter) where the installation is
+                  defined.
                 type: string
             required:
-            - action
-            - reference
+            - bundleRepository
+            - installationName
+            - schemaVersion
+            - targetNamespace
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation

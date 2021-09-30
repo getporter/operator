@@ -62,16 +62,12 @@ spec:
                   Agent under.
                 type: string
               volumeSize:
-                anyOf:
-                - type: integer
-                - type: string
                 description: VolumeSize is the size of the persistent volume that
                   Porter will request when running the Porter Agent. It is used to
                   share data between the Porter Agent and the bundle invocation image.
                   It must be large enough to store any files used by the bundle including
                   credentials, parameters and outputs.
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
+                type: string
             type: object
         type: object
     served: true

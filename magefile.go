@@ -22,6 +22,7 @@ import (
 	. "get.porter.sh/operator/mage"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
+	"github.com/carolynvs/magex/pkg/gopath"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
 	"github.com/pkg/errors"
@@ -69,7 +70,7 @@ func addGopathBinOnGithubActions() error {
 	}
 
 	log.Println("Adding GOPATH/bin to the PATH for the GitHub Actions Agent")
-	gopathBin := pkg.GetGopathBin()
+	gopathBin := gopath.GetGopathBin()
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
@@ -252,10 +253,10 @@ kind: AgentConfig
 metadata:
   name: porter
   labels:
-    porter: "true"
+    sh.porter/managed: "true"
 spec:
-  porterRepository: getporter/porter-agent
-  porterVersion: latest
+  porterRepository: localhost:5000/getporter/porter-agent
+  porterVersion: dev
   serviceAccount: porter-agent
 `
 	kubectl("apply", "--namespace", name, "-f", "-").

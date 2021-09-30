@@ -3,5 +3,8 @@ kind: Installation
 metadata:
   name: porter-hello
 spec:
-  reference: "getporter/porter-hello:v0.1.1"
-  action: "install"
+  schemaVersion: 1.0.0
+  targetNamespace: operator
+  installationName: porter-hello
+  bundleRepository: getporter/porter-hello
+  bundleVersion: 0.1.1

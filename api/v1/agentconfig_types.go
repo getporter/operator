@@ -14,31 +14,31 @@ import (
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
 	// Defaults to ghcr.io/getporter/porter-agent
-	PorterRepository string `json:"porterRepository,omitempty"`
+	PorterRepository string `json:"porterRepository,omitempty" mapstructure:"porterRepository,omitempty"`
 
 	// PorterVersion is the tag for the Porter Agent image.
 	// Defaults to latest.
-	PorterVersion string `json:"porterVersion,omitempty"`
+	PorterVersion string `json:"porterVersion,omitempty" mapstructure:"porterVersion,omitempty"`
 
 	// ServiceAccount is the service account to run the Porter Agent under.
-	ServiceAccount string `json:"serviceAccount,omitempty"`
+	ServiceAccount string `json:"serviceAccount,omitempty" mapstructure:"serviceAccount,omitempty"`
 
 	// VolumeSize is the size of the persistent volume that Porter will
 	// request when running the Porter Agent. It is used to share data
 	// between the Porter Agent and the bundle invocation image. It must
 	// be large enough to store any files used by the bundle including credentials,
 	// parameters and outputs.
-	VolumeSize string `json:"volumeSize,omitempty"`
+	VolumeSize string `json:"volumeSize,omitempty" mapstructure:"volumeSize,omitempty"`
 
 	// PullPolicy specifies when to pull the Porter Agent image. The default
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
 	// otherwise.
-	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
+	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty" mapstructure:"pullPolicy,omitempty"`
 
 	// InstallationServiceAccount specifies a service account to run the Kubernetes pod/job for the installation image.
 	// The default is to run without a service account.
 	// This can be useful for a bundle which is targetting the kuernetes cluster that the operator is installed in.
-	InstallationServiceAccount string `json:"installationServiceAccount,omitempty"`
+	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
 }
 
 // GetPorterImage returns the fully qualified image name of the Porter Agent
@@ -68,7 +68,7 @@ func (c AgentConfigSpec) GetPullPolicy() v1.PullPolicy {
 		return c.PullPolicy
 	}
 
-	if c.PorterVersion == "latest" || c.PorterVersion == "canary" {
+	if c.PorterVersion == "latest" || c.PorterVersion == "canary" || c.PorterVersion == "dev" {
 		return v1.PullAlways
 	}
 	return v1.PullIfNotPresent
@@ -87,6 +87,7 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
 // only when they are not empty.
 func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigSpec, error) {
+	final := c
 	var targetRaw map[string]interface{}
 	if err := mapstructure.Decode(c, &targetRaw); err != nil {
 		return AgentConfigSpec{}, err
@@ -98,13 +99,18 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 			return AgentConfigSpec{}, err
 		}
 
-		MergeMap(targetRaw, overrideRaw)
+		fmt.Printf("\nTARGET MAP: %#v\n", targetRaw)
+		fmt.Printf("\nOVERRIDE MAP: %#v\n", overrideRaw)
+		targetRaw = MergeMap(targetRaw, overrideRaw)
+		fmt.Printf("\nMERGED MAP: %#v\n", targetRaw)
 	}
 
-	if err := mapstructure.Decode(targetRaw, &c); err != nil {
+	if err := mapstructure.Decode(targetRaw, &final); err != nil {
 		return AgentConfigSpec{}, err
 	}
-	return c, nil
+
+	fmt.Printf("\nMERGED CONFIG: %#v\n", final)
+	return final, nil
 }
 
 // +kubebuilder:object:root=true

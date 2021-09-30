@@ -82,7 +82,9 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "porter-agent", config.ServiceAccount)
 	})
 
-	t.Run("override", func(t *testing.T) {
+	t.Run("overrides", func(t *testing.T) {
+		systemConfig := AgentConfigSpec{}
+
 		nsConfig := AgentConfigSpec{
 			PorterRepository:           "base",
 			PorterVersion:              "base",
@@ -101,7 +103,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			InstallationServiceAccount: "override",
 		}
 
-		config, err := nsConfig.MergeConfig(instConfig)
+		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
 		require.NoError(t, err)
 		assert.Equal(t, "override", config.PorterRepository)
 		assert.Equal(t, "override", config.PorterVersion)
