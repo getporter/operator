@@ -1,6 +1,5 @@
 apiVersion: "kind.x-k8s.io/v1alpha4"
 kind: "Cluster"
-# Commenting out because I can't connect when we set this
 networking:
   apiServerAddress: "{{.Address}}"
 containerdConfigPatches:

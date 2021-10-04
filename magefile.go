@@ -9,14 +9,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
 	. "get.porter.sh/operator/mage"
@@ -26,6 +22,9 @@ import (
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
 	"github.com/pkg/errors"
+
+	// mage:import
+	. "get.porter.sh/porter/mage/tests"
 )
 
 // Default target to run when none is specified
@@ -162,7 +161,7 @@ func EnsureDeployed() {
 
 // Build the operator and deploy it to the test cluster.
 func Deploy() {
-	mg.Deps(UseTestEnvironment, EnsureCluster, StartDockerRegistry, Build)
+	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry, Build)
 
 	BuildManifests()
 	kubectl("apply", "-f", "manifests.yaml").Run()
@@ -237,7 +236,7 @@ func namespaceExists(name string) bool {
 // Create a namespace, usage: mage SetupNamespace demo.
 // Configures the namespace for use with the operator.
 func SetupNamespace(name string) {
-	mg.Deps(EnsureCluster)
+	mg.Deps(EnsureTestCluster)
 
 	// TODO: Use a bundle to install porter in a local dev env and invoke configure-namespace
 
@@ -322,15 +321,6 @@ func EnsureOperatorSDK() {
 	mgx.Must(pkg.DownloadToGopathBin(url, "operator-sdk", version))
 }
 
-// Ensure that the test KIND cluster is up.
-func EnsureCluster() {
-	mg.Deps(EnsureKubectl)
-
-	if !useCluster() {
-		CreateKindCluster()
-	}
-}
-
 // get the config of the current kind cluster, if available
 func getClusterConfig() (kubeconfig string, ok bool) {
 	contents, err := shx.OutputE("kind", "get", "kubeconfig", "--name", kindClusterName)
@@ -362,103 +352,6 @@ func useCluster() bool {
 
 func setClusterNamespace(name string) {
 	must.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
-}
-
-// Create a KIND cluster named porter.
-func CreateKindCluster() {
-	mg.Deps(EnsureKind, StartDockerRegistry)
-
-	// Determine host ip to populate kind config api server details
-	// https://kind.sigs.k8s.io/docs/user/configuration/#api-server
-	addrs, err := net.InterfaceAddrs()
-	mgx.Must(errors.Wrap(err, "could not get a list of network interfaces"))
-
-	var ipAddress string
-	for _, address := range addrs {
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				fmt.Println("Current IP address : ", ipnet.IP.String())
-				ipAddress = ipnet.IP.String()
-				break
-			}
-		}
-	}
-
-	os.Setenv("KUBECONFIG", filepath.Join(pwd(), kubeconfig))
-	kindCfg, err := ioutil.ReadFile("hack/kind.config.yaml")
-	mgx.Must(errors.Wrap(err, "error reading hack/kind.config.yaml"))
-
-	kindCfgTmpl, err := template.New("kind.config.yaml").Parse(string(kindCfg))
-	mgx.Must(errors.Wrap(err, "error parsing Kind config template hack/kind.config.yaml"))
-
-	var kindCfgContents bytes.Buffer
-	kindCfgData := struct {
-		Address string
-	}{
-		Address: ipAddress,
-	}
-	err = kindCfgTmpl.Execute(&kindCfgContents, kindCfgData)
-	err = ioutil.WriteFile("kind.config.yaml", kindCfgContents.Bytes(), 0644)
-	mgx.Must(errors.Wrap(err, "could not write kind config file"))
-	defer os.Remove("kind.config.yaml")
-
-	must.Run("kind", "create", "cluster", "--name", kindClusterName, "--config", "kind.config.yaml")
-
-	// Connect the kind and registry containers on the same network
-	must.Run("docker", "network", "connect", "kind", registryContainer)
-
-	// Document the local registry
-	kubectl("apply", "-f", "hack/local-registry.yaml").Run()
-	setClusterNamespace(operatorNamespace)
-}
-
-// Delete the KIND cluster named porter.
-func DeleteKindCluster() {
-	mg.Deps(EnsureKind)
-
-	must.RunE("kind", "delete", "cluster", "--name", kindClusterName)
-
-	if isOnDockerNetwork(registryContainer, "kind") {
-		must.RunE("docker", "network", "disconnect", "kind", registryContainer)
-	}
-}
-
-func isOnDockerNetwork(container string, network string) bool {
-	networkId, _ := shx.OutputE("docker", "network", "inspect", network, "-f", "{{.Id}}")
-	networks, _ := shx.OutputE("docker", "inspect", container, "-f", "{{json .NetworkSettings.Networks}}")
-	return strings.Contains(networks, networkId)
-}
-
-// Ensure kind is installed.
-func EnsureKind() {
-	if ok, _ := pkg.IsCommandAvailable("kind", ""); ok {
-		return
-	}
-
-	kindURL := "https://github.com/kubernetes-sigs/kind/releases/download/{{.VERSION}}/kind-{{.GOOS}}-{{.GOARCH}}"
-	mgx.Must(pkg.DownloadToGopathBin(kindURL, "kind", kindVersion))
-}
-
-// Ensure kubectl is installed.
-func EnsureKubectl() {
-	if ok, _ := pkg.IsCommandAvailable("kubectl", ""); ok {
-		return
-	}
-
-	versionURL := "https://storage.googleapis.com/kubernetes-release/release/stable.txt"
-	versionResp, err := http.Get(versionURL)
-	mgx.Must(errors.Wrapf(err, "unable to determine the latest version of kubectl"))
-
-	if versionResp.StatusCode > 299 {
-		mgx.Must(errors.Errorf("GET %s (%s): %s", versionURL, versionResp.StatusCode, versionResp.Status))
-	}
-	defer versionResp.Body.Close()
-
-	kubectlVersion, err := ioutil.ReadAll(versionResp.Body)
-	mgx.Must(errors.Wrapf(err, "error reading response from %s", versionURL))
-
-	kindURL := "https://storage.googleapis.com/kubernetes-release/release/{{.VERSION}}/bin/{{.GOOS}}/{{.GOARCH}}/kubectl{{.EXT}}"
-	mgx.Must(pkg.DownloadToGopathBin(kindURL, "kubectl", string(kubectlVersion)))
 }
 
 // Run a makefile target
@@ -498,45 +391,6 @@ func EnsureKustomize() {
 // Ensure controller-gen is installed.
 func EnsureControllerGen() {
 	mgx.Must(pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.4.1", "--version"))
-}
-
-// Ensure that a local docker registry is running.
-func StartDockerRegistry() {
-	if isContainerRunning(registryContainer) {
-		return
-	}
-
-	StopDockerRegistry()
-
-	fmt.Println("Starting local docker registry")
-	must.RunE("docker", "run", "-d", "-p", "5000:5000", "--name", registryContainer, "registry:2")
-}
-
-// Stops the local docker registry.
-func StopDockerRegistry() {
-	if containerExists(registryContainer) {
-		fmt.Println("Stopping local docker registry")
-		removeContainer(registryContainer)
-	}
-}
-
-func isContainerRunning(name string) bool {
-	out, _ := shx.OutputS("docker", "container", "inspect", "-f", "{{.State.Running}}", name)
-	running, _ := strconv.ParseBool(out)
-	return running
-}
-
-func containerExists(name string) bool {
-	err := shx.RunS("docker", "inspect", name)
-	return err == nil
-}
-
-func removeContainer(name string) {
-	stderr, err := shx.OutputE("docker", "rm", "-f", name)
-	// Gracefully handle the container already being gone
-	if err != nil && !strings.Contains(stderr, "No such container") {
-		mgx.Must(err)
-	}
 }
 
 func pwd() string {
