@@ -5,7 +5,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -153,21 +152,7 @@ func (in *InstallationSpec) DeepCopyInto(out *InstallationSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.Parameters != nil {
-		in, out := &in.Parameters, &out.Parameters
-		*out = make(map[string]json.RawMessage, len(*in))
-		for key, val := range *in {
-			var outVal []byte
-			if val == nil {
-				(*out)[key] = nil
-			} else {
-				in, out := &val, &outVal
-				*out = make(json.RawMessage, len(*in))
-				copy(*out, *in)
-			}
-			(*out)[key] = outVal
-		}
-	}
+	in.Parameters.DeepCopyInto(&out.Parameters)
 	if in.CredentialSets != nil {
 		in, out := &in.CredentialSets, &out.CredentialSets
 		*out = make([]string, len(*in))

@@ -3,9 +3,15 @@ package v1
 import (
 	"encoding/json"
 
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
+
+// We marshal installation spec to yaml when converting to a porter object
+var _ yaml.Marshaler = InstallationSpec{}
 
 // InstallationSpec defines the desired state of Installation
 type InstallationSpec struct {
@@ -52,13 +58,34 @@ type InstallationSpec struct {
 
 	// Parameters specified by the user through overrides.
 	// Does not include defaults, or values resolved from parameter sources.
-	Parameters map[string]json.RawMessage `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Parameters runtime.RawExtension `json:"parameters,omitempty" yaml:"-"` // See custom marshaler below
 
 	// CredentialSets that should be included when the bundle is reconciled.
 	CredentialSets []string `json:"credentialSets,omitempty" yaml:"credentialSets,omitempty"`
 
 	// ParameterSets that should be included when the bundle is reconciled.
 	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty"`
+}
+
+func (in InstallationSpec) MarshalYAML() (interface{}, error) {
+	type Alias InstallationSpec
+
+	raw := struct {
+		Alias      `yaml:",inline"`
+		Parameters map[string]interface{} `yaml:"parameters,omitempty"`
+	}{
+		Alias: Alias(in),
+	}
+
+	if in.Parameters.Raw != nil {
+		err := json.Unmarshal(in.Parameters.Raw, &raw.Parameters)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error unmarshaling raw parameters\n%s", string(in.Parameters.Raw))
+		}
+	}
+
+	return raw, nil
 }
 
 // InstallationStatus defines the observed state of Installation

@@ -1,10 +1,12 @@
 apiVersion: porter.sh/v1
 kind: Installation
 metadata:
-  name: porter-hello
+  name: hello-llama
 spec:
   schemaVersion: 1.0.0
   targetNamespace: operator
-  installationName: hello
-  bundleRepository: getporter/porter-hello
+  installationName: mellama
+  bundleRepository: getporter/hello-llama
   bundleVersion: 0.1.1
+  parameters:
+    name: "Porter Operator"

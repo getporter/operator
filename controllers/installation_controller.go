@@ -305,6 +305,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 // convert the installation spec into the porter representation of the resource.
 func convertInstallation(spec porterv1.InstallationSpec) ([]byte, error) {
 	b, err := yaml.Marshal(spec)
+	fmt.Println(string(b))
 	return b, errors.Wrap(err, "error converting the installation spec into its porter resource representation")
 }
 

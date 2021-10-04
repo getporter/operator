@@ -204,6 +204,7 @@ func Bump(sample string) {
 	mg.Deps(EnsureTestNamespace, EnsureYq)
 
 	sampleFile := fmt.Sprintf("config/samples/%s.yaml", sample)
+
 	dataB, err := ioutil.ReadFile(sampleFile)
 	mgx.Must(errors.Wrapf(err, "error reading installation definition %s", sampleFile))
 
@@ -254,8 +255,8 @@ metadata:
   labels:
     sh.porter/managed: "true"
 spec:
-  porterRepository: localhost:5000/getporter/porter-agent
-  porterVersion: dev
+  porterRepository: localhost:5000/porter-agent
+  porterVersion: canary-dev
   serviceAccount: porter-agent
 `
 	kubectl("apply", "--namespace", name, "-f", "-").
