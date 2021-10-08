@@ -275,6 +275,11 @@ func (in *PorterConfigSpec) DeepCopyInto(out *PorterConfigSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.DebugPlugins != nil {
+		in, out := &in.DebugPlugins, &out.DebugPlugins
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Namespace != nil {
 		in, out := &in.Namespace, &out.Namespace
 		*out = new(string)

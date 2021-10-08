@@ -164,15 +164,28 @@ func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry, Build)
 
 	BuildManifests()
-	kubectl("apply", "-f", "manifests.yaml").Run()
 	PublishController()
+	kubectl("apply", "-f", "manifests.yaml").Run()
+
+	deployMongodb()
+
 	kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
+}
+
+func deployMongodb() error {
+	return shx.RunV("helm", "upgrade", "--install", "mongodb", "-n", operatorNamespace, "bitnami/mongodb", "--set", "auth.enabled=false")
 }
 
 func isDeployed() bool {
 	if useCluster() {
-		err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).Must(false).RunS()
-		return err == nil
+		if err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).Must(false).RunS(); err != nil {
+			log.Println("the operator is not installed")
+			return false
+		}
+		if err := kubectl("rollout", "status", "deployment", "mongodb", "--namespace", operatorNamespace).Must(false).RunS(); err != nil {
+			log.Println("the database is not installed")
+			return false
+		}
 	}
 	return false
 }
@@ -247,30 +260,8 @@ func SetupNamespace(name string) {
 
 	kubectl("create", "namespace", name).RunE()
 	kubectl("label", "namespace", name, "porter-test=true").RunE()
-
-	agentCfg := `apiVersion: porter.sh/v1
-kind: AgentConfig
-metadata:
-  name: porter
-  labels:
-    sh.porter/managed: "true"
-spec:
-  porterRepository: localhost:5000/porter-agent
-  porterVersion: canary-dev
-  serviceAccount: porter-agent
-`
-	kubectl("apply", "--namespace", name, "-f", "-").
-		Stdin(strings.NewReader(agentCfg)).RunV()
-
-	kubectl("create", "secret", "generic", "porter-config", "--namespace", name,
-		"--from-file=config.toml=hack/porter-config.toml").RunE()
-
-	kubectl("create", "secret", "generic", "porter-env", "--namespace", name,
-		"--from-literal=AZURE_STORAGE_CONNECTION_STRING="+os.Getenv("PORTER_TEST_AZURE_STORAGE_CONNECTION_STRING"),
-		"--from-literal=AZURE_CLIENT_SECRET="+os.Getenv("PORTER_AZURE_CLIENT_SECRET"),
-		"--from-literal=AZURE_CLIENT_ID="+os.Getenv("PORTER_AZURE_CLIENT_ID"),
-		"--from-literal=AZURE_TENANT_ID="+os.Getenv("PORTER_AZURE_TENANT_ID")).RunE()
-
+	kubectl("apply", "--namespace", name, "-f=hack/agent-config.yaml").RunE()
+	kubectl("apply", "--namespace", name, "-f=hack/porter-config.yaml").RunE()
 	kubectl("create", "serviceaccount", "porter-agent", "--namespace", name).RunE()
 
 	kubectl("create", "rolebinding", "porter-agent",

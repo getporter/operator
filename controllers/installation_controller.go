@@ -182,6 +182,15 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 			Name:      jobName,
 			Namespace: inst.Namespace,
 			Labels:    sharedLabels,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         inst.APIVersion,
+					Kind:               inst.Kind,
+					Name:               inst.Name,
+					UID:                inst.UID,
+					BlockOwnerDeletion: pointer.BoolPtr(true),
+				},
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Completions:  pointer.Int32Ptr(1),
@@ -191,15 +200,6 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 					GenerateName: jobName,
 					Namespace:    inst.Namespace,
 					Labels:       sharedLabels,
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							APIVersion:         inst.APIVersion,
-							Kind:               inst.Kind,
-							Name:               inst.Name,
-							UID:                inst.UID,
-							BlockOwnerDeletion: pointer.BoolPtr(true),
-						},
-					},
 				},
 				Spec: corev1.PodSpec{
 					Volumes: []corev1.Volume{
@@ -305,7 +305,6 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 // convert the installation spec into the porter representation of the resource.
 func convertInstallation(spec porterv1.InstallationSpec) ([]byte, error) {
 	b, err := yaml.Marshal(spec)
-	fmt.Println(string(b))
 	return b, errors.Wrap(err, "error converting the installation spec into its porter resource representation")
 }
 
@@ -323,7 +322,7 @@ func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *p
 
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.AgentConfig{}
-	err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: operatorNamespace}, systemCfg)
+	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
@@ -331,7 +330,7 @@ func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *p
 
 	// Read agent configuration defined at the namespace level
 	nsCfg := &porterv1.AgentConfig{}
-	err = r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, nsCfg)
+	err = r.Get(ctx, types.NamespacedName{Name: "default", Namespace: inst.Namespace}, nsCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
 	}
@@ -373,7 +372,7 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.PorterConfig{}
-	err := r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: operatorNamespace}, systemCfg)
+	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.PorterConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
@@ -381,7 +380,7 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 
 	// Read agent configuration defined at the namespace level
 	nsCfg := &porterv1.PorterConfig{}
-	err = r.Get(ctx, types.NamespacedName{Name: "porter", Namespace: inst.Namespace}, nsCfg)
+	err = r.Get(ctx, types.NamespacedName{Name: "default", Namespace: inst.Namespace}, nsCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.PorterConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
 	}
@@ -408,8 +407,26 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// We want reconcile called on an installation when the job that it spawned finishes
+	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, ".metadata.controller", func(rawObj client.Object) []string {
+		// grab the job object, extract the owner...
+		job := rawObj.(*batchv1.Job)
+		owner := metav1.GetControllerOf(job)
+		if owner == nil {
+			return nil
+		}
+
+		if owner.APIVersion != porterv1.GroupVersion.String() || owner.Kind != "Installation" {
+			return nil
+		}
+
+		return []string{owner.Name}
+	}); err != nil {
+		return err
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&porterv1.Installation{}).
-		Owns(&corev1.Pod{}). // TODO: do I need this?
+		Owns(&batchv1.Job{}).
 		Complete(r)
 }

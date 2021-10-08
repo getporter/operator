@@ -12,6 +12,9 @@ type PorterConfigSpec struct {
 	// Debug specifies if Porter should output debug logs.
 	Debug *bool `json:"debug,omitempty" mapstructure:"debug,omitempty"`
 
+	// DebugPlugins specifies if Porter should output debug logs for the plugins.
+	DebugPlugins *bool `json:"debugPlugins,omitempty" mapstructure:"debug-plugins,omitempty"`
+
 	// Namespace is the current Porter namespace.
 	Namespace *string `json:"namespace,omitempty" mapstructure:"namespace,omitempty"`
 

@@ -43,6 +43,10 @@ spec:
               debug:
                 description: Debug specifies if Porter should output debug logs.
                 type: boolean
+              debugPlugins:
+                description: DebugPlugins specifies if Porter should output debug
+                  logs for the plugins.
+                type: boolean
               default-secrets:
                 description: DefaultSecrets is the name of the secrets configuration
                   to use.
