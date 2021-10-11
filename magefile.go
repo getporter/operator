@@ -22,6 +22,7 @@ import (
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	// mage:import
 	. "get.porter.sh/porter/mage/tests"
@@ -93,7 +94,7 @@ func Build() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(BuildManifests)
+	mg.SerialDeps(BuildManifests, getMixins)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
@@ -101,6 +102,37 @@ func BuildBundle() {
 	version := strings.TrimPrefix(meta.Version, "v")
 	must.Command("porter", "build", "--version", version, "-f=vanilla.porter.yaml").
 		In("installer").RunV()
+}
+
+func getMixins() error {
+	// TODO: move this to a shared target in porter
+
+	mixins := []struct {
+		name    string
+		feed    string
+		version string
+	}{
+		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v0.1.14"},
+	}
+	var errG errgroup.Group
+	for _, mixin := range mixins {
+		mixin := mixin
+		mixinDir := filepath.Join("bin/mixins/", mixin.name)
+		if _, err := os.Stat(mixinDir); err == nil {
+			log.Println("Mixin already installed into bin:", mixin.name)
+			continue
+		}
+
+		errG.Go(func() error {
+			log.Println("Installing mixin:", mixin.name)
+			if mixin.version == "" {
+				mixin.version = "latest"
+			}
+			return shx.Run("porter", "mixin", "install", mixin.name, "--version", mixin.version, "--feed-url", mixin.feed)
+		})
+	}
+
+	return errG.Wait()
 }
 
 // Publish the operator and its bundle.
