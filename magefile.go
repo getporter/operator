@@ -73,10 +73,6 @@ func addGopathBinOnGithubActions() error {
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
-func Generate() {
-	must.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
-}
-
 func Fmt() {
 	must.RunV("go", "fmt", "./...")
 }
@@ -85,12 +81,13 @@ func Vet() {
 	must.RunV("go", "vet", "./...")
 }
 
-// Compile the operator.
+// Compile the operator and its API types
 func Build() {
 	mg.Deps(Fmt, Vet)
 
 	LoadMetadatda()
 
+	must.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
 	must.RunV("go", "build", "-o", "bin/manager", "main.go")
 }
 
@@ -106,8 +103,9 @@ func BuildBundle() {
 		In("installer").RunV()
 }
 
+// Publish the operator and its bundle.
 func Publish() {
-	mg.Deps(PublishController, PublishBundle)
+	mg.Deps(publishController, PublishBundle)
 }
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
@@ -119,6 +117,7 @@ func PublishBundle() {
 	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").RunV()
 }
 
+// Generate k8s manifests for the operator.
 func BuildManifests() {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
@@ -155,6 +154,7 @@ func TestIntegration() {
 	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
 }
 
+// Check if the operator is deployed to the test cluster.
 func EnsureDeployed() {
 	if !isDeployed() {
 		Deploy()
@@ -166,6 +166,7 @@ func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry, Build)
 
 	BuildManifests()
+	PublishImages()
 	PublishBundle()
 	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
 	must.RunV("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator")
@@ -185,11 +186,35 @@ func isDeployed() bool {
 	return false
 }
 
+// Push the operator and agent images.
 func PublishImages() {
-	mg.Deps(PublishController)
+	mg.Deps(publishController)
+
+	// Check if we have a local porter build
+	// TODO: let's move some of these helpers into Porter
+	imageExists := func(img string) (bool, error) {
+		out, err := shx.Output("docker", "image", "inspect", img)
+		if err != nil {
+			if strings.Contains(out, "No such image") {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	}
+
+	pushImage := func(img string) error {
+		return shx.Run("docker", "push", img)
+	}
+
+	agentImg := "localhost:5000/porter-agent:canary-dev"
+	if ok, _ := imageExists(agentImg); ok {
+		err := pushImage(agentImg)
+		mgx.Must(err)
+	}
 }
 
-func PublishController() {
+func publishController() {
 	meta := LoadMetadatda()
 	img := Env.ControllerImagePrefix + meta.Version
 	log.Println("Building", img)
@@ -207,7 +232,7 @@ func PublishController() {
 	must.RunV("docker", "push", imgPermalink)
 }
 
-// Reapply the file in config/samples, usage: mage bump porter-hello.
+// Reapply a file in config/samples, usage: mage bump porter-hello.
 func Bump(sample string) {
 	mg.Deps(EnsureTestNamespace, EnsureYq)
 

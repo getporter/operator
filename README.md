@@ -4,21 +4,42 @@
 
 # PorterOps: Porter Operator
 
-🚨 This is a new project; the goals below are aspirational and not all implemented yet.
+🚨 **This is a new project; the goals below are aspirational and not all implemented yet.**
 
-PorterOps not only gives you a native, integrated experience for managing your
-bundles with Kubernetes but is the recommended way to automate your bundle
+The Porter Operator gives you a native, integrated experience for managing your
+bundles from Kubernetes. It is the recommended way to automate your bundle
 pipeline with support for GitOps.
 
-* Automate building and publishing bundles, when the bundle definition changes
-  or new versions of images used by the bundle are available.
-* Automatically deploy new versions of bundles.
+* Manage bundle installations using desired state configuration.
+* Installs the bundle when an installation CRD is added. 
+* Upgrades the bundle when the bundle definition or values used to install the bundle change.
+* Uninstalls the bundle when the installation CRD is deleted.
+* Automatically deploy new versions of bundles when a new version is pushed, and update an 
+  installation when changes are pushed in git, through integration with Flux.
 * Isolated environments for running bundles in your organization, limiting
   access to secrets used by the bundles using namespaces and RBAC.
 * Create and respond to events on your cluster to integrate bundles into your
   pipeline.
 
 <p align="center">Learn all about Porter at <a href="https://porter.sh">porter.sh</a></p>
+
+# Project Status
+
+🚧 This is a proof of concept only, is currently being rewritten to work with the Porter v1 prerelease.
+**It is not safe to use in production or with production secrets.**
+
+We are planning a security review and audit before it is released.
+
+# Install from source
+
+Requirements:
+* KinD
+* Docker
+* Go
+
+```
+mage deploy
+```
 
 # Install
 
@@ -37,13 +58,108 @@ Install the operator into the porter-operator-system namespace
 porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:canary
 ```
 
-Create a namespace with the appropriate rbac, secrets and configmaps. This is where you will run porter.
+Create a namespace with the appropriate RBAC and configuration. This is where you will run porter.
 
 ```
 porter invoke porterops --action configure-namespace --param namespace=TODO -c porterops
 ```
 
-# Install a bundle
+* The operator installs a mongodb server in its namespace (with no password set for root). This is only
+  suitable for testing the operator.
+* A PorterConfig resource named default is created in the specified namespace configuring Porter to use
+  the kubernetes.secrets and mongodb plugin.
+
+# Run a test installation
+
+There are sample installation CRDs in config/samples that you can quickly try out with:
+
+```
+mage bump SAMPLE
+```
+
+For example, to apply config/samples/porter-hello.yaml, run command below.
+If the installation does not already exist, it will be created
+Otherwise, the retry annotation on the installation to force the operator to reevaluate the installation.
+
+```
+mage bump porter-hello
+```
+
+# Inspect the installation
+
+If you have your local Porter configuration file pointed to the in-cluster mongodb server, you can use Porter
+directly to check the status of an installation.
+
+Expose the in-cluster mongodb server on the default mongo porter: 27017.
+```
+kubectl port-forward --namespace porter-operator-system svc/mongodb 27017:27017 &
+```
+
+Update ~/.porter/config.toml to use the in-cluster mongodb server.
+The in-cluster mongodb server is running with authentication turned off
+so there is no username or password required.
+```toml
+default-storage = "in-cluster-mongodb"
+
+[[storage]]
+  name = "in-cluster-mongodb"
+  plugin = "mongodb"
+
+  [storage.config]
+    url = "mongodb://localhost:27017"
+```
+
+In the example below, the config/samples/porter-hello.yaml installation CRD is applied,
+and then porter is used to view the logs.
+```
+mage bump porter-hello
+# wait a few seconds, the next command will only return logs once the bundle finishes
+porter logs hello -n operator
+```
+
+# Configure
+
+The bundle accepts a parameter, porter-config, that should be a YAML-formatted [Porter configuration file](https://release-v1.porter.sh/configuration).
+
+Here is an example of the default configuration used when none is specified:
+
+```yaml
+# Resolve secrets using secrets on the cluster in the current namespace.
+default-secrets-plugin: "kubernetes.secrets"
+
+# Use the mongodb server that was deployed with the operator
+default-storage: "in-cluster-mongodb"
+storage:
+  - name: "in-cluster-mongodb"
+    plugin: "mongodb"
+    config:
+      url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"
+```
+
+You can use a different file when installing the operator like so:
+
+```
+porter install porterops --param porter-config=./myconfig.yaml  -c porterops -r ghcr.io/getporter/porter-operator:canary
+```
+
+The bundle also has parameters defined that control how the Porter agent is configured and run.
+
+| Parameter  | Description  |
+|---|---|
+| installationServiceAccount  | Name of the service account to run installation with.<br/>If set, you are responsible for creating this service account and giving it required permissions.  |
+| namespace  | Setup Porter in this namespace  |
+| porterRepository  | Docker image repository of the Porter agent.<br/><br/>Defaults to ghcr.io/getporter/porter.  |
+| porterVersion  | Version of the Porter agent, e.g. latest, canary, v0.33.0.<br/><br/>Defaults to latest.  |
+| pullPolicy  | Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled.<br/><br/>Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.  |
+| serviceAccount  | Name of the service account to run the Porter agent.<br/>If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole.<br/><br/>Defaults to the porter-agent account created by the configure-namespace custom action.  |
+| volumeSize  | Size of the volume shared between Porter and the bundles it executes.<br/><br/>Defaults to 64Mi.  |
+                                                                                                                                                                      string                  false      configure-namespace
+
+# Apply an installation
+
+The operator does not explicitly run install or upgrade. Instead, the operator relies on the `porter installation apply` command
+to reconcile the state of the installation against the desired state defined in the CRD.
+After the bundle is installed, changing a field on the CRD and applying it will trigger an upgrade.
 
 Here is an example installation CRD:
 
@@ -51,33 +167,29 @@ Here is an example installation CRD:
 apiVersion: porter.sh/v1
 kind: Installation
 metadata:
-  name: porter-hello
+  name: hello-llama
 spec:
-  reference: "getporter/porter-hello:v0.1.1"
-  action: "install"
+  schemaVersion: 1.0.0
+  targetNamespace: demo
+  installationName: mellama
+  bundleRepository: getporter/hello-llama
+  bundleVersion: 0.1.1
+  parameters:
+    name: "my lovely drama llamas"
 ```
 
-After you apply it with `kubectl apply -f`, the Porter Operator will run the following command:
+After you apply it with `kubectl apply -f`, the Porter Operator will run the following command, passing in the
+Porter representation of the installation CRD.
 
 ```
-porter install porter-hello getporter/porter-hello:v0.1.1
+porter installation apply
 ```
 
-# Upgrade a bundle
+# Uninstall a bundle
 
-Edit the installation CRD and change the action to "upgrade":
+This isn't supported yet. Once it's implemented, uninstall is triggered when a CRD is deleted.
 
-```yaml
-apiVersion: porter.sh/v1
-kind: Installation
-metadata:
-  name: porter-hello
-spec:
-  reference: "getporter/porter-hello:v0.1.1"
-  action: "upgrade"
-```
-
-# Retry the last operator
+# Retry the last operation
 
 If your bundle operation failed, you can run it again by changing an annotation on the installation CRD:
 
@@ -104,40 +216,6 @@ This section breaks down what the configure-namespace action of the bundle is
 doing under the hood. If you end up having to manually configure these values,
 let us know! That means the custom action in our bundle isn't working out.
 
-## Define Secrets
-
-The operator uses secrets defined in the namespace of the CRD being managed to populate
-Porter's config file and environment variables. For example the azure connection
-string, or service principal environment variables.
-
-### porter-config
-
-These secrets are copied into the pod as files to tell Porter where to save its
-data and resolve secrets. This is generated for you by the
-**configure-namespace** custom action of the porter-operator bundle.
-
-```
-kubectl create secret generic porter-config \
-  --from-file=config.toml=/Users/carolynvs/.porter/k8s.config.toml
-```
-
-### porter-env
-
-These secrets are copied into the pod as environment variables. Porter will use
-them to for the plugins so that they can connect to remote services such storage
-or vault. This is generated for you by the **configure-namespace** custom action
-of the porter-operator bundle.
-
-```
-kubectl create secret generic porter-env \
-  --from-literal=AZURE_STORAGE_CONNECTION_STRING=$AZURE_STORAGE_CONNECTION_STRING \
-  --from-literal=AZURE_CLIENT_SECRET=$AZURE_CLIENT_SECRET \
-  --from-literal=AZURE_CLIENT_ID=$AZURE_CLIENT_ID \
-  --from-literal=AZURE_TENANT_ID=$AZURE_TENANT_ID
-``` 
-
-Right now the bundle only works with the kubernetes and azure plugins, by default it uses the kubernetes plugin which does not need any further configuration, the secrets above are only required if you want to use the [Azure plugin](https://github.com/getporter/kubernetes-plugins) .
-
 ## AgentConfig
 
 The operator has a CRD, agentconfig.porter.sh, that contains settings for the
@@ -155,16 +233,39 @@ spec:
   pullPolicy: Always # Optional. Policy for pulling new versions of the Porter Agent image. Defaults to Always for latest and canary, IfNotPresent otherwise.
   porterVersion: canary # Optional. Version of the Porter Agent image. Allowed values: latest, canary, vX.Y.Z
   porterRepository: ghcr.io/getporter/porter-agent # Optional. The Porter Agent repository to use.
-  volumeSize: 
+  volumeSize: 128Mi # Optional. The size of the shared volume used by Porter and the invocation image. Defaults to 64Mi
   installationServiceAccount: # Optional. ServiceAccount to run the installation under, service account must exist in the namespace that the installation is run in.
 ```
 
 The agent configuration has a hierarchy and values are merged from all three
 (empty values are ignored):
 
-1. Defined on the Installation (highest)
-2. Defined in the Installation Namespace
-3. Defined in the Operator Namespace (lowest)
+1. Referenced on the Installation (highest)
+2. The default AgentConfig in the installation's namespace.
+3. The default AgentConfig defined in the porter-operator-system namespace. (lowest)
+
+## PorterConfig
+
+The operator has a CRD, porterconfig.porter.sh, that contains a [Porter configuration file](https://release-v1.porter.sh/configuration)
+embedded in the spec. 
+
+🔒 We don't yet support referencing an external secret, so be careful if you embed a real connection string in this file!
+
+```yaml
+apiVersion: porter.sh/v1
+kind: PorterConfig
+metadata:
+  name: default
+spec:
+  debug: true # Optional. Specifies if porter should output additional debug logs. Defaults to false.
+  debugPlugins: true # Optional. Specifies if porter should output additional debug logs related to plugins. Defaults to false.
+  default-secrets-plugin: kubernetes.secrets. # Optional. Specifies the key of the secrets plugin to use. Defaults to the Kubernetes secrets plugin.
+  default-storage: in-cluster-mongodb # Optional. Specifies the name of the storage configuration to use. Defaults to the in-cluster mongodb server deployed with the operator.
+  storage: # Optional. Defines a storage configuration to use instead of the in-cluster mongodb server.
+    - name: in-cluster-mongodb
+      plugin: mongodb
+      url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"
+```
 
 # Contact
 
