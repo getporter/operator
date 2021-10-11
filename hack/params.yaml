@@ -1,0 +1,14 @@
+# This configures the operator to use a local dev build of Porter Agent
+# build with mage XBuildAll LocalPorterAgentBuild
+schemaVersion: 1.0.0
+name: dev-build
+parameters:
+  - name: porterRepository
+    source:
+      value: "localhost:5000/porter-agent"
+  - name: porterVersion
+    source:
+      value: "canary-dev"
+  - name: pullPolicy
+    source:
+      value: "Always"

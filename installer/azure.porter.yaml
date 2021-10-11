@@ -1,6 +1,5 @@
-name: porter-operator
-version: 0.0.0
-description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
+name: porter-operator-azure
+description: "The Porter Operator on Azure. Execute bundles on an AKS cluster."
 registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 

@@ -1,0 +1,10 @@
+# These are the default values to use for the Porter configuration file
+# They are copied into manifests/namespace/porter-config.yaml when the porter-config
+# parameter is unset.
+default-secrets-plugin: "kubernetes.secrets"
+default-storage: "in-cluster-mongodb"
+storage:
+  - name: "in-cluster-mongodb"
+    plugin: "mongodb"
+    config:
+      url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"

@@ -101,7 +101,9 @@ func BuildBundle() {
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
 	meta := LoadMetadatda()
-	must.Command("porter", "build", "--version", strings.TrimPrefix(meta.Version, "v")).In("installer").RunV()
+	version := strings.TrimPrefix(meta.Version, "v")
+	must.Command("porter", "build", "--version", version, "-f=vanilla.porter.yaml").
+		In("installer").RunV()
 }
 
 func Publish() {
@@ -111,10 +113,10 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.Deps(BuildBundle)
-	must.Command("porter", "publish", "--registry", Env.Registry).In("installer").RunV()
+	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").RunV()
 
 	meta := LoadMetadatda()
-	must.Command("porter", "publish", "--registry", Env.Registry, "--tag", meta.Permalink).In("installer").RunV()
+	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").RunV()
 }
 
 func BuildManifests() {
@@ -159,21 +161,14 @@ func EnsureDeployed() {
 	}
 }
 
-// Build the operator and deploy it to the test cluster.
+// Build the operator and deploy it to the test cluster using
 func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry, Build)
 
 	BuildManifests()
-	PublishController()
-	kubectl("apply", "-f", "manifests.yaml").Run()
-
-	deployMongodb()
-
-	kubectl("rollout", "restart", "deployment/porter-operator-controller-manager", "--namespace", operatorNamespace).RunV()
-}
-
-func deployMongodb() error {
-	return shx.RunV("helm", "upgrade", "--install", "mongodb", "-n", operatorNamespace, "bitnami/mongodb", "--set", "auth.enabled=false")
+	PublishBundle()
+	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
+	must.RunV("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator")
 }
 
 func isDeployed() bool {
@@ -252,24 +247,11 @@ func namespaceExists(name string) bool {
 func SetupNamespace(name string) {
 	mg.Deps(EnsureTestCluster)
 
-	// TODO: Use a bundle to install porter in a local dev env and invoke configure-namespace
-
 	if namespaceExists(name) {
 		kubectl("delete", "ns", name, "--wait=true").RunS()
 	}
 
-	kubectl("create", "namespace", name).RunE()
-	kubectl("label", "namespace", name, "porter-test=true").RunE()
-	kubectl("apply", "--namespace", name, "-f=hack/agent-config.yaml").RunE()
-	kubectl("apply", "--namespace", name, "-f=hack/porter-config.yaml").RunE()
-	kubectl("create", "serviceaccount", "porter-agent", "--namespace", name).RunE()
-
-	kubectl("create", "rolebinding", "porter-agent",
-		"--clusterrole", "porter-operator-agent-role",
-		"--serviceaccount", name+":porter-agent",
-		"--namespace", name).RunE()
-
-	kubectl("create", "serviceaccount", "installation-service-account", "--namespace", name).RunE()
+	must.RunV("porter", "invoke", "operator", "--action=configure-namespace", "-p=./hack/params.yaml", "--param", "namespace="+name, "-c", "kind", "-n=operator")
 
 	setClusterNamespace(name)
 }

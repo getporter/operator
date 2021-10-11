@@ -1,0 +1,9 @@
+apiVersion: porter.sh/v1
+kind: PorterConfig
+metadata:
+  name: default
+  labels:
+    porter: "true"
+spec:
+  # Values are supplied by the bundle parameter porter-config
+  # If nothing is provided, defaults to the contents of defaults/porter-config-spec.yaml
