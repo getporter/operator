@@ -170,7 +170,6 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 	// porter installation apply installation.yaml
 	porterCommand := []string{"installation", "apply", "/porter-config/installation.yaml"}
 
-	// TODO: there are execution flags that I need to set for install that I don't know how to set through apply. Maybe set them in the porter config file or env vars?
 	// represent the shared labels that we are applying to all the things in a way that porter can accept on teh command line
 	var sharedLabelsBlob strings.Builder
 	for k, v := range sharedLabels {

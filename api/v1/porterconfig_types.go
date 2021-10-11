@@ -23,19 +23,19 @@ type PorterConfigSpec struct {
 
 	// BuildDriver specifies the name of the current build driver.
 	// Requires that the build-drivers experimental feature is enabled.
-	BuildDriver *string `json:"build-driver,omitempty" mapstructure:"build-driver,omitempty"`
+	BuildDriver *string `json:"buildDriver,omitempty" mapstructure:"build-driver,omitempty"`
 
 	// DefaultStorage is the name of the storage configuration to use.
-	DefaultStorage *string `json:"default-storage,omitempty" mapstructure:"default-storage,omitempty"`
+	DefaultStorage *string `json:"defaultStorage,omitempty" mapstructure:"default-storage,omitempty"`
 
 	// DefaultSecrets is the name of the secrets configuration to use.
-	DefaultSecrets *string `json:"default-secrets,omitempty" mapstructure:"default-secrets,omitempty"`
+	DefaultSecrets *string `json:"defaultSecrets,omitempty" mapstructure:"default-secrets,omitempty"`
 
 	// DefaultStoragePlugin is the name of the storage plugin to use when DefaultStorage is unspecified.
-	DefaultStoragePlugin *string `json:"default-storage-plugin,omitempty" mapstructure:"default-storage-plugin"`
+	DefaultStoragePlugin *string `json:"defaultStoragePlugin,omitempty" mapstructure:"default-storage-plugin"`
 
 	// DefaultSecretsPlugin is the name of the storage plugin to use when DefaultSecrets is unspecified.
-	DefaultSecretsPlugin *string `json:"default-secrets-plugin" mapstructure:"default-secrets-plugin"`
+	DefaultSecretsPlugin *string `json:"defaultSecretsPlugin" mapstructure:"default-secrets-plugin"`
 
 	// Storage is a list of named storage configurations.
 	Storage []StorageConfig `json:"storage,omitempty" mapstructure:"storage,omitempty"`

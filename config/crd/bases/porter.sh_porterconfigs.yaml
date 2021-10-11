@@ -36,7 +36,7 @@ spec:
           spec:
             description: PorterConfigSpec defines the desired state of PorterConfig
             properties:
-              build-driver:
+              buildDriver:
                 description: BuildDriver specifies the name of the current build driver.
                   Requires that the build-drivers experimental feature is enabled.
                 type: string
@@ -47,19 +47,19 @@ spec:
                 description: DebugPlugins specifies if Porter should output debug
                   logs for the plugins.
                 type: boolean
-              default-secrets:
+              defaultSecrets:
                 description: DefaultSecrets is the name of the secrets configuration
                   to use.
                 type: string
-              default-secrets-plugin:
+              defaultSecretsPlugin:
                 description: DefaultSecretsPlugin is the name of the storage plugin
                   to use when DefaultSecrets is unspecified.
                 type: string
-              default-storage:
+              defaultStorage:
                 description: DefaultStorage is the name of the storage configuration
                   to use.
                 type: string
-              default-storage-plugin:
+              defaultStoragePlugin:
                 description: DefaultStoragePlugin is the name of the storage plugin
                   to use when DefaultStorage is unspecified.
                 type: string
@@ -107,7 +107,7 @@ spec:
                   type: object
                 type: array
             required:
-            - default-secrets-plugin
+            - defaultSecretsPlugin
             type: object
           status:
             description: PorterConfigStatus defines the observed state of PorterConfig

@@ -83,7 +83,7 @@ func Vet() {
 
 // Compile the operator and its API types
 func Build() {
-	mg.Deps(Fmt, Vet)
+	mg.Deps(Fmt, Vet, EnsureControllerGen)
 
 	LoadMetadatda()
 

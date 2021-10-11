@@ -3,5 +3,12 @@ kind: PorterConfig
 metadata:
   name: porterconfig-sample
 spec:
-  # Add fields here
-  foo: bar
+  debug: true
+  debugPlugins: false
+  defaultSecretsPlugin: kubernetes.secrets
+  defaultStorage: in-cluster-mongodb
+  storage:
+    - name: in-cluster-mongodb
+      plugin: mongodb
+      config:
+        url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"

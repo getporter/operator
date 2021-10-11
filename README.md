@@ -21,7 +21,7 @@ pipeline with support for GitOps.
 * Create and respond to events on your cluster to integrate bundles into your
   pipeline.
 
-<p align="center">Learn all about Porter at <a href="https://porter.sh">porter.sh</a></p>
+<p align="center">Learn all about Porter at <a href="https://release-v1.porter.sh/operator/">porter.sh/operator/</a></p>
 
 # Project Status
 
@@ -64,6 +64,7 @@ Create a namespace with the appropriate RBAC and configuration. This is where yo
 porter invoke porterops --action configure-namespace --param namespace=TODO -c porterops
 ```
 
+**Notes**
 * The operator installs a mongodb server in its namespace (with no password set for root). This is only
   suitable for testing the operator.
 * A PorterConfig resource named default is created in the specified namespace configuring Porter to use
@@ -71,13 +72,16 @@ porter invoke porterops --action configure-namespace --param namespace=TODO -c p
 
 # Run a test installation
 
-There are sample installation CRDs in config/samples that you can quickly try out with:
+There are sample installation CRDs in [config/samples](/config/samples) that you can quickly try out with:
 
 ```
 mage bump SAMPLE
 ```
 
-For example, to apply config/samples/porter-hello.yaml, run command below.
+This mage target handles running `porter installation apply` for you and sets an annotation to force the installation to be reconciled.
+You can do this by hand by following the instructions at [Apply an Installation](#apply-an-installation).
+
+For example, to apply [config/samples]/porter-hello.yaml](/config/samples]/porter-hello.yaml), run command below.
 If the installation does not already exist, it will be created
 Otherwise, the retry annotation on the installation to force the operator to reevaluate the installation.
 
@@ -87,7 +91,7 @@ mage bump porter-hello
 
 # Inspect the installation
 
-If you have your local Porter configuration file pointed to the in-cluster mongodb server, you can use Porter
+With your local Porter configuration file pointed to the in-cluster mongodb server, you can use Porter
 directly to check the status of an installation.
 
 Expose the in-cluster mongodb server on the default mongo porter: 27017.
@@ -109,7 +113,7 @@ default-storage = "in-cluster-mongodb"
     url = "mongodb://localhost:27017"
 ```
 
-In the example below, the config/samples/porter-hello.yaml installation CRD is applied,
+In the example below, the [config/samples/porter-hello.yaml](/config/samples/porter-hello.yaml) installation CRD is applied,
 and then porter is used to view the logs.
 ```
 mage bump porter-hello
@@ -139,7 +143,8 @@ storage:
 You can use a different file when installing the operator like so:
 
 ```
-porter install porterops --param porter-config=./myconfig.yaml  -c porterops -r ghcr.io/getporter/porter-operator:canary
+porter install porterops --param porter-config=./myconfig.yaml  \
+  -c porterops -r ghcr.io/getporter/porter-operator:canary
 ```
 
 The bundle also has parameters defined that control how the Porter agent is configured and run.
@@ -178,8 +183,8 @@ spec:
     name: "my lovely drama llamas"
 ```
 
-After you apply it with `kubectl apply -f`, the Porter Operator will run the following command, passing in the
-Porter representation of the installation CRD.
+After you apply it with `kubectl apply -f`, the Porter Operator will run convert the CRD into 
+Porter's representation of an installation and pass it to `porter installation apply`.
 
 ```
 porter installation apply
@@ -200,9 +205,6 @@ metadata:
   name: porter-hello
   annotations:
     retry: 1
-spec:
-  reference: "getporter/porter-hello:v0.1.1"
-  action: "upgrade"
 ```
 
 Each time you need to repeat the operation, change the annotation value again.

@@ -11,6 +11,10 @@ configure-namespace() {
     echo "Using the default porter-config"
     cp defaults/porter-config-spec.yaml $spec
   fi
+  sed -i 's/debug-plugins/debugPlugins/g' $spec
+  sed -i 's/default-storage-plugin/defaultStoragePlugin/g' $spec
+  sed -i 's/default-storage/defaultStorage/g' $spec
+  sed -i 's/default-secrets-plugin/defaultSecrets/g' $spec
   yq eval-all 'select(fileIndex==0).spec = select(fileIndex==1) | select(fileIndex==0)' -i porter-config.yaml $spec
 
   # If settings were specified for the porter operator, create a AgentConfig with them included
