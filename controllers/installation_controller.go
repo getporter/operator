@@ -2,12 +2,10 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	porterv1 "get.porter.sh/operator/api/v1"
-	"get.porter.sh/porter/pkg/yaml"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -91,7 +89,7 @@ const labelPrefix = "porter.sh/"
 func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, jobName string, inst *porterv1.Installation) error {
 	r.Log.Info(fmt.Sprintf("creating porter job %s/%s for Installation %s/%s", inst.Namespace, jobName, inst.Namespace, inst.Name))
 
-	installationResourceB, err := convertInstallation(inst.Spec)
+	installationResourceB, err := inst.Spec.ToPorterDocument()
 	if err != nil {
 		return err
 	}
@@ -107,11 +105,11 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 	}
 
 	r.Log.Info("Porter Config Struct", "dump", fmt.Sprintf("%#v", porterCfg))
-	porterCfgB, err := json.Marshal(porterCfg)
+	porterCfgB, err := porterCfg.ToPorterDocument()
 	if err != nil {
 		return errors.Wrap(err, "error marshaling the porter config.json file")
 	}
-	r.Log.Info("Porter Config File", "config.json", string(porterCfgB))
+	r.Log.Info("Porter Config File", "config.yaml", string(porterCfgB))
 
 	sharedLabels := map[string]string{
 		labelPrefix + "managed":          "true",
@@ -157,7 +155,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 		Type:      corev1.SecretTypeOpaque,
 		Immutable: pointer.BoolPtr(true),
 		Data: map[string][]byte{
-			"config.json":       porterCfgB,
+			"config.yaml":       porterCfgB,
 			"installation.yaml": installationResourceB,
 		},
 	}
@@ -299,12 +297,6 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 
 	err = r.Create(ctx, porterJob, &client.CreateOptions{})
 	return errors.Wrapf(err, "error creating job for Installation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
-}
-
-// convert the installation spec into the porter representation of the resource.
-func convertInstallation(spec porterv1.InstallationSpec) ([]byte, error) {
-	b, err := yaml.Marshal(spec)
-	return b, errors.Wrap(err, "error converting the installation spec into its porter resource representation")
 }
 
 func (r *InstallationReconciler) resolveAgentConfig(ctx context.Context, inst *porterv1.Installation) (porterv1.AgentConfigSpec, error) {

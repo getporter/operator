@@ -3,4 +3,4 @@ kind: ServiceAccount
 metadata:
   name: porter-agent
   labels:
-    porter: "true"
+    porter.sh/generator: "porter-operator-bundle"

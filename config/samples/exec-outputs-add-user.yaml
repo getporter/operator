@@ -2,6 +2,8 @@ apiVersion: porter.sh/v1
 kind: Installation
 metadata:
   name: exec-outputs
+  labels:
+    porter.sh/testdata: "true"
 spec:
   reference: "getporter/exec-outputs:v0.1.1"
   action: "add-user"

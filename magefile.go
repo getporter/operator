@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -94,7 +95,7 @@ func Build() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(BuildManifests, getMixins)
+	mg.SerialDeps(PublishImages, getMixins)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
@@ -156,7 +157,14 @@ func BuildManifests() {
 	fmt.Println("Using environment", Env.Name)
 	meta := LoadMetadatda()
 	img := Env.ControllerImagePrefix + meta.Version
-	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
+
+	// Get the digest for the image
+	imgDef, _ := must.Output("docker", "image", "inspect", img)
+	var imgDefRaw []map[string]interface{}
+	err := json.Unmarshal([]byte(imgDef), &imgDefRaw)
+	mgx.Must(err)
+	imgWithDigest := imgDefRaw[0]["RepoDigests"].([]interface{})[0]
+	kustomize("edit", "set", "image", "manager="+imgWithDigest.(string)).In("config/manager").Run()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
@@ -179,6 +187,12 @@ func TestUnit() {
 	must.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
 }
 
+// Update golden test files to match the new test outputs
+func UpdateTestfiles() {
+	must.Command("go", "test", "./...").Env("PORTER_UPDATE_TEST_FILES=true").RunV()
+	TestUnit()
+}
+
 // Run integration tests against the test cluster.
 func TestIntegration() {
 	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo, EnsureDeployed)
@@ -195,9 +209,8 @@ func EnsureDeployed() {
 
 // Build the operator and deploy it to the test cluster using
 func Deploy() {
-	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry, Build)
+	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry)
 
-	BuildManifests()
 	PublishImages()
 	PublishBundle()
 	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
@@ -220,7 +233,7 @@ func isDeployed() bool {
 
 // Push the operator and agent images.
 func PublishImages() {
-	mg.Deps(publishController)
+	mg.SerialDeps(Build, publishController, BuildManifests)
 
 	// Check if we have a local porter build
 	// TODO: let's move some of these helpers into Porter
@@ -309,7 +322,7 @@ func SetupNamespace(name string) {
 	}
 
 	must.RunV("porter", "invoke", "operator", "--action=configure-namespace", "-p=./hack/params.yaml", "--param", "namespace="+name, "-c", "kind", "-n=operator")
-
+	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
 	setClusterNamespace(name)
 }
 
@@ -321,15 +334,14 @@ func Clean() {
 // Remove data created by running the test suite
 func CleanTests() {
 	if useCluster() {
-		kubectl("delete", "ns", "-l", "porter-test=true").RunV()
+		kubectl("delete", "ns", "-l", "porter.sh/testdata=true").RunV()
 	}
 }
 
 // Remove any porter data in the cluster
 func CleanManual() {
 	if useCluster() {
-		kubectl("delete", "jobs", "-l", "porter=true").RunV()
-		kubectl("delete", "secrets", "-l", "porter-test=true").RunV()
+		must.RunV("porter", "invoke", "operator", "--action=remove-data", "-c", "kind", "-n=operator")
 	}
 }
 

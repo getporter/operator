@@ -2,6 +2,8 @@ apiVersion: porter.sh/v1
 kind: Installation
 metadata:
   name: plugins-tutorial
+  labels:
+    porter.sh/testdata: "true"
 spec:
   reference: "getporter/plugins-tutorial:v0.1.0"
   action: "install"

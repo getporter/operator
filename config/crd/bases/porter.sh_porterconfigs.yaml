@@ -34,7 +34,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: PorterConfigSpec defines the desired state of PorterConfig
+            description: "PorterConfigSpec defines the desired state of PorterConfig
+              \n SERIALIZATION NOTE: \tUse json to persist this resource to Kubernetes.
+              \ Use yaml to convert to Porter's representation of the resource.  The
+              mapstructure tags are used internally to implement PorterConfigSpec.MergeConfig."
             properties:
               buildDriver:
                 description: BuildDriver specifies the name of the current build driver.

@@ -121,7 +121,7 @@ upgrade:
 
 remove-data:
   - exec:
-      description: "Remove Porter Operator Data"
+      description: "Remove ALL Porter Operator data from the cluster"
       command: ./helpers.sh
       arguments:
         - remove-data

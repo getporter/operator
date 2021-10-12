@@ -11,6 +11,11 @@ import (
 )
 
 // AgentConfigSpec defines the configuration for the Porter agent.
+//
+// SERIALIZATION NOTE:
+//	The json serialization is for persisting this to Kubernetes.
+//  The yaml serialization is for creating a Porter representation of the resource.
+//
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
 	// Defaults to ghcr.io/getporter/porter-agent
@@ -37,7 +42,7 @@ type AgentConfigSpec struct {
 
 	// InstallationServiceAccount specifies a service account to run the Kubernetes pod/job for the installation image.
 	// The default is to run without a service account.
-	// This can be useful for a bundle which is targetting the kuernetes cluster that the operator is installed in.
+	// This can be useful for a bundle which is targeting the kubernetes cluster that the operator is installed in.
 	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
 }
 

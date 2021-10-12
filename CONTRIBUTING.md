@@ -21,42 +21,58 @@ more.
 We have a [tutorial] that walks you through how to setup your developer
 environment for Porter, make a change and test it.
 
-Porter isn't required on your local machine to work on the Porter Operator
-but we recomend that you start there so that you understand how to use Porter.
+We recommend that you start there so that you understand how to use Porter.
 
-You will need a Go, Docker, and make to work on the operator.
+You will need a Porter, Go, Docker, and make to work on the operator.
 
 [tutorial]: https://porter.sh/contribute/tutorial/
 
-## Makefile explained
+```
+# Install mage
+go run mage.go EnsureMage
 
-🚧 We are in the process of transitioning from make to [mage](https://magefile.org).
+# Build and deploy the opeartor to a local KinD cluster
+mage deploy
+```
+
+## Magefile explained
+
+We use [mage](https://magefile.org) instead of make. If you don't have mage installed already,
+you can install it with `go run mage.go EnsureMage`.
 
 [mage]: https://magefile.org
 
-### Mage Targets
-
-Below are the targets that have been migrated to mage. Our new contributor
-tutorial explains how to [install mage](https://porter.sh/contribute/tutorial/#install-mage).
-
 Mage targets are not case-sensitive, but in our docs we use camel case to make
 it easier to read. You can run either `mage Deploy` or `mage deploy` for
-example.
+example. Run `mage` without any arguments to see a list of the available targets.
 
-* **Deploy** builds the controller and deploys it to the active cluster.
+* **Deploy** builds the controller and deploys it to a local KinD cluster.
+* **Bump**, e.g. `mage bump porter-hello` applies one of the sample Installations in config/samples to the test cluster.
 * **Logs** follows the logs for the controller.
 
 ### Utility Targets
 These are targets that you won't usually run directly, other targets use them as dependencies.
 
 * **EnsureOperatorSDK** installs the operator-sdk CLI if it is not already installed.
-* **EnsureCluster** starts a KIND cluster if it's not already running.
-* **CreateKINDCluster** creates a new KIND cluster named porter.
-* **DeleteKINDCluster** deletes the KIND cluster named porter.
+* **EnsureTestCluster** starts a KIND cluster if it's not already running.
+* **CreateTestCluster** creates a new KIND cluster named porter.
+* **DeleteTestCluster** deletes the KIND cluster named porter.
+* **Clean** deletes all data from the test cluster.
+* **CleanManual** removes all 
+* **CleanTests** removes any namespaces created by the test suite (where porter-test=true).
 
 ## Modify the porter agent
 
-The "porter agent" is the Docker image used to execute Porter in a Kubernetes job.
-At the moment, I am testing out changes to a few dependencies so it is a custom 
-local build of getporter/porter, named carolynvs/porter:dev. Once those changes are
-back in porter upstream we can use getporter/porter directly.
+If you need to make changes to the Porter CLI used by the operator, known as the Porter Agent,
+you can check out Porter's source code, and then run
+
+```
+mage XBuildAll LocalPorterAgentBuild
+```
+
+This will build an agent for you named localhost:5000/porter-agent:canary-dev and push
+it to the local registry running on the test cluster you have set up for the operator.
+
+At the moment, the scripts all assume that you have done this and try to configure the operator
+to use a local agent build. If you are not running a local build, change hack/params and specify
+the agent image you want to use.

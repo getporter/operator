@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -xeuo pipefail
 
 configure-namespace() {
   cd manifests/namespace
@@ -14,7 +14,8 @@ configure-namespace() {
   sed -i 's/debug-plugins/debugPlugins/g' $spec
   sed -i 's/default-storage-plugin/defaultStoragePlugin/g' $spec
   sed -i 's/default-storage/defaultStorage/g' $spec
-  sed -i 's/default-secrets-plugin/defaultSecrets/g' $spec
+  sed -i 's/default-secrets-plugin/defaultSecretsPlugin/g' $spec
+  sed -i 's/default-secrets/defaultSecrets/g' $spec
   yq eval-all 'select(fileIndex==0).spec = select(fileIndex==1) | select(fileIndex==0)' -i porter-config.yaml $spec
 
   # If settings were specified for the porter operator, create a AgentConfig with them included
@@ -42,12 +43,12 @@ configure-namespace() {
 }
 
 remove-data() {
-  kubectl delete namespace -l porter=true --wait
-  kubectl delete agentconfigs.porter.sh -l porter=true --wait
-  kubectl delete installations.porter.sh -l porter=true --wait
-  kubectl delete jobs -l porter=true --wait
-  kubectl delete secrets -l porter=true --wait
-  kubectl delete pods -l porter=true --wait
+  filter="porter.sh/generator=porter-operator-bundle"
+  # This should get anything made by the bundle
+  kubectl delete namespace -l $filter --wait
+  # Look for any stray data that wasn't in a porter managed namespace, or were missing labels
+  kubectl delete jobs,pods,secrets,pvc,pv --all-namespaces $filter --wait
+  kubectl delete installations.porter.sh,agentconfigs.porter.sh,porterconfigs.porter.sh --all-namespaces --wait
 }
 
 # Call the requested function and pass the arguments as-is

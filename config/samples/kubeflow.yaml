@@ -2,6 +2,8 @@ apiVersion: porter.sh/v1
 kind: Installation
 metadata:
   name: kubeflow
+  labels:
+    porter.sh/testdata: "true"
 spec:
   reference: "ghcr.io/squillace/aks-kubeflow-msi:v0.1.7"
   action: "install"

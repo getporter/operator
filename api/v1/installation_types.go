@@ -68,6 +68,12 @@ type InstallationSpec struct {
 	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty"`
 }
 
+// ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.
+func (in InstallationSpec) ToPorterDocument() ([]byte, error) {
+	b, err := yaml.Marshal(in)
+	return b, errors.Wrap(err, "error converting the Installation spec into its Porter resource representation")
+}
+
 func (in InstallationSpec) MarshalYAML() (interface{}, error) {
 	type Alias InstallationSpec
 
