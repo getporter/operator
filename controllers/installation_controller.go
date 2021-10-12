@@ -112,11 +112,11 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 	r.Log.Info("Porter Config File", "config.yaml", string(porterCfgB))
 
 	sharedLabels := map[string]string{
-		labelPrefix + "managed":          "true",
-		labelPrefix + "resource-name":    inst.Name,
-		labelPrefix + "resource-version": inst.ResourceVersion,
-		labelPrefix + "resource-type":    "installation",
-		labelPrefix + "job":              jobName,
+		labelPrefix + "managed":         "true",
+		labelPrefix + "resourceKind":    "Installation",
+		labelPrefix + "resourceName":    inst.Name,
+		labelPrefix + "resourceVersion": inst.ResourceVersion,
+		labelPrefix + "job":             jobName,
 	}
 
 	// Create a volume to share data between porter and the invocation image
@@ -140,7 +140,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 		return errors.Wrapf(err, "error creating the the shared volume (pvc) for Installation %s/%s@%s", inst.Namespace, inst.Name, inst.ResourceVersion)
 	}
 
-	log := r.Log.WithValues("resourceType", "installation", "resourceName", inst.Name, "resourceNamespace", inst.Namespace, "resourceVersion", inst.ResourceVersion)
+	log := r.Log.WithValues("resourceKind", "Installation", "resourceName", inst.Name, "resourceNamespace", inst.Namespace, "resourceVersion", inst.ResourceVersion)
 	log.Info("Using " + agentCfg.GetPorterImage())
 
 	// Create a secret with all the files that should be copied into the agent
@@ -261,7 +261,7 @@ func (r *InstallationReconciler) createJobForInstallation(ctx context.Context, j
 								},
 								{
 									Name:  "AFFINITY_MATCH_LABELS",
-									Value: fmt.Sprintf("porter.sh/resource-name=%s porter.sh/resource-version=%s", inst.Name, inst.ResourceVersion),
+									Value: fmt.Sprintf("porter.sh/resourceKind=Installation porter.sh/resourceName=%s porter.sh/resourceVersion=%s", inst.Name, inst.ResourceVersion),
 								},
 							},
 							EnvFrom: []corev1.EnvFromSource{
@@ -361,6 +361,19 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 		r.Log.Info(fmt.Sprintf("Found %s level porter config file %s", name, config.Name))
 	}
 
+	// Provide a safe default config in case nothing is defined anywhere
+	defaultCfg := porterv1.PorterConfigSpec{
+		DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
+		DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
+		Storage: []porterv1.StorageConfig{
+			{PluginConfig: porterv1.PluginConfig{
+				Name:         "in-cluster-mongodb",
+				PluginSubKey: "mongodb",
+				Config:       runtime.RawExtension{Raw: []byte(`{"url":"mongodb://mongodb.porter-operator-system.svc.cluster.local"}`)},
+			}},
+		},
+	}
+
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.PorterConfig{}
 	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
@@ -387,7 +400,8 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 	logConfig("instance", instCfg)
 
 	// Resolve final configuration
-	cfg, err := systemCfg.Spec.MergeConfig(nsCfg.Spec, instCfg.Spec)
+	base := &defaultCfg
+	cfg, err := base.MergeConfig(systemCfg.Spec, nsCfg.Spec, instCfg.Spec)
 	if err != nil {
 		return porterv1.PorterConfigSpec{}, err
 	}

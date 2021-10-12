@@ -156,30 +156,17 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	Expect(k8sClient.Create(ctx, instsa)).To(Succeed())
 
-	// agentconfig secret
-	porterCfg := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "porter-config",
-			Namespace: ns.Name,
-		},
-		StringData: map[string]string{
-			"config.toml": `
-debug = true
-debug-plugins = true
-`,
-		},
-	}
-	Expect(k8sClient.Create(ctx, porterCfg)).To(Succeed())
-
 	// Tweak porter agent config for testing
 	porterOpsCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "porter",
+			Name:      "default",
 			Namespace: ns.Name,
 		},
 		Spec: porterv1.AgentConfigSpec{
-			PorterVersion:  "canary",
-			ServiceAccount: svc.Name,
+			PorterRepository:           "localhost:5000/porter-agent",
+			PorterVersion:              "canary-dev",
+			ServiceAccount:             svc.Name,
+			InstallationServiceAccount: "installation-agent",
 		},
 	}
 	Expect(k8sClient.Create(ctx, porterOpsCfg)).To(Succeed())

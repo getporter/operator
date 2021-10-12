@@ -26,29 +26,14 @@ var _ = Describe("Installation controller", func() {
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
 		InstallationName        = "porter-hello"
-		AffinityMatchLabelValue = "installation=" + InstallationName + " installation-version="
+		AffinityMatchLabelValue = "porter.sh/resourceKind=Installation porter.sh/resourceName=" + InstallationName + " porter.sh/resourceVersion="
 	)
 
 	Context("When working with Porter", func() {
 		It("Should execute Porter", func() {
 			By("By creating a new Installation")
 			ctx := context.Background()
-			instCfg := &apiv1.AgentConfig{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "porter.sh/v1",
-					Kind:       "AgentConfig",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      InstallationName,
-					Namespace: testNamespace,
-				},
-				Spec: apiv1.AgentConfigSpec{
-					PorterVersion:              "canary",
-					ServiceAccount:             "porter-agent",
-					InstallationServiceAccount: "installation-agent",
-				},
-			}
-			Expect(k8sClient.Create(ctx, instCfg)).Should(Succeed())
+
 			inst := &apiv1.Installation{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "porter.sh/v1",
@@ -59,9 +44,11 @@ var _ = Describe("Installation controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: apiv1.InstallationSpec{
+					SchemaVersion:    "1.0.0",
+					InstallationName: "hello",
+					TargetNamespace:  "operator-tests",
 					BundleRepository: "getporter/porter-hello",
 					BundleVersion:    "0.1.1",
-					AgentConfig:      corev1.LocalObjectReference{Name: InstallationName},
 				},
 			}
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
@@ -70,9 +57,10 @@ var _ = Describe("Installation controller", func() {
 			jobs := waitForJobStarted(ctx)
 
 			expectedLabelsMatcher := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"porter":               Equal("true"),
-				"installation":         Equal(InstallationName),
-				"installation-version": Equal(inst.ObjectMeta.ResourceVersion),
+				"porter.sh/managed":         Equal("true"),
+				"porter.sh/resourceKind":    Equal("Installation"),
+				"porter.sh/resourceName":    Equal(InstallationName),
+				"porter.sh/resourceVersion": Equal(inst.ObjectMeta.ResourceVersion),
 			})
 
 			job := jobs.Items[0]
@@ -84,15 +72,14 @@ var _ = Describe("Installation controller", func() {
 			Expect(job.Spec.Template.Spec.Containers).Should(HaveLen(1))
 
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.Image).Should(Equal("ghcr.io/getporter/porter-agent:canary"))
+			Expect(container.Image).Should(Equal("localhost:5000/porter-agent:canary-dev"))
 			Expect(container.Args).Should(Equal([]string{"installation", "apply", "/porter-config/installation.yaml"}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "PORTER_DRIVER", Value: "kubernetes"}))
+			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "PORTER_RUNTIME_DRIVER", Value: "kubernetes"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "SERVICE_ACCOUNT", Value: "installation-agent"}))
+			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "JOB_VOLUME_NAME", Value: job.Name}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "AFFINITY_MATCH_LABELS", Value: fmt.Sprintf("%s%s", AffinityMatchLabelValue, inst.ObjectMeta.ResourceVersion)}))
-
-			Expect(container.EnvFrom[0].SecretRef.Name).Should(Equal("porter-env"))
 
 			Expect(job.Spec.Template.Spec.Volumes).Should(ContainElement(IsVolume("porter-config")))
 			Expect(container.VolumeMounts).Should(ContainElement(IsVolumeMount("porter-config")))

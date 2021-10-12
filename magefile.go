@@ -394,7 +394,7 @@ func useCluster() bool {
 }
 
 func setClusterNamespace(name string) {
-	must.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
+	shx.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
 }
 
 // Run a makefile target
