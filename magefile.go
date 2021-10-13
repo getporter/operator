@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	. "get.porter.sh/operator/mage"
+	"get.porter.sh/operator/mage/docker"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/pkg/gopath"
@@ -187,21 +187,15 @@ func resolveControllerImage() string {
 	meta := LoadMetadatda()
 	img := Env.ControllerImagePrefix + meta.Version
 
-	imgDef, _ := must.Output("docker", "image", "inspect", img)
-	var imgDefRaw []map[string]interface{}
-	if err := json.Unmarshal([]byte(imgDef), &imgDefRaw); err != nil {
-		if len(imgDefRaw) > 0 {
-			if repoDigests, ok := imgDefRaw[0]["RepoDigests"]; ok {
-				if digests, ok := repoDigests.([]interface{}); ok {
-					if len(digests) > 0 {
-						return digests[0].(string)
-					}
-				}
-			}
-		}
+	imgDef, err := must.Output("docker", "image", "inspect", img)
+	if err != nil {
+		panic("the controller image has not been built yet")
 	}
-
-	return "ghcr.io/getporter/porterops-controller:latest"
+	imgWithDigest, err := docker.ExtractRepoDigest(imgDef)
+	if err != nil {
+		panic("could not resolve the repository digest of the controller image")
+	}
+	return imgWithDigest
 }
 
 // Run all tests
