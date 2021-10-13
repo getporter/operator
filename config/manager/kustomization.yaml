@@ -13,6 +13,6 @@ configMapGenerator:
   name: manager-config
 
 images:
-- digest: sha256:c742b1cccc5a69abd082b1d61c8ef616a27699b6b52430ac700019f22800c06f
-  name: manager
-  newName: localhost:5000/porterops-controller
+- name: manager
+  newName: ghcr.io/getporter/porterops-controller
+  newTag: latest

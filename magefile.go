@@ -85,7 +85,7 @@ func Vet() {
 
 // Compile the operator and its API types
 func Build() {
-	mg.Deps(Fmt, Vet, EnsureControllerGen)
+	mg.Deps(Fmt, Vet, EnsureControllerGen, BuildManifests)
 
 	LoadMetadatda()
 
@@ -103,6 +103,19 @@ func BuildBundle() {
 	version := strings.TrimPrefix(meta.Version, "v")
 	must.Command("porter", "build", "--version", version, "-f=vanilla.porter.yaml").
 		In("installer").RunV()
+}
+
+func buildImages() {
+	meta := LoadMetadatda()
+	img := Env.ControllerImagePrefix + meta.Version
+	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+
+	log.Println("Building", img)
+	must.Command("docker", "build", "-t", img, ".").
+		Env("DOCKER_BUILDKIT=1").RunV()
+
+	log.Println("Tagging as", imgPermalink)
+	must.RunV("docker", "tag", img, imgPermalink)
 }
 
 func getMixins() error {
@@ -152,19 +165,10 @@ func PublishBundle() {
 
 // Generate k8s manifests for the operator.
 func BuildManifests() {
-	mg.Deps(EnsureKustomize, EnsureControllerGen)
+	mg.Deps(EnsureKustomize, EnsureControllerGen, buildImages)
 
-	fmt.Println("Using environment", Env.Name)
-	meta := LoadMetadatda()
-	img := Env.ControllerImagePrefix + meta.Version
-
-	// Get the digest for the image
-	imgDef, _ := must.Output("docker", "image", "inspect", img)
-	var imgDefRaw []map[string]interface{}
-	err := json.Unmarshal([]byte(imgDef), &imgDefRaw)
-	mgx.Must(err)
-	imgWithDigest := imgDefRaw[0]["RepoDigests"].([]interface{})[0]
-	kustomize("edit", "set", "image", "manager="+imgWithDigest.(string)).In("config/manager").Run()
+	img := resolveControllerImage()
+	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
@@ -175,6 +179,28 @@ func BuildManifests() {
 
 	must.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
 	kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
+}
+
+func resolveControllerImage() string {
+	fmt.Println("Using environment", Env.Name)
+	meta := LoadMetadatda()
+	img := Env.ControllerImagePrefix + meta.Version
+
+	imgDef, _ := must.Output("docker", "image", "inspect", img)
+	var imgDefRaw []map[string]interface{}
+	if err := json.Unmarshal([]byte(imgDef), &imgDefRaw); err != nil {
+		if len(imgDefRaw) > 0 {
+			if repoDigests, ok := imgDefRaw[0]["RepoDigests"]; ok {
+				if digests, ok := repoDigests.([]interface{}); ok {
+					if len(digests) > 0 {
+						return digests[0].(string)
+					}
+				}
+			}
+		}
+	}
+
+	return "ghcr.io/getporter/porterops-controller:latest"
 }
 
 // Run all tests
@@ -233,7 +259,7 @@ func isDeployed() bool {
 
 // Push the operator and agent images.
 func PublishImages() {
-	mg.SerialDeps(Build, publishController, BuildManifests)
+	mg.SerialDeps(Build, publishController)
 }
 
 func PublishLocalPorterAgent() {
@@ -262,15 +288,11 @@ func PublishLocalPorterAgent() {
 }
 
 func publishController() {
+	mg.Deps(buildImages)
+
 	meta := LoadMetadatda()
 	img := Env.ControllerImagePrefix + meta.Version
-	log.Println("Building", img)
-	must.Command("docker", "build", "-t", img, ".").
-		Env("DOCKER_BUILDKIT=1").RunV()
-
 	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
-	log.Println("Tagging as", imgPermalink)
-	must.RunV("docker", "tag", img, imgPermalink)
 
 	log.Println("Pushing", img)
 	must.RunV("docker", "push", img)
