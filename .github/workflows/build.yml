@@ -4,6 +4,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: debug1
+        run: docker run hello-world
+      - name: debug2
+        run: docker run -d -p 5000:5000 --name registry registry:2
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Cache
