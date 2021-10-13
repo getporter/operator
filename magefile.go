@@ -127,6 +127,7 @@ func getMixins() error {
 		version string
 	}{
 		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v0.1.14"},
+		{name: "kubernetes", version: "latest"},
 	}
 	var errG errgroup.Group
 	for _, mixin := range mixins {
