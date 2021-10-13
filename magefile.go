@@ -236,7 +236,7 @@ func EnsureDeployed() {
 
 // Build the operator and deploy it to the test cluster using
 func Deploy() {
-	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry)
+	mg.Deps(UseTestEnvironment, EnsureTestCluster)
 
 	PublishLocalPorterAgent()
 	PublishBundle()
