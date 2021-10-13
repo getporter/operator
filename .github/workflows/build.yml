@@ -4,10 +4,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: debug1
-        run: docker run hello-world
-      - name: debug2
-        run: docker run -d -p 5000:5000 --name registry registry:2
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Cache
@@ -23,6 +19,8 @@ jobs:
           go-version: 1.15
       - name: Setup Porter
         uses: getporter/gh-action@v0.1.3
+        with:
+          porter_version: v1.0.0-alpha.4
       - name: Set up Mage
         run: go run mage.go EnsureMage
       - name: Build
