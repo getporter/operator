@@ -95,7 +95,7 @@ func Build() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(PublishImages, getMixins)
+	mg.Deps(getMixins)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
@@ -143,7 +143,7 @@ func Publish() {
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
-	mg.Deps(BuildBundle)
+	mg.SerialDeps(PublishImages, BuildBundle)
 	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").RunV()
 
 	meta := LoadMetadatda()
@@ -211,7 +211,6 @@ func EnsureDeployed() {
 func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry)
 
-	PublishImages()
 	PublishLocalPorterAgent()
 	PublishBundle()
 	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
