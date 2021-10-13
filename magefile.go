@@ -239,8 +239,11 @@ func Deploy() {
 
 	PublishLocalPorterAgent()
 	PublishBundle()
-	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
-	must.RunV("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator")
+
+	must.Command("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator", "--debug", "--debug-plugins").
+		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker").RunV()
+	must.Command("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator").
+		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker").RunV()
 }
 
 func isDeployed() bool {
