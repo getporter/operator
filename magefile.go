@@ -95,7 +95,7 @@ func Build() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.Deps(getMixins)
+	mg.SerialDeps(Build, getMixins)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
