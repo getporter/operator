@@ -212,6 +212,7 @@ func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster, StartDockerRegistry)
 
 	PublishImages()
+	PublishLocalPorterAgent()
 	PublishBundle()
 	must.RunV("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator")
 	must.RunV("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator")
@@ -234,7 +235,9 @@ func isDeployed() bool {
 // Push the operator and agent images.
 func PublishImages() {
 	mg.SerialDeps(Build, publishController, BuildManifests)
+}
 
+func PublishLocalPorterAgent() {
 	// Check if we have a local porter build
 	// TODO: let's move some of these helpers into Porter
 	imageExists := func(img string) (bool, error) {
