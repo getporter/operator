@@ -87,12 +87,12 @@ func Vet() {
 
 // Build the controller and bundle.
 func Build() {
-	mg.Deps(BuildController, BuildBundle)
+	mg.SerialDeps(BuildController, BuildBundle)
 }
 
 // Compile the operator and its API types
 func BuildController() {
-	mg.Deps(Fmt, Vet, EnsureControllerGen, BuildManifests)
+	mg.Deps(Fmt, Vet, EnsureControllerGen)
 
 	LoadMetadatda()
 
@@ -104,7 +104,7 @@ func BuildController() {
 func BuildBundle() {
 	mg.Deps(getMixins, PublishImages)
 
-	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
+	buildManifests()
 
 	meta := LoadMetadatda()
 	version := strings.TrimPrefix(meta.Version, "v")
@@ -174,8 +174,8 @@ func PublishBundle() {
 }
 
 // Generate k8s manifests for the operator.
-func BuildManifests() {
-	mg.Deps(EnsureKustomize, EnsureControllerGen, BuildImages)
+func buildManifests() {
+	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
 	img := resolveControllerImage()
 	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
@@ -188,7 +188,7 @@ func BuildManifests() {
 	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
 
 	must.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
-	kustomize("build", "config/default", "-o", "manifests.yaml").RunV()
+	kustomize("build", "config/default", "-o", "installer/manifests/operator.yaml").RunV()
 }
 
 func resolveControllerImage() string {
@@ -447,12 +447,12 @@ func EnsureGinkgo() {
 func EnsureKustomize() {
 	opts := archive.DownloadArchiveOptions{
 		DownloadOptions: downloads.DownloadOptions{
-			UrlTemplate: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize-{{.VERSION}}/kustomize_{{.VERSION}}_{{.GOARCH}}_{{.GOOS}}.tar.gz",
+			UrlTemplate: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F{{.VERSION}}/kustomize_{{.VERSION}}_{{.GOOS}}_{{.GOARCH}}.tar.gz",
 			Name:        "kustomize",
 			Version:     "v3.8.7",
 		},
 		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
-		TargetFileTemplate: "kustomize{{EXT}}",
+		TargetFileTemplate: "kustomize{{.EXT}}",
 	}
 	mgx.Must(archive.DownloadToGopathBin(opts))
 }
