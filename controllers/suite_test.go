@@ -156,6 +156,14 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	Expect(k8sClient.Create(ctx, instsa)).To(Succeed())
 
+	agentRepo := os.Getenv("PORTER_AGENT_REPOSITORY")
+	if agentRepo == "" {
+		agentRepo = "ghcr.io/getporter/porter-agent"
+	}
+	agentVersion := os.Getenv("PORTER_AGENT_VERSION")
+	if agentVersion == "" {
+		agentVersion = "latest"
+	}
 	// Tweak porter agent config for testing
 	porterOpsCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -163,8 +171,8 @@ func createTestNamespace(ctx context.Context) string {
 			Namespace: ns.Name,
 		},
 		Spec: porterv1.AgentConfigSpec{
-			PorterRepository:           "localhost:5000/porter-agent",
-			PorterVersion:              "canary-dev",
+			PorterRepository:           agentRepo,
+			PorterVersion:              agentVersion,
 			ServiceAccount:             svc.Name,
 			InstallationServiceAccount: "installation-agent",
 		},

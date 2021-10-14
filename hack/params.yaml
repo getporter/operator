@@ -1,14 +1,16 @@
-# This configures the operator to use a local dev build of Porter Agent
+# You can configure the mage bump command to use a local build of porter
 # build with mage XBuildAll LocalPorterAgentBuild
+# export PORTER_AGENT_REPOSITORY=localhost:5000/porter-agent
+# export PORTER_AGENT_VERSION=canary-dev
 schemaVersion: 1.0.0
 name: dev-build
 parameters:
   - name: porterRepository
     source:
-      value: "localhost:5000/porter-agent"
+      env: PORTER_AGENT_REPOSITORY
   - name: porterVersion
     source:
-      value: "canary-dev"
+      env: PORTER_AGENT_VERSION
   - name: pullPolicy
     source:
       value: "Always"
