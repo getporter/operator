@@ -85,8 +85,13 @@ func Vet() {
 	must.RunV("go", "vet", "./...")
 }
 
-// Compile the operator and its API types
+// Build the controller and bundle.
 func Build() {
+	mg.Deps(BuildController, BuildBundle)
+}
+
+// Compile the operator and its API types
+func BuildController() {
 	mg.Deps(Fmt, Vet, EnsureControllerGen, BuildManifests)
 
 	LoadMetadatda()
@@ -97,7 +102,7 @@ func Build() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(Build, getMixins)
+	mg.Deps(getMixins, PublishImages)
 
 	mgx.Must(shx.Copy("manifests.yaml", "installer/manifests/operator.yaml"))
 
@@ -107,7 +112,9 @@ func BuildBundle() {
 		In("installer").RunV()
 }
 
-func buildImages() {
+// Build the controller image
+func BuildImages() {
+	mg.Deps(BuildController)
 	meta := LoadMetadatda()
 	img := Env.ControllerImagePrefix + meta.Version
 	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
@@ -154,7 +161,7 @@ func getMixins() error {
 
 // Publish the operator and its bundle.
 func Publish() {
-	mg.Deps(publishController, PublishBundle)
+	mg.Deps(PublishImages, PublishBundle)
 }
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
@@ -168,7 +175,7 @@ func PublishBundle() {
 
 // Generate k8s manifests for the operator.
 func BuildManifests() {
-	mg.Deps(EnsureKustomize, EnsureControllerGen, buildImages)
+	mg.Deps(EnsureKustomize, EnsureControllerGen, BuildImages)
 
 	img := resolveControllerImage()
 	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
@@ -218,7 +225,7 @@ func UpdateTestfiles() {
 
 // Run integration tests against the test cluster.
 func TestIntegration() {
-	mg.Deps(UseTestEnvironment, CleanTests, EnsureGinkgo, EnsureDeployed)
+	mg.Deps(UseTestEnvironment, CleanTestdata, EnsureGinkgo, EnsureDeployed)
 
 	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
 }
@@ -257,9 +264,18 @@ func isDeployed() bool {
 	return false
 }
 
-// Push the operator and agent images.
+// Push the operator image.
 func PublishImages() {
-	mg.SerialDeps(Build, publishController)
+	mg.Deps(BuildImages)
+	meta := LoadMetadatda()
+	img := Env.ControllerImagePrefix + meta.Version
+	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+
+	log.Println("Pushing", img)
+	must.RunV("docker", "push", img)
+
+	log.Println("Pushing", imgPermalink)
+	must.RunV("docker", "push", imgPermalink)
 }
 
 func PublishLocalPorterAgent() {
@@ -285,20 +301,6 @@ func PublishLocalPorterAgent() {
 		err := pushImage(agentImg)
 		mgx.Must(err)
 	}
-}
-
-func publishController() {
-	mg.Deps(buildImages)
-
-	meta := LoadMetadatda()
-	img := Env.ControllerImagePrefix + meta.Version
-	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
-
-	log.Println("Pushing", img)
-	must.RunV("docker", "push", img)
-
-	log.Println("Pushing", imgPermalink)
-	must.RunV("docker", "push", imgPermalink)
 }
 
 // Reapply a file in config/samples, usage: mage bump porter-hello.
@@ -350,20 +352,20 @@ func SetupNamespace(name string) {
 	setClusterNamespace(name)
 }
 
-// Delete operator data from the test cluster.
+// Remove the test cluster and registry.
 func Clean() {
-	mg.Deps(CleanManual, CleanTests)
+	mg.Deps(DeleteTestCluster, StopDockerRegistry)
 }
 
 // Remove data created by running the test suite
-func CleanTests() {
+func CleanTestdata() {
 	if useCluster() {
 		kubectl("delete", "ns", "-l", "porter.sh/testdata=true").RunV()
 	}
 }
 
 // Remove any porter data in the cluster
-func CleanManual() {
+func CleanAllData() {
 	if useCluster() {
 		must.RunV("porter", "invoke", "operator", "--action=remove-data", "-c", "kind", "-n=operator")
 	}
