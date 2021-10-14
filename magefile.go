@@ -102,7 +102,7 @@ func BuildController() {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.Deps(getMixins, PublishImages)
+	mg.SerialDeps(getMixins, StartDockerRegistry, PublishImages)
 
 	buildManifests()
 
@@ -355,6 +355,7 @@ func SetupNamespace(name string) {
 // Remove the test cluster and registry.
 func Clean() {
 	mg.Deps(DeleteTestCluster, StopDockerRegistry)
+	os.RemoveAll("bin")
 }
 
 // Remove data created by running the test suite
@@ -429,8 +430,7 @@ func kubectl(args ...string) shx.PreparedCommand {
 }
 
 func kustomize(args ...string) shx.PreparedCommand {
-	cmd := filepath.Join(pwd(), "bin/kustomize")
-	return must.Command(cmd, args...)
+	return must.Command("kustomize", args...)
 }
 
 // Ensure yq is installed.
