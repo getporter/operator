@@ -23,7 +23,7 @@ environment for Porter, make a change and test it.
 
 We recommend that you start there so that you understand how to use Porter.
 
-You will need a Porter, Go, Docker, and make to work on the operator.
+You will need a Porter, Go, and Docker to work on the operator.
 
 [tutorial]: https://porter.sh/contribute/tutorial/
 

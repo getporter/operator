@@ -19,6 +19,8 @@ import (
 	"get.porter.sh/operator/mage/docker"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
+	"github.com/carolynvs/magex/pkg/archive"
+	"github.com/carolynvs/magex/pkg/downloads"
 	"github.com/carolynvs/magex/pkg/gopath"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
@@ -419,14 +421,6 @@ func setClusterNamespace(name string) {
 	shx.RunE("kubectl", "config", "set-context", "--current", "--namespace", name)
 }
 
-// Run a makefile target
-func makefile(args ...string) shx.PreparedCommand {
-	cmd := must.Command("make", args...)
-	cmd.Env("KUBECONFIG=" + os.Getenv("KUBECONFIG"))
-
-	return cmd
-}
-
 func kubectl(args ...string) shx.PreparedCommand {
 	kubeconfig := fmt.Sprintf("KUBECONFIG=%s", os.Getenv("KUBECONFIG"))
 	return must.Command("kubectl", args...).Env(kubeconfig)
@@ -449,8 +443,16 @@ func EnsureGinkgo() {
 
 // Ensure kustomize is installed.
 func EnsureKustomize() {
-	// TODO: implement installing from a URL that is tgz
-	makefile("kustomize").Run()
+	opts := archive.DownloadArchiveOptions{
+		DownloadOptions: downloads.DownloadOptions{
+			UrlTemplate: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize-{{.VERSION}}/kustomize_{{.VERSION}}_{{.GOARCH}}_{{.GOOS}}.tar.gz",
+			Name:        "kustomize",
+			Version:     "v3.8.7",
+		},
+		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
+		TargetFileTemplate: "kustomize{{EXT}}",
+	}
+	mgx.Must(archive.DownloadToGopathBin(opts))
 }
 
 // Ensure controller-gen is installed.
