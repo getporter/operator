@@ -72,7 +72,6 @@ var _ = Describe("Installation controller", func() {
 			Expect(job.Spec.Template.Spec.Containers).Should(HaveLen(1))
 
 			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.Image).Should(Equal("localhost:5000/porter-agent:canary-dev"))
 			Expect(container.Args).Should(Equal([]string{"installation", "apply", "/porter-config/installation.yaml"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "PORTER_RUNTIME_DRIVER", Value: "kubernetes"}))
 			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
@@ -94,12 +93,12 @@ var _ = Describe("Installation controller", func() {
 
 				Log("+++POD+++")
 				pods := &corev1.PodList{}
-				Expect(k8sClient.List(ctx, pods, client.HasLabels{"job-name=" + job.Name})).To(Succeed())
+				k8sClient.List(ctx, pods, client.HasLabels{"job-name=" + job.Name})
 				if len(pods.Items) > 0 {
 					LogJson(pods.Items[0].String())
 				}
+				Fail("The job was not successful")
 			}
-			Expect(job.Status.Succeeded).To(Equal(int32(1)))
 		})
 	})
 })
