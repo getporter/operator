@@ -5,5 +5,8 @@ metadata:
   labels:
     porter.sh/testdata: "true"
 spec:
-  reference: "getporter/exec-outputs:v0.1.1"
-  action: "install"
+  schemaVersion: 1.0.0
+  targetNamespace: operator
+  installationName: outputs
+  bundleRepository: getporter/exec-outputs
+  bundleVersion: 0.1.1

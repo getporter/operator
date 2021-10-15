@@ -3,7 +3,6 @@ package v1
 import (
 	"encoding/json"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -76,7 +75,6 @@ func (c PorterConfigSpec) MergeConfig(overrides ...PorterConfigSpec) (PorterConf
 		targetRaw = MergeMap(targetRaw, overrideRaw)
 	}
 
-	spew.Dump(targetRaw)
 	if err := mapstructure.Decode(targetRaw, &c); err != nil {
 		return PorterConfigSpec{}, err
 	}
@@ -147,7 +145,7 @@ type PorterConfig struct {
 // PorterConfigList contains a list of PorterConfig
 type PorterConfigList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []PorterConfig `json:"items"`
 }
 

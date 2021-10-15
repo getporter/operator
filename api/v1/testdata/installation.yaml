@@ -4,4 +4,4 @@ namespace: dev
 bundleRepository: getporter/porter-hello
 bundleVersion: 0.1.0
 parameters:
-  name: Porter Operator
+    name: Porter Operator

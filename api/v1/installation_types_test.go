@@ -30,5 +30,5 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 	require.NoError(t, err)
 
 	got := string(b)
-	assert.Equal(t, want, got)
+	assert.Equal(t, string(want), got)
 }

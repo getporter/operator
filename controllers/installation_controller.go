@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	porterv1 "get.porter.sh/operator/api/v1"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
@@ -406,7 +405,6 @@ func (r *InstallationReconciler) resolvePorterConfig(ctx context.Context, inst *
 		return porterv1.PorterConfigSpec{}, err
 	}
 
-	r.Log.Info(fmt.Sprintf("Resolved porter config file\n%#v\n", spew.Sdump(cfg)))
 	return cfg, nil
 }
 

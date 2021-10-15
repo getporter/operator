@@ -5,7 +5,10 @@ metadata:
   labels:
     porter.sh/testdata: "true"
 spec:
-  reference: "ghcr.io/squillace/aks-kubeflow-msi:v0.1.7"
-  action: "install"
+  schemaVersion: 1.0.0
+  targetNamespace: operator
+  installationName: kubeflow
+  bundleRepository: ghcr.io/squillace/aks-kubeflow-msi
+  bundleVersion: 0.1.7
   credentialSets:
     - aks
