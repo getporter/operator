@@ -34,7 +34,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: InstallationSpec defines the desired state of Installation
+            description: "InstallationSpec defines the desired state of Installation
+              \n SERIALIZATION NOTE: * The json serialization is for persisting this
+              to Kubernetes. * The yaml serialization is for creating a Porter representation
+              of the resource."
             properties:
               agentConfig:
                 description: AgentConfig is the name of an AgentConfig to use instead

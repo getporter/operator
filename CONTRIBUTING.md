@@ -73,6 +73,11 @@ mage XBuildAll LocalPorterAgentBuild
 This will build an agent for you named localhost:5000/porter-agent:canary-dev and push
 it to the local registry running on the test cluster you have set up for the operator.
 
-At the moment, the scripts all assume that you have done this and try to configure the operator
-to use a local agent build. If you are not running a local build, change hack/params and specify
-the agent image you want to use.
+Then set the PORTER_AGENT_REPOSITORY and PORTER_AGENT_VERSION environment variables and
+deploy the operator to your test cluster:
+
+```
+export PORTER_AGENT_REPOSITORY=localhost:5000/porter-agent
+export PORTER_AGENT_VERSION=canary-dev
+mage deploy
+```

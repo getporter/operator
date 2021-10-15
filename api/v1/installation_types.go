@@ -14,13 +14,11 @@ import (
 var _ yaml.Marshaler = InstallationSpec{}
 
 // InstallationSpec defines the desired state of Installation
+//
+// SERIALIZATION NOTE:
+// * The json serialization is for persisting this to Kubernetes.
+// * The yaml serialization is for creating a Porter representation of the resource.
 type InstallationSpec struct {
-
-	/* SERIALIZATION NOTE:
-		The json serialization is for persisting this to Kubernetes.
-	    The yaml serialization is for creating a Porter representation of the resource.
-	*/
-
 	// AgentConfig is the name of an AgentConfig to use instead of the AgentConfig defined at the namespace or system level.
 	// +optional
 	AgentConfig v1.LocalObjectReference `json:"agentConfig,omitempty" yaml:"-"`

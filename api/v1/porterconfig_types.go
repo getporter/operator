@@ -14,9 +14,9 @@ import (
 // PorterConfigSpec defines the desired state of PorterConfig
 //
 // SERIALIZATION NOTE:
-//	Use json to persist this resource to Kubernetes.
+//  Use json to persist this resource to Kubernetes.
 //  Use yaml to convert to Porter's representation of the resource.
-//  The mapstructure tags are used internally to implement PorterConfigSpec.MergeConfig.
+//  The mapstructure tags are used internally for PorterConfigSpec.MergeConfig.
 type PorterConfigSpec struct {
 	// Debug specifies if Porter should output debug logs.
 	Debug *bool `json:"debug,omitempty" yaml:"debug,omitempty" mapstructure:"debug,omitempty"`
@@ -51,16 +51,45 @@ type PorterConfigSpec struct {
 
 	// Secrets is a list of named secrets configurations.
 	Secrets []SecretsConfig `json:"secrets,omitempty" yaml:"secrets,omitempty" mapstructure:"secrets,omitempty"`
-
-	//  TODO(carolynvs): Add custom marshaling so that this field can support unknown extra settings and round trip them
-	// CustomSettings are settings that are not explicitly defined on PorterConfig but are supported by Porter.
-	// CustomSettings json.RawMessage
 }
 
 // ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.
 func (c PorterConfigSpec) ToPorterDocument() ([]byte, error) {
 	b, err := yaml.Marshal(c)
 	return b, errors.Wrap(err, "error converting the PorterConfig spec into its Porter resource representation")
+}
+
+// MergeConfig from another PorterConfigSpec. The values from the override are applied
+// only when they are not empty.
+func (c PorterConfigSpec) MergeConfig(overrides ...PorterConfigSpec) (PorterConfigSpec, error) {
+	var targetRaw map[string]interface{}
+	if err := mapstructure.Decode(c, &targetRaw); err != nil {
+		return PorterConfigSpec{}, err
+	}
+
+	for _, override := range overrides {
+		var overrideRaw map[string]interface{}
+		if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+			return PorterConfigSpec{}, err
+		}
+
+		targetRaw = MergeMap(targetRaw, overrideRaw)
+	}
+
+	spew.Dump(targetRaw)
+	if err := mapstructure.Decode(targetRaw, &c); err != nil {
+		return PorterConfigSpec{}, err
+	}
+	return c, nil
+}
+
+// MergeConfig from another PorterConfigSpec. The values from the override are applied
+// only when they are not empty.
+func MergeMap(target, override map[string]interface{}) map[string]interface{} {
+	for k, v := range override {
+		target[k] = v
+	}
+	return target
 }
 
 // SecretsConfig is the plugin stanza for secrets.
@@ -102,53 +131,15 @@ func (in PluginConfig) MarshalYAML() (interface{}, error) {
 	return raw, nil
 }
 
-// PorterConfigStatus defines the observed state of PorterConfig
-type PorterConfigStatus struct {
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
 // PorterConfig is the Schema for the porterconfigs API
 type PorterConfig struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PorterConfigSpec   `json:"spec,omitempty" mapstructure:"spec,omitempty"`
-	Status PorterConfigStatus `json:"status,omitempty" mapstructure:"status,omitempty"`
-}
-
-// MergeConfig from another PorterConfigSpec. The values from the override are applied
-// only when they are not empty.
-func (c PorterConfigSpec) MergeConfig(overrides ...PorterConfigSpec) (PorterConfigSpec, error) {
-	var targetRaw map[string]interface{}
-	if err := mapstructure.Decode(c, &targetRaw); err != nil {
-		return PorterConfigSpec{}, err
-	}
-
-	for _, override := range overrides {
-		var overrideRaw map[string]interface{}
-		if err := mapstructure.Decode(override, &overrideRaw); err != nil {
-			return PorterConfigSpec{}, err
-		}
-
-		targetRaw = MergeMap(targetRaw, overrideRaw)
-	}
-
-	spew.Dump(targetRaw)
-	if err := mapstructure.Decode(targetRaw, &c); err != nil {
-		return PorterConfigSpec{}, err
-	}
-	return c, nil
-}
-
-// MergeConfig from another PorterConfigSpec. The values from the override are applied
-// only when they are not empty.
-func MergeMap(target, override map[string]interface{}) map[string]interface{} {
-	for k, v := range override {
-		target[k] = v
-	}
-	return target
+	Spec PorterConfigSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

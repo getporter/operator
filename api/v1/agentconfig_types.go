@@ -14,8 +14,7 @@ import (
 //
 // SERIALIZATION NOTE:
 //	The json serialization is for persisting this to Kubernetes.
-//  The yaml serialization is for creating a Porter representation of the resource.
-//
+//  The mapstructure tags is used internally for AgentConfigSpec.MergeConfig.
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
 	// Defaults to ghcr.io/getporter/porter-agent
@@ -104,17 +103,13 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 			return AgentConfigSpec{}, err
 		}
 
-		fmt.Printf("\nTARGET MAP: %#v\n", targetRaw)
-		fmt.Printf("\nOVERRIDE MAP: %#v\n", overrideRaw)
 		targetRaw = MergeMap(targetRaw, overrideRaw)
-		fmt.Printf("\nMERGED MAP: %#v\n", targetRaw)
 	}
 
 	if err := mapstructure.Decode(targetRaw, &final); err != nil {
 		return AgentConfigSpec{}, err
 	}
 
-	fmt.Printf("\nMERGED CONFIG: %#v\n", final)
 	return final, nil
 }
 
@@ -125,7 +120,8 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 type AgentConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              AgentConfigSpec `json:"spec,omitempty"`
+
+	Spec AgentConfigSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

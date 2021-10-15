@@ -88,16 +88,21 @@ func Vet() {
 // Build the controller and bundle.
 func Build() {
 	mg.SerialDeps(BuildController, BuildBundle)
+	Fmt()
+	Vet()
 }
 
 // Compile the operator and its API types
 func BuildController() {
-	mg.Deps(Fmt, Vet, EnsureControllerGen)
+	mg.SerialDeps(EnsureControllerGen, GenerateController)
 
 	LoadMetadatda()
 
-	must.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
 	must.RunV("go", "build", "-o", "bin/manager", "main.go")
+}
+
+func GenerateController() error {
+	return shx.RunV("controller-gen", `object:headerFile="hack/boilerplate.go.txt"`, `paths="./..."`)
 }
 
 // Build the porter-operator bundle.
