@@ -48,19 +48,24 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
-              bundleDigest:
-                description: BundleDigest is the current digest of the bundle.
-                type: string
-              bundleRepository:
-                description: BundleRepository is the OCI repository of the current
-                  bundle definition.
-                type: string
-              bundleTag:
-                description: BundleTag is the OCI tag of the current bundle definition.
-                type: string
-              bundleVersion:
-                description: BundleVersion is the current version of the bundle.
-                type: string
+              bundle:
+                properties:
+                  digest:
+                    description: Digest is the current digest of the bundle.
+                    type: string
+                  repository:
+                    description: Repository is the OCI repository of the current bundle
+                      definition.
+                    type: string
+                  tag:
+                    description: Tag is the OCI tag of the current bundle definition.
+                    type: string
+                  version:
+                    description: Version is the current version of the bundle.
+                    type: string
+                required:
+                - repository
+                type: object
               credentialSets:
                 description: CredentialSets that should be included when the bundle
                   is reconciled.
@@ -105,7 +110,7 @@ spec:
                   defined.
                 type: string
             required:
-            - bundleRepository
+            - bundle
             - installationName
             - schemaVersion
             - targetNamespace

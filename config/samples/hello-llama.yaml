@@ -8,7 +8,8 @@ spec:
   schemaVersion: 1.0.0
   targetNamespace: operator
   installationName: mellama
-  bundleRepository: getporter/hello-llama
-  bundleVersion: 0.1.1
+  bundle:
+    repository: getporter/hello-llama
+    version: 0.1.1
   parameters:
     name: "Porter Operator"

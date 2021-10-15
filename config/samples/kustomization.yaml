@@ -2,4 +2,5 @@
 resources:
 - _v1_installation.yaml
 - _v1_porterconfig.yaml
+- _v1_agentconfig.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

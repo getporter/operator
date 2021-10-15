@@ -39,17 +39,7 @@ type InstallationSpec struct {
 	// TargetNamespace (in Porter) where the installation is defined.
 	TargetNamespace string `json:"targetNamespace" yaml:"namespace"`
 
-	// BundleRepository is the OCI repository of the current bundle definition.
-	BundleRepository string `json:"bundleRepository" yaml:"bundleRepository"`
-
-	// BundleVersion is the current version of the bundle.
-	BundleVersion string `json:"bundleVersion,omitempty" yaml:"bundleVersion,omitempty"`
-
-	// BundleDigest is the current digest of the bundle.
-	BundleDigest string `json:"bundleDigest,omitempty" yaml:"bundleDigest,omitempty"`
-
-	// BundleTag is the OCI tag of the current bundle definition.
-	BundleTag string `json:"bundleTag,omitempty" yaml:"bundleTag,omitempty"`
+	Bundle BundleReference `json:"bundle" yaml:",inline"`
 
 	// Labels applied to the installation.
 	InstallationLabels map[string]string `json:"installationLabels,omitempty" yaml:"labels,omitempty"`
@@ -64,6 +54,20 @@ type InstallationSpec struct {
 
 	// ParameterSets that should be included when the bundle is reconciled.
 	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty"`
+}
+
+type BundleReference struct {
+	// Repository is the OCI repository of the current bundle definition.
+	Repository string `json:"repository" yaml:"bundleRepository"`
+
+	// Version is the current version of the bundle.
+	Version string `json:"version,omitempty" yaml:"bundleVersion,omitempty"`
+
+	// Digest is the current digest of the bundle.
+	Digest string `json:"digest,omitempty" yaml:"bundleDigest,omitempty"`
+
+	// Tag is the OCI tag of the current bundle definition.
+	Tag string `json:"tag,omitempty" yaml:"bundleTag,omitempty"`
 }
 
 // ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.

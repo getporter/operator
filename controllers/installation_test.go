@@ -47,8 +47,10 @@ var _ = Describe("Installation controller", func() {
 					SchemaVersion:    "1.0.0",
 					InstallationName: "hello",
 					TargetNamespace:  "operator-tests",
-					BundleRepository: "getporter/porter-hello",
-					BundleVersion:    "0.1.1",
+					Bundle: apiv1.BundleReference{
+						Repository: "getporter/porter-hello",
+						Version:    "0.1.1",
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())

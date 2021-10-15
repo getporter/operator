@@ -16,8 +16,10 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 		SchemaVersion:    "1.0.0",
 		InstallationName: "mybuns",
 		TargetNamespace:  "dev",
-		BundleRepository: "getporter/porter-hello",
-		BundleVersion:    "0.1.0",
+		Bundle: BundleReference{
+			Repository: "getporter/porter-hello",
+			Version:    "0.1.0",
+		},
 		Parameters: runtime.RawExtension{
 			Raw: []byte(`{"name":"Porter Operator"}`),
 		},

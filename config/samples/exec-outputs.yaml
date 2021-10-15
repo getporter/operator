@@ -8,5 +8,6 @@ spec:
   schemaVersion: 1.0.0
   targetNamespace: operator
   installationName: outputs
-  bundleRepository: getporter/exec-outputs
-  bundleVersion: 0.1.1
+  bundle:
+    repository: getporter/exec-outputs
+    version: 0.1.1
