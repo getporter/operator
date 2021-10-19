@@ -47,7 +47,7 @@ var _ = Describe("Installation controller", func() {
 					SchemaVersion: "1.0.0",
 					Name:          "hello",
 					Namespace:     "operator-tests",
-					Bundle: apiv1.BundleReference{
+					Bundle: apiv1.OCIReferenceParts{
 						Repository: "getporter/porter-hello",
 						Version:    "0.1.1",
 					},

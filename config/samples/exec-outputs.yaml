@@ -6,8 +6,8 @@ metadata:
     porter.sh/testdata: "true"
 spec:
   schemaVersion: 1.0.0
-  targetNamespace: operator
-  installationName: outputs
+  namespace: operator
+  name: outputs
   bundle:
     repository: getporter/exec-outputs
     version: 0.1.1

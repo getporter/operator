@@ -6,8 +6,8 @@ metadata:
     porter.sh/testdata: "true"
 spec:
   schemaVersion: 1.0.0
-  targetNamespace: operator
-  installationName: mellama
+  namespace: operator
+  name: mellama
   bundle:
     repository: getporter/hello-llama
     version: 0.1.1

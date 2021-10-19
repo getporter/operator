@@ -6,8 +6,8 @@ metadata:
     porter.sh/testdata: "true"
 spec:
   schemaVersion: 1.0.0
-  targetNamespace: operator
-  installationName: kubeflow
+  namespace: operator
+  name: kubeflow
   bundle:
     repository: ghcr.io/squillace/aks-kubeflow-msi
     version: 0.1.7

@@ -4,6 +4,8 @@ go 1.16
 
 // These replace  statements should be kept in sync with the ones in Porter's go.mod
 replace (
+	// ipv6-hell 
+	get.porter.sh/porter => github.com/carolynvs/porter v1.0.0-alpha.2.0.20211019173959-4200a214165a
 	// Use Porter's cnab-go
 	github.com/cnabio/cnab-go => github.com/carolynvs/cnab-go v0.20.2-0.20210805155536-9a543e0636f4
 
@@ -26,7 +28,6 @@ replace (
 require (
 	get.porter.sh/porter v1.0.0-alpha.3.0.20211004140533-6b7efb917e6e
 	github.com/carolynvs/magex v0.6.0
-	github.com/davecgh/go-spew v1.1.1
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
 	github.com/mitchellh/mapstructure v1.3.3

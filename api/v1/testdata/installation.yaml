@@ -1,7 +1,8 @@
 schemaVersion: 1.0.0
 name: mybuns
 namespace: dev
-bundleRepository: getporter/porter-hello
-bundleVersion: 0.1.0
+bundle:
+    repository: getporter/porter-hello
+    version: 0.1.0
 parameters:
     name: Porter Operator

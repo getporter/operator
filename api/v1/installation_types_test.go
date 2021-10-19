@@ -1,10 +1,9 @@
 package v1
 
 import (
-	"io/ioutil"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"get.porter.sh/porter/pkg/test"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -16,7 +15,7 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 		SchemaVersion: "1.0.0",
 		Name:          "mybuns",
 		Namespace:     "dev",
-		Bundle: BundleReference{
+		Bundle: OCIReferenceParts{
 			Repository: "getporter/porter-hello",
 			Version:    "0.1.0",
 		},
@@ -28,9 +27,5 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 	b, err := spec.ToPorterDocument()
 	require.NoError(t, err)
 
-	want, err := ioutil.ReadFile("testdata/installation.yaml")
-	require.NoError(t, err)
-
-	got := string(b)
-	assert.Equal(t, string(want), got)
+	test.CompareGoldenFile(t, "testdata/installation.yaml", string(b))
 }

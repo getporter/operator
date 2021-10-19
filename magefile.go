@@ -113,8 +113,7 @@ func BuildBundle() {
 
 	meta := LoadMetadatda()
 	version := strings.TrimPrefix(meta.Version, "v")
-	must.Command("porter", "build", "--version", version, "-f=vanilla.porter.yaml").
-		In("installer").RunV()
+	porter("build", "--version", version, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
 }
 
 // Build the controller image
@@ -157,7 +156,7 @@ func getMixins() error {
 			if mixin.version == "" {
 				mixin.version = "latest"
 			}
-			return shx.Run("porter", "mixin", "install", mixin.name, "--version", mixin.version, "--feed-url", mixin.feed)
+			return porter("mixin", "install", mixin.name, "--version", mixin.version, "--feed-url", mixin.feed).Run()
 		})
 	}
 
@@ -172,10 +171,10 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").RunV()
+	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
 
 	meta := LoadMetadatda()
-	must.Command("porter", "publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").RunV()
+	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
@@ -249,10 +248,8 @@ func Deploy() {
 	PublishLocalPorterAgent()
 	PublishBundle()
 
-	must.Command("porter", "credentials", "apply", "hack/creds.yaml", "-n=operator", "--debug", "--debug-plugins").
-		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker").RunV()
-	must.Command("porter", "install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator").
-		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker").RunV()
+	porter("credentials", "apply", "hack/creds.yaml", "-n=operator", "--debug", "--debug-plugins").Must().RunV()
+	porter("install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {
@@ -352,7 +349,15 @@ func SetupNamespace(name string) {
 		kubectl("delete", "ns", name, "--wait=true").RunS()
 	}
 
-	must.RunV("porter", "invoke", "operator", "--action=configure-namespace", "-p=./hack/params.yaml", "--param", "namespace="+name, "-c", "kind", "-n=operator")
+	// Only specify the parameter set we have the env vars set
+	// It would be neat if Porter could handle this for us
+	ps := ""
+	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
+		ps = "-p=./hack/params.yaml"
+	}
+
+	porter("invoke", "operator", "--action=configure-namespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
+		CollapseArgs().Must().RunV()
 	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
 	setClusterNamespace(name)
 }
@@ -373,7 +378,7 @@ func CleanTestdata() {
 // Remove any porter data in the cluster
 func CleanAllData() {
 	if useCluster() {
-		must.RunV("porter", "invoke", "operator", "--action=remove-data", "-c", "kind", "-n=operator")
+		porter("invoke", "operator", "--action=remove-data", "-c", "kind", "-n=operator").Must().RunV()
 	}
 }
 
@@ -470,4 +475,10 @@ func EnsureControllerGen() {
 func pwd() string {
 	wd, _ := os.Getwd()
 	return wd
+}
+
+// Run porter using the local storage, not the in-cluster storage
+func porter(args ...string) shx.PreparedCommand {
+	return shx.Command("porter").Args(args...).
+		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
 }
