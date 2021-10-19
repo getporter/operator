@@ -13,9 +13,9 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 	// Validate the special handling for the arbitrary parameters
 	// which the CRD can't directly represent as map[string]interface{}
 	spec := InstallationSpec{
-		SchemaVersion:    "1.0.0",
-		InstallationName: "mybuns",
-		TargetNamespace:  "dev",
+		SchemaVersion: "1.0.0",
+		Name:          "mybuns",
+		Namespace:     "dev",
 		Bundle: BundleReference{
 			Repository: "getporter/porter-hello",
 			Version:    "0.1.0",

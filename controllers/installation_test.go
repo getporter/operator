@@ -44,9 +44,9 @@ var _ = Describe("Installation controller", func() {
 					Namespace: testNamespace,
 				},
 				Spec: apiv1.InstallationSpec{
-					SchemaVersion:    "1.0.0",
-					InstallationName: "hello",
-					TargetNamespace:  "operator-tests",
+					SchemaVersion: "1.0.0",
+					Name:          "hello",
+					Namespace:     "operator-tests",
 					Bundle: apiv1.BundleReference{
 						Repository: "getporter/porter-hello",
 						Version:    "0.1.1",

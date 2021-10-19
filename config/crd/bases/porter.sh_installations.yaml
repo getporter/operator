@@ -72,14 +72,16 @@ spec:
                 items:
                   type: string
                 type: array
-              installationLabels:
+              labels:
                 additionalProperties:
                   type: string
                 description: Labels applied to the installation.
                 type: object
-              installationName:
-                description: InstallationName is the name of the installation in Porter.
-                  Immutable.
+              name:
+                description: Name is the name of the installation in Porter. Immutable.
+                type: string
+              namespace:
+                description: Namespace (in Porter) where the installation is defined.
                 type: string
               parameterSets:
                 description: ParameterSets that should be included when the bundle
@@ -105,15 +107,11 @@ spec:
                 description: SchemaVersion is the version of the installation state
                   schema.
                 type: string
-              targetNamespace:
-                description: TargetNamespace (in Porter) where the installation is
-                  defined.
-                type: string
             required:
             - bundle
-            - installationName
+            - name
+            - namespace
             - schemaVersion
-            - targetNamespace
             type: object
           status:
             description: InstallationStatus defines the observed state of Installation

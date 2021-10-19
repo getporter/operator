@@ -13,6 +13,6 @@ configMapGenerator:
   name: manager-config
 
 images:
-- digest: sha256:a4ad4738807274166af265e8db72dd1ce02667f2690d4d014d347873bcbc1e32
+- digest: sha256:44dede918406b562d0f6122c8e0091d4f8f3227f918e602f079e4c3fe99c6fdc
   name: manager
   newName: localhost:5000/porterops-controller

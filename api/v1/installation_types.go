@@ -27,22 +27,24 @@ type InstallationSpec struct {
 	PorterConfig v1.LocalObjectReference `json:"porterConfig,omitempty" yaml:"-"`
 
 	//
-	// These are fields from the Porter installation resource
+	// These are fields from the Porter installation resource.
+	// Your goal is that someone can copy/paste a resource from Porter into the
+	// spec and have it work. So be consistent!
 	//
 
 	// SchemaVersion is the version of the installation state schema.
 	SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 
-	// InstallationName is the name of the installation in Porter. Immutable.
-	InstallationName string `json:"installationName" yaml:"name"`
+	// Name is the name of the installation in Porter. Immutable.
+	Name string `json:"name" yaml:"name"`
 
-	// TargetNamespace (in Porter) where the installation is defined.
-	TargetNamespace string `json:"targetNamespace" yaml:"namespace"`
+	// Namespace (in Porter) where the installation is defined.
+	Namespace string `json:"namespace" yaml:"namespace"`
 
-	Bundle BundleReference `json:"bundle" yaml:",inline"`
+	Bundle OCIReferenceParts `json:"bundle" yaml:"bundle"`
 
 	// Labels applied to the installation.
-	InstallationLabels map[string]string `json:"installationLabels,omitempty" yaml:"labels,omitempty"`
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 
 	// Parameters specified by the user through overrides.
 	// Does not include defaults, or values resolved from parameter sources.
@@ -56,18 +58,18 @@ type InstallationSpec struct {
 	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty"`
 }
 
-type BundleReference struct {
+type OCIReferenceParts struct {
 	// Repository is the OCI repository of the current bundle definition.
-	Repository string `json:"repository" yaml:"bundleRepository"`
+	Repository string `json:"repository" yaml:"repository"`
 
 	// Version is the current version of the bundle.
-	Version string `json:"version,omitempty" yaml:"bundleVersion,omitempty"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 
 	// Digest is the current digest of the bundle.
-	Digest string `json:"digest,omitempty" yaml:"bundleDigest,omitempty"`
+	Digest string `json:"digest,omitempty" yaml:"digest,omitempty"`
 
 	// Tag is the OCI tag of the current bundle definition.
-	Tag string `json:"tag,omitempty" yaml:"bundleTag,omitempty"`
+	Tag string `json:"tag,omitempty" yaml:"tag,omitempty"`
 }
 
 // ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.
