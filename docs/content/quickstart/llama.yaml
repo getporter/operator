@@ -1,0 +1,14 @@
+apiVersion: porter.sh/v1
+kind: Installation
+metadata:
+  name: hello-llama
+  namespace: quickstart
+spec:
+  schemaVersion: 1.0.0
+  namespace: quickstart
+  name: llama
+  bundle:
+    repository: getporter/hello-llama
+    version: 0.1.1
+  parameters:
+    name: quickstart

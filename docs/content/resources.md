@@ -29,13 +29,35 @@ the following fields are supported:
 
 ## Agent Config
 
+The Porter Agent is a Kubernetes job that executes the porter CLI when an [installation resource](#installation) is modified.
+The agent is a Docker image with the porter CLI installed, and a custom entry point to assist with applying the Porter [configuration file].
+By default, the job uses the getporter/porter-agent:latest image.
 The AgentConfig CRD represents the configuration that the operator should use when executing Porter on Kubernetes, which is known as the Porter agent.
+
+You can change the configuration for running Porter by creating an AgentConfig resource and overriding relevant fields.
+Depending on the desired scope of that configuration either reference that AgentConfig directly on the installation or name the AgentConfig default and define it in the installation namespace or the porter-operator-system namespace.
+
+```yaml
+apiVersion: porter.sh/v1
+kind: AgentConfig
+metadata:
+  name: customAgent
+spec:
+  porterRepository: ghcr.io/getporter/porter-agent
+  porterVersion: canary
+  serviceAccount: porter-agent
+  volumeSize: 64Mi
+  pullPolicy: Always
+  installationServiceAccount: installation-agent
+```
 
 Configuration is hierarchical and has the following precedence:
 
-* AgentConfig referenced on the Installation overrides everything else
-* AgentConfig defined in the Installation namespace
-* AgentConfig defined in the Porter Operator namespace is the default
+* AgentConfig referenced on the Installation overrides everything else.
+* AgentConfig defined in the Installation namespace with the name "default".
+* AgentConfig defined in the Porter Operator namespace with the name "default".
+
+Values are merged from all resolved AgentConfig resources, so that you can define a base set of defaults and selectively override them within a namespace or for a particular installation.
 
 | Field        | Required    | Default | Description |
 | -----------  | ----------- | ------- | ----------- |
@@ -53,14 +75,39 @@ The configureNamespace action of the porter operator bundle creates a service ac
 
 ## Porter Config
 
-The PorterConfig CRD represents the porter configuration file found in PORTER_HOME/config.json|toml|yaml, usually ~/.porter/config.toml.
-By default, Porter uses the mongodb server deployed with the Operator. Since the mongodb server is not secured with a password, and is accessible to the cluster, this is not suitable for production use.
+The PorterConfig CRD represents the porter configuration file that should be used by the Porter Agent.
+On a local installation of Porter, this file can be found in PORTER_HOME/config.json|toml|yaml, usually ~/.porter/config.toml.
+By default, Porter uses the mongodb server deployed with the Operator.
+Since the mongodb server is not secured with a password, and is accessible to the cluster, this is not suitable for production use.
+
+You can the configuration of the porter CLI by creating a PorterConfig resource and overriding relevant fields.
+Depending on the desired scope of that configuration either reference that PorterConfig directly on the installation or name the PorterConfig default and define it in the installation namespace or the porter-operator-system namespace.
+
+```yaml
+apiVersion: porter.sh/v1
+kind: PorterConfig
+metadata:
+  name: customPorterConfig
+spec:
+  debug: true
+  debugPlugins: false
+  defaultSecretsPlugin: kubernetes.secrets
+  defaultStorage: in-cluster-mongodb
+  storage:
+    - name: in-cluster-mongodb
+      plugin: mongodb
+      config:
+        url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"
+
+```
 
 Configuration is hierarchical and has the following precedence:
 
-* PorterConfig referenced on the Installation overrides everything else
-* PorterConfig defined in the Installation namespace
-* PorterConfig defined in the Porter Operator namespace is the default
+* PorterConfig referenced on the Installation overrides everything else.
+* PorterConfig defined in the Installation namespace with the name "default".
+* PorterConfig defined in the Porter Operator namespace with the name "default".
+
+Values are merged from all resolved PorterConfig resources, so that you can define a base set of defaults and selectively override them within a namespace or for a particular installation.
 
 | Field        | Required    | Default | Description |
 | -----------  | ----------- | ------- | ----------- |
@@ -76,3 +123,4 @@ Configuration is hierarchical and has the following precedence:
 | secrets | false | (empty) | A list of named secrets configurations. |
 
 [Porter Feature Flags]: https://release-v1.porter.sh/configuration/#experimental-feature-flags
+[configuration file](https://release-v1.porter.sh/configuration/)

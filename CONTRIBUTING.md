@@ -5,6 +5,7 @@
 * [Developer Tasks](#developer-tasks)
   * [Initial setup](#initial-setup)
   * [Makefile explained](#makefile-explained)
+  * [Run a test installation](#run-a-test-installation)  
   * [Modify the porter agent](#modify-the-porter-agent)
 ---
 
@@ -23,7 +24,7 @@ environment for Porter, make a change and test it.
 
 We recommend that you start there so that you understand how to use Porter.
 
-You will need a Porter, Go, and Docker to work on the operator.
+You will need a Porter, KinD, Go, and Docker to work on the operator.
 
 [tutorial]: https://porter.sh/contribute/tutorial/
 
@@ -33,6 +34,9 @@ go run mage.go EnsureMage
 
 # Build and deploy the opeartor to a local KinD cluster
 mage deploy
+
+# Use the test cluster
+export KUBECONFIG=kind.config
 ```
 
 ## Magefile explained
@@ -80,4 +84,65 @@ deploy the operator to your test cluster:
 export PORTER_AGENT_REPOSITORY=localhost:5000/porter-agent
 export PORTER_AGENT_VERSION=canary-dev
 mage deploy
+```
+
+
+## Run a test installation
+
+There are sample installation CRDs in [config/samples](/config/samples) that you can quickly try out with:
+
+```
+mage bump SAMPLE
+```
+
+This mage target handles running `porter installation apply` for you and sets an annotation to force the installation to be reconciled.
+You can do this manually by following the instructions at [Apply an Installation](/README.md#apply-an-installation).
+
+For example, to apply [config/samples/porter-hello.yaml](/config/samples]/porter-hello.yaml), run command below.
+If the installation does not already exist, it will be created
+Otherwise, the retry annotation on the installation to force the operator to reevaluate the installation.
+
+```
+mage bump porter-hello
+```
+
+
+## Connect to the in-cluster mongo database
+
+When you install the operator from source, or install the operator bundle without specifying the Porter configuration, the operator will run a Mongodb server in the same namespace as the operator.
+It runs on the default Mongodb port (27017) and authentication is not required to connect to it.
+
+With your local Porter configuration file pointed to the in-cluster mongodb server, you can use Porter to query and interact with installations created by the operator.
+
+Expose the in-cluster mongodb server on the default mongo porter: 27017.
+```
+kubectl port-forward --namespace porter-operator-system svc/mongodb 27017:27017 >/dev/null &
+```
+
+Update ~/.porter/config.toml to use the in-cluster mongodb server.
+The in-cluster Mongodb server is running with authentication turned off so there is no username or password required.
+
+```toml
+default-storage = "in-cluster-mongodb"
+
+[[storage]]
+  name = "in-cluster-mongodb"
+  plugin = "mongodb"
+
+  [storage.config]
+    url = "mongodb://localhost:27017"
+```
+
+In the example below, the [config/samples/porter-hello.yaml](/config/samples/porter-hello.yaml) installation CRD is applied,
+and then porter is used to view the logs.
+
+```
+# Apply the CRD
+mage bump porter-hello
+
+# Wait for the operator to run the installation
+kubectl get pods -n test --wait 
+
+# Now you can see the result in porter!
+porter logs hello -n operator
 ```
