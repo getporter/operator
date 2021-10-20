@@ -60,9 +60,48 @@ porter invoke porterops --action configureNamespace --param namespace=TODO -c po
 * A PorterConfig resource named default is created in the specified namespace configuring Porter to use
   the kubernetes.secrets and mongodb plugin.
 
+# Configuration
+
+The bundle accepts a parameter, porterConfig, that should be a YAML-formatted [Porter configuration file](https://release-v1.porter.sh/configuration).
+
+Here is an example of the default configuration used when none is specified:
+
+```yaml
+# Resolve secrets using secrets on the cluster in the current namespace.
+defaultSecretsPlugin: "kubernetes.secrets"
+
+# Use the mongodb server that was deployed with the operator
+defaultStorage: "in-cluster-mongodb"
+storage:
+  - name: "in-cluster-mongodb"
+    plugin: "mongodb"
+    config:
+      url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"
+```
+
+You can use a different file when installing the operator with the \--param flag:
+
+```
+porter install porterops --param porterConfig=./myconfig.yaml ...
+```
+
+The bundle also has parameters defined that control how the [Porter Agent] is configured and run.
+
+| Parameter  | Description  |
+|---|---|
+| namespace  | Setup Porter in this namespace  |
+| porterRepository  | Docker image repository of the Porter agent.<br/><br/>Defaults to ghcr.io/getporter/porter.  |
+| porterVersion  | Version of the Porter agent, e.g. latest, canary, v0.33.0.<br/><br/>Defaults to latest.  |
+| pullPolicy  | Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled.<br/><br/>Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.  |
+| serviceAccount  | Name of the service account to run the Porter agent.<br/>If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole.<br/><br/>Defaults to the porter-agent account created by the configureNamespace custom action.  |
+| installationServiceAccount  | Name of the service account to run installation with.<br/>If set, you are responsible for creating this service account and giving it required permissions.  |
+| volumeSize  | Size of the volume shared between Porter and the bundles it executes.<br/><br/>Defaults to 64Mi.  |
+
+
 # Inspect the installation
 
 You can use the porter CLI to query and interact with installations created by the operator.
 Follow the instructions in [Connect to the in-cluster mongo database][connect] to point porter at the Mongodb server that was installed with the operator.
 
 [install Porter]: https://github.com/getporter/porter/releases/tag/v1.0.0-alpha.4
+[Porter Agent]: /docs/content/resources.md#agent-config

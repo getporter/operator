@@ -188,6 +188,27 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
      Digest: sha256:22cdfad0756c9ce1a8f4694b0411440dfab99fa2e07125ff78efe555dd63d73e
    ```
 
+# Uninstall a bundle
+
+This isn't supported yet. Once it's implemented, uninstall is triggered when the CRD is deleted.
+
+# Retry the last operation
+
+If your bundle operation failed, you can run it again by changing an annotation on the installation CRD:
+
+```yaml
+apiVersion: porter.sh/v1
+kind: Installation
+metadata:
+  name: porter-hello
+  annotations:
+    retry: "1"
+```
+
+Each time you need to repeat the operation, change the annotation value again.
+There is nothing special about the key used for the annotation.
+I chose retry, however you could use "favorite-color: blue", changing the value each time, and it would still trigger Porter to retry it.
+
 # Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
