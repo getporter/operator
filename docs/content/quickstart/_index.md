@@ -121,7 +121,7 @@ Let's create an installation resource that specifies that we want to have the ge
    quickstart   llama   34 seconds ago   34 seconds ago   install       succeeded
    ```
 1. You can see the logs from the installation with `porter logs --installation llama`.
-   ```
+   ```console
    $ porter logs --installation llama
    Could not stream logs for pod install-llama-bc4sl-7dw6f. Retrying...: container "invocation" in pod "install-llama-bc4sl-7dw6f" is waiting to start: ContainerCreating
    Could not stream logs for pod install-llama-bc4sl-7dw6f. Retrying...: container "invocation" in pod "install-llama-bc4sl-7dw6f" is waiting to start: ContainerCreating
