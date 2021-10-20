@@ -156,30 +156,25 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	Expect(k8sClient.Create(ctx, instsa)).To(Succeed())
 
-	// agentconfig secret
-	porterCfg := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "porter-config",
-			Namespace: ns.Name,
-		},
-		StringData: map[string]string{
-			"config.toml": `
-debug = true
-debug-plugins = true
-`,
-		},
+	agentRepo := os.Getenv("PORTER_AGENT_REPOSITORY")
+	if agentRepo == "" {
+		agentRepo = "ghcr.io/getporter/porter-agent"
 	}
-	Expect(k8sClient.Create(ctx, porterCfg)).To(Succeed())
-
+	agentVersion := os.Getenv("PORTER_AGENT_VERSION")
+	if agentVersion == "" {
+		agentVersion = "latest"
+	}
 	// Tweak porter agent config for testing
 	porterOpsCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "porter",
+			Name:      "default",
 			Namespace: ns.Name,
 		},
 		Spec: porterv1.AgentConfigSpec{
-			PorterVersion:  "canary",
-			ServiceAccount: svc.Name,
+			PorterRepository:           agentRepo,
+			PorterVersion:              agentVersion,
+			ServiceAccount:             svc.Name,
+			InstallationServiceAccount: "installation-agent",
 		},
 	}
 	Expect(k8sClient.Create(ctx, porterOpsCfg)).To(Succeed())

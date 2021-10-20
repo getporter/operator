@@ -2,9 +2,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: porter-agent
-  namespace: REPLACE
   labels:
-    porter: "true"
+    porter.sh/generator: "porter-operator-bundle"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

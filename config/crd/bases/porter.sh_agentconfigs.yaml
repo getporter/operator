@@ -34,14 +34,15 @@ spec:
           metadata:
             type: object
           spec:
-            description: AgentConfigSpec defines the configuration for the Porter
-              agent.
+            description: "AgentConfigSpec defines the configuration for the Porter
+              agent. \n SERIALIZATION NOTE: \tThe json serialization is for persisting
+              this to Kubernetes.  The mapstructure tags is used internally for AgentConfigSpec.MergeConfig."
             properties:
               installationServiceAccount:
                 description: InstallationServiceAccount specifies a service account
                   to run the Kubernetes pod/job for the installation image. The default
                   is to run without a service account. This can be useful for a bundle
-                  which is targetting the kuernetes cluster that the operator is installed
+                  which is targeting the kubernetes cluster that the operator is installed
                   in.
                 type: string
               porterRepository:
@@ -62,16 +63,12 @@ spec:
                   Agent under.
                 type: string
               volumeSize:
-                anyOf:
-                - type: integer
-                - type: string
                 description: VolumeSize is the size of the persistent volume that
                   Porter will request when running the Porter Agent. It is used to
                   share data between the Porter Agent and the bundle invocation image.
                   It must be large enough to store any files used by the bundle including
                   credentials, parameters and outputs.
-                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                x-kubernetes-int-or-string: true
+                type: string
             type: object
         type: object
     served: true

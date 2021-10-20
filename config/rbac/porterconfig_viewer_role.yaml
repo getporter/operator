@@ -1,0 +1,20 @@
+# permissions for end users to view porterconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: porterconfig-viewer-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - porterconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - porterconfigs/status
+  verbs:
+  - get

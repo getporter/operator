@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: REPLACE
+  name: default # The name is set by helpers.sh
   labels:
-    porter: "true"
+    porter.sh/generator: "porter-operator-bundle"

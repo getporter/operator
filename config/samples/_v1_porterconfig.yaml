@@ -1,0 +1,16 @@
+apiVersion: porter.sh/v1
+kind: PorterConfig
+metadata:
+  name: porterconfig-sample
+  labels:
+    porter.sh/testdata: "true"
+spec:
+  debug: true
+  debugPlugins: false
+  defaultSecretsPlugin: kubernetes.secrets
+  defaultStorage: in-cluster-mongodb
+  storage:
+    - name: in-cluster-mongodb
+      plugin: mongodb
+      config:
+        url: "mongodb://mongodb.porter-operator-system.svc.cluster.local"

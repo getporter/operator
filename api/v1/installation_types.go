@@ -1,35 +1,101 @@
 package v1
 
 import (
+	"encoding/json"
+
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// We marshal installation spec to yaml when converting to a porter object
+var _ yaml.Marshaler = InstallationSpec{}
+
 // InstallationSpec defines the desired state of Installation
+//
+// SERIALIZATION NOTE:
+// * The json serialization is for persisting this to Kubernetes.
+// * The yaml serialization is for creating a Porter representation of the resource.
 type InstallationSpec struct {
-	// Reference to the bundle in an OCI Registry, e.g. getporter/porter-hello:v0.1.1.
-	Reference string `json:"reference"`
-
-	// Action defined in the bundle to execute. If unspecified, Porter will run an
-	// install if the installation does not exist, or an upgrade otherwise.
-	Action string `json:"action"`
-
-	// AgentConfig overrides the Porter Agent configuration defined at the namespace or system level.
+	// AgentConfig is the name of an AgentConfig to use instead of the AgentConfig defined at the namespace or system level.
 	// +optional
-	AgentConfig AgentConfigSpec `json:"agentConfig,omitempty"` // TODO: Make this a reference
+	AgentConfig v1.LocalObjectReference `json:"agentConfig,omitempty" yaml:"-"`
 
-	// TODO: Add reference to a porter config.toml secret
+	// PorterConfig is the name of a PorterConfig to use instead of the PorterConfig defined at the namespace or system level.
+	PorterConfig v1.LocalObjectReference `json:"porterConfig,omitempty" yaml:"-"`
 
-	// TODO: Force pull, debug and other flags
+	//
+	// These are fields from the Porter installation resource.
+	// Your goal is that someone can copy/paste a resource from Porter into the
+	// spec and have it work. So be consistent!
+	//
 
-	// CredentialSets is a list of credential set names.
-	CredentialSets []string `json:"credentialSets,omitempty"`
+	// SchemaVersion is the version of the installation state schema.
+	SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 
-	// ParameterSets is a list of parameter set names.
-	ParameterSets []string `json:"parameterSets,omitempty"`
+	// Name is the name of the installation in Porter. Immutable.
+	Name string `json:"name" yaml:"name"`
 
-	// Parameters is a list of parameter set names.
-	Parameters map[string]string `json:"parameters,omitempty"`
+	// Namespace (in Porter) where the installation is defined.
+	Namespace string `json:"namespace" yaml:"namespace"`
+
+	Bundle OCIReferenceParts `json:"bundle" yaml:"bundle"`
+
+	// Labels applied to the installation.
+	Labels map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+
+	// Parameters specified by the user through overrides.
+	// Does not include defaults, or values resolved from parameter sources.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Parameters runtime.RawExtension `json:"parameters,omitempty" yaml:"-"` // See custom marshaler below
+
+	// CredentialSets that should be included when the bundle is reconciled.
+	CredentialSets []string `json:"credentialSets,omitempty" yaml:"credentialSets,omitempty"`
+
+	// ParameterSets that should be included when the bundle is reconciled.
+	ParameterSets []string `json:"parameterSets,omitempty" yaml:"parameterSets,omitempty"`
+}
+
+type OCIReferenceParts struct {
+	// Repository is the OCI repository of the current bundle definition.
+	Repository string `json:"repository" yaml:"repository"`
+
+	// Version is the current version of the bundle.
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+
+	// Digest is the current digest of the bundle.
+	Digest string `json:"digest,omitempty" yaml:"digest,omitempty"`
+
+	// Tag is the OCI tag of the current bundle definition.
+	Tag string `json:"tag,omitempty" yaml:"tag,omitempty"`
+}
+
+// ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.
+func (in InstallationSpec) ToPorterDocument() ([]byte, error) {
+	b, err := yaml.Marshal(in)
+	return b, errors.Wrap(err, "error converting the Installation spec into its Porter resource representation")
+}
+
+func (in InstallationSpec) MarshalYAML() (interface{}, error) {
+	type Alias InstallationSpec
+
+	raw := struct {
+		Alias      `yaml:",inline"`
+		Parameters map[string]interface{} `yaml:"parameters,omitempty"`
+	}{
+		Alias: Alias(in),
+	}
+
+	if in.Parameters.Raw != nil {
+		err := json.Unmarshal(in.Parameters.Raw, &raw.Parameters)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error unmarshaling raw parameters\n%s", string(in.Parameters.Raw))
+		}
+	}
+
+	return raw, nil
 }
 
 // InstallationStatus defines the observed state of Installation

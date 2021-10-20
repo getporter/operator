@@ -1,6 +1,5 @@
-name: porter-operator
-version: 0.0.0
-description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
+name: porter-operator-azure
+description: "The Porter Operator on Azure. Execute bundles on an AKS cluster."
 registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 
@@ -12,49 +11,49 @@ parameters:
   - name: namespace
     type: string
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: volumeSize
     description: Size of the volume shared between Porter and the bundles it executes. Defaults to 64Mi.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/volumeSize
     default: ""
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: porterRepository
     description: Docker image repository of the Porter agent. Defaults to ghcr.io/getporter/porter.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/porterVersion
     default: ""
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: porterVersion
     description: Version of the Porter agent, e.g. latest, canary, v0.33.0. Defaults to latest.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/porterVersion
     default: ""
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: pullPolicy
     description: Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled. Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/pullPolicy
     default: ""
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: serviceAccount
-    description: Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configure-namespace custom action.
+    description: Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configureNamespace custom action.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/serviceAccount
     default: "porter-agent"
     applyTo:
-      - configure-namespace
+      - configureNamespace
   - name: installationServiceAccount
     description: Name of the service account to run installation with. If set, you are responsible for creating this service account and giving it required permissions.
     type: string
     path: /cnab/app/manifests/namespace/agentconfig/installationServiceAccount
     default: ""
     applyTo:
-      - configure-namespace
+      - configureNamespace
 
 credentials:
   - name: kubeconfig
@@ -130,12 +129,12 @@ upgrade:
 
 # TODO: Add a test action that runs a test bundle to check if everything is configured properly
 
-remove-data:
+removeData:
   - exec:
       description: "Remove Porter Operator Data"
       command: ./helpers.sh
       arguments:
-        - remove-data
+        - removeData
 
 uninstall:
   # using exec instead of kubernetes because of https://github.com/getporter/kubernetes-mixin/issues/25
@@ -146,14 +145,14 @@ uninstall:
       wait: true
 
 customActions:
-  configure-namespace:
+  configureNamespace:
     description: Add necessary rbac, service account and configuration to use Porter Operator in a namespace. Creates the namespace if it does not already exist.
-  remove-data:
-    description: Remove Porter Operator data, such as namespaces used with configure-namespace, configuration, jobs, etc. These are not removed during uninstall.
+  removeData:
+    description: Remove Porter Operator data, such as namespaces used with configureNamespace, configuration, jobs, etc. These are not removed during uninstall.
 
-configure-namespace:
+configureNamespace:
   - exec:
       description: "Configure Porter Operator"
       command: ./helpers.sh
       arguments:
-        - configure-namespace
+        - configureNamespace

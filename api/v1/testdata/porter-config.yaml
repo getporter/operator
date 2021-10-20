@@ -1,0 +1,20 @@
+debug: true
+debug-plugins: true
+namespace: test
+experimental:
+    - build-drivers
+build-driver: buildkit
+default-storage: in-cluster-mongodb
+default-secrets: keyvault
+default-storage-plugin: mongodb
+default-secrets-plugin: kubernetes.secrets
+storage:
+    - config:
+        url: mongodb://...
+      name: in-cluster-mongodb
+      plugin: mongodb
+secrets:
+    - config:
+        vault: mysecrets
+      name: keyvault
+      plugin: azure.keyvault

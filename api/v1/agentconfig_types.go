@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/go-digest"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -10,34 +11,38 @@ import (
 )
 
 // AgentConfigSpec defines the configuration for the Porter agent.
+//
+// SERIALIZATION NOTE:
+//	The json serialization is for persisting this to Kubernetes.
+//  The mapstructure tags is used internally for AgentConfigSpec.MergeConfig.
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
 	// Defaults to ghcr.io/getporter/porter-agent
-	PorterRepository string `json:"porterRepository,omitempty"`
+	PorterRepository string `json:"porterRepository,omitempty" mapstructure:"porterRepository,omitempty"`
 
 	// PorterVersion is the tag for the Porter Agent image.
 	// Defaults to latest.
-	PorterVersion string `json:"porterVersion,omitempty"`
+	PorterVersion string `json:"porterVersion,omitempty" mapstructure:"porterVersion,omitempty"`
 
 	// ServiceAccount is the service account to run the Porter Agent under.
-	ServiceAccount string `json:"serviceAccount,omitempty"`
+	ServiceAccount string `json:"serviceAccount,omitempty" mapstructure:"serviceAccount,omitempty"`
 
 	// VolumeSize is the size of the persistent volume that Porter will
 	// request when running the Porter Agent. It is used to share data
 	// between the Porter Agent and the bundle invocation image. It must
 	// be large enough to store any files used by the bundle including credentials,
 	// parameters and outputs.
-	VolumeSize resource.Quantity `json:"volumeSize,omitempty"`
+	VolumeSize string `json:"volumeSize,omitempty" mapstructure:"volumeSize,omitempty"`
 
 	// PullPolicy specifies when to pull the Porter Agent image. The default
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
 	// otherwise.
-	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty"`
+	PullPolicy v1.PullPolicy `json:"pullPolicy,omitempty" mapstructure:"pullPolicy,omitempty"`
 
 	// InstallationServiceAccount specifies a service account to run the Kubernetes pod/job for the installation image.
 	// The default is to run without a service account.
-	// This can be useful for a bundle which is targetting the kuernetes cluster that the operator is installed in.
-	InstallationServiceAccount string `json:"installationServiceAccount,omitempty"`
+	// This can be useful for a bundle which is targeting the kubernetes cluster that the operator is installed in.
+	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
 }
 
 // GetPorterImage returns the fully qualified image name of the Porter Agent
@@ -67,7 +72,7 @@ func (c AgentConfigSpec) GetPullPolicy() v1.PullPolicy {
 		return c.PullPolicy
 	}
 
-	if c.PorterVersion == "latest" || c.PorterVersion == "canary" {
+	if c.PorterVersion == "latest" || c.PorterVersion == "canary" || c.PorterVersion == "dev" {
 		return v1.PullAlways
 	}
 	return v1.PullIfNotPresent
@@ -76,40 +81,36 @@ func (c AgentConfigSpec) GetPullPolicy() v1.PullPolicy {
 // GetVolumeSize returns the size of the shared volume to mount between the
 // Porter Agent and the bundle's invocation image. Defaults to 64Mi.
 func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
-	if c.VolumeSize.IsZero() {
+	q, err := resource.ParseQuantity(c.VolumeSize)
+	if err != nil || q.IsZero() {
 		return resource.MustParse("64Mi")
 	}
-	return c.VolumeSize
+	return q
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
 // only when they are not empty.
-func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) AgentConfigSpec {
-	if override.PorterRepository != "" {
-		c.PorterRepository = override.PorterRepository
+func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigSpec, error) {
+	final := c
+	var targetRaw map[string]interface{}
+	if err := mapstructure.Decode(c, &targetRaw); err != nil {
+		return AgentConfigSpec{}, err
 	}
 
-	if override.PorterVersion != "" {
-		c.PorterVersion = override.PorterVersion
+	for _, override := range overrides {
+		var overrideRaw map[string]interface{}
+		if err := mapstructure.Decode(override, &overrideRaw); err != nil {
+			return AgentConfigSpec{}, err
+		}
+
+		targetRaw = MergeMap(targetRaw, overrideRaw)
 	}
 
-	if override.ServiceAccount != "" {
-		c.ServiceAccount = override.ServiceAccount
+	if err := mapstructure.Decode(targetRaw, &final); err != nil {
+		return AgentConfigSpec{}, err
 	}
 
-	if !override.VolumeSize.IsZero() {
-		c.VolumeSize = override.VolumeSize
-	}
-
-	if override.PullPolicy != "" {
-		c.PullPolicy = override.PullPolicy
-	}
-
-	if override.InstallationServiceAccount != "" {
-		c.InstallationServiceAccount = override.InstallationServiceAccount
-	}
-
-	return c
+	return final, nil
 }
 
 // +kubebuilder:object:root=true
@@ -119,7 +120,8 @@ func (c AgentConfigSpec) MergeConfig(override AgentConfigSpec) AgentConfigSpec {
 type AgentConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              AgentConfigSpec `json:"spec,omitempty"`
+
+	Spec AgentConfigSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

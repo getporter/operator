@@ -19,18 +19,18 @@ jobs:
           go-version: 1.15
       - name: Setup Porter
         uses: getporter/gh-action@v0.1.3
+        with:
+          porter_version: v1.0.0-alpha.4
       - name: Set up Mage
         run: go run mage.go EnsureMage
-      - name: Build
-        run: mage -v build buildBundle
       - name: Test
-        run: mage -v test
+        run: mage -v Test
       - name: Report Unit Test Coverage
         uses: codecov/codecov-action@v1
         with:
           files: ./coverage-unit.out
           flags: unit-tests
-      - name: Report Integraion Test Coverage
+      - name: Report Integration Test Coverage
         uses: codecov/codecov-action@v1
         with:
           files: ./coverage-integration.out
@@ -42,13 +42,8 @@ jobs:
           registry: ghcr.io
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
-      - name: Publish Controller Image
+      - name: Publish
         if: ${{ github.event_name != 'pull_request' }}
-        run: mage -v publishController
-        env:
-          ENV: production
-      - name: Publish Bundle
-        if: ${{ github.event_name != 'pull_request' }}
-        run: mage -v publishBundle
+        run: mage -v Publish
         env:
           ENV: production

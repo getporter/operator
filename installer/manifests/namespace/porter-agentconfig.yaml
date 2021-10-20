@@ -1,8 +1,9 @@
 apiVersion: porter.sh/v1
 kind: AgentConfig
 metadata:
-  name: porter
-  namespace: REPLACE
+  name: default
   labels:
-    porter: "true"
+    porter.sh/generator: "porter-operator-bundle"
 spec:
+  # Values are set in helpers.sh based on the bundle parameters which are copied into agentconfig/*
+  # where each file is a setting on the spec.

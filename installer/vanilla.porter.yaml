@@ -1,0 +1,152 @@
+name: porter-operator
+version: 0.0.0
+description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
+registry: ghcr.io/getporter
+dockerfile: Dockerfile.tmpl
+
+parameters:
+  - name: namespace
+    description: Setup Porter in this namespace
+    type: string
+    applyTo:
+      - configureNamespace
+  # Porter Configuration
+  - name: porterConfig
+    description: Porter config file, in yaml, same as ~/.porter/config.yaml
+    type: file
+    path: /cnab/app/porter-config-spec.yaml
+    default: ""
+    applyTo:
+      - configureNamespace
+  # Agent Configuration
+  - name: volumeSize
+    description: Size of the volume shared between Porter and the bundles it executes. Defaults to 64Mi.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/volumeSize
+    default: ""
+    applyTo:
+      - configureNamespace
+  - name: porterRepository
+    description: Docker image repository of the Porter agent. Defaults to ghcr.io/getporter/porter.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/porterRepository
+    default: ""
+    applyTo:
+      - configureNamespace
+  - name: porterVersion
+    description: Version of the Porter agent, e.g. latest, canary, v0.33.0. Defaults to latest.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/porterVersion
+    default: ""
+    applyTo:
+      - configureNamespace
+  - name: pullPolicy
+    description: Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled. Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/pullPolicy
+    default: ""
+    applyTo:
+      - configureNamespace
+  - name: serviceAccount
+    description: Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configureNamespace custom action.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/serviceAccount
+    default: "porter-agent"
+    applyTo:
+      - configureNamespace
+  - name: installationServiceAccount
+    description: Name of the service account to run installation with. If set, you are responsible for creating this service account and giving it required permissions.
+    type: string
+    path: /cnab/app/manifests/namespace/agentconfig/installationServiceAccount
+    default: ""
+    applyTo:
+      - configureNamespace
+
+credentials:
+  - name: kubeconfig
+    description: Kubeconfig file for cluster where the operator should be installed
+    path: /root/.kube/config
+
+mixins:
+  - exec
+  - helm3:
+      repositories:
+        bitnami:
+          url: "https://charts.bitnami.com/bitnami"
+  - kubernetes
+
+install:
+  - kubernetes:
+      description: "Apply operator manifests"
+      manifests:
+        - manifests/operator.yaml
+      wait: true
+  - helm3:
+      description: "Install a mongo database for Porter"
+      namespace: porter-operator-system
+      name: mongodb
+      chart: bitnami/mongodb
+      version: 10.27.2
+      set:
+        auth.enabled: false
+  - exec:
+      description: "Wait for operator deployment to complete"
+      command: kubectl
+      arguments:
+        - rollout
+        - status
+        - deploy/porter-operator-controller-manager
+      flags:
+        namespace: porter-operator-system
+        timeout: 30s
+
+upgrade:
+  - kubernetes:
+      description: "Apply operator manifests"
+      manifests:
+        - manifests/operator.yaml
+      wait: true
+  - exec:
+      description: "Wait for operator deployment to complete"
+      command: kubectl
+      arguments:
+        - rollout
+        - status
+        - deploy/porter-operator-controller-manager
+      flags:
+        namespace: porter-operator-system
+        timeout: 30s
+
+# TODO: Add a test action that runs a test bundle to check if everything is configured properly
+
+removeData:
+  - exec:
+      description: "Remove ALL Porter Operator data from the cluster"
+      command: ./helpers.sh
+      arguments:
+        - removeData
+
+uninstall:
+  - kubernetes:
+      description: "Uninstall operator"
+      manifests:
+        - manifests/operator.yaml
+      wait: true
+  - helm3:
+      namespace: porter-operator-system
+      releases:
+        - mongodb
+      wait: true
+
+customActions:
+  configureNamespace:
+    description: Add necessary rbac, service account and configuration to use Porter Operator in a namespace. Creates the namespace if it does not already exist.
+  removeData:
+    description: Remove Porter Operator data, such as namespaces used with configureNamespace, configuration, jobs, etc. These are not removed during uninstall.
+
+configureNamespace:
+  - exec:
+      description: "Configure Porter Operator"
+      command: ./helpers.sh
+      arguments:
+        - configureNamespace

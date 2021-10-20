@@ -6,6 +6,12 @@ resources:
 - crdVersion: v1
   kind: Installation
   version: v1
+- crdVersion: v1
+  kind: AgentConfig
+  version: v1
+- crdVersion: v1
+  kind: PorterConfig
+  version: v1
 version: 3-alpha
 plugins:
   manifests.sdk.operatorframework.io/v2: {}

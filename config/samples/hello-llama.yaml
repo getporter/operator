@@ -1,13 +1,15 @@
 apiVersion: porter.sh/v1
 kind: Installation
 metadata:
-  name: exec-outputs
+  name: hello-llama
   labels:
     porter.sh/testdata: "true"
 spec:
   schemaVersion: 1.0.0
   namespace: operator
-  name: outputs
+  name: mellama
   bundle:
-    repository: getporter/exec-outputs
+    repository: getporter/hello-llama
     version: 0.1.1
+  parameters:
+    name: "Porter Operator"

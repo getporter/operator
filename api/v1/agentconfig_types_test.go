@@ -1,11 +1,10 @@
-// +build !integration
-
 package v1
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -64,7 +63,7 @@ func TestAgentConfigSpec_GetVolumeSize(t *testing.T) {
 
 	t.Run("quantity set", func(t *testing.T) {
 		qty := resource.MustParse("128Mi")
-		c := AgentConfigSpec{VolumeSize: qty}
+		c := AgentConfigSpec{VolumeSize: "128Mi"}
 		assert.Equal(t, qty, c.GetVolumeSize())
 	})
 }
@@ -78,16 +77,19 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 
 		instConfig := AgentConfigSpec{}
 
-		config := nsConfig.MergeConfig(instConfig)
+		config, err := nsConfig.MergeConfig(instConfig)
+		require.NoError(t, err)
 		assert.Equal(t, "porter-agent", config.ServiceAccount)
 	})
 
-	t.Run("override", func(t *testing.T) {
+	t.Run("overrides", func(t *testing.T) {
+		systemConfig := AgentConfigSpec{}
+
 		nsConfig := AgentConfigSpec{
 			PorterRepository:           "base",
 			PorterVersion:              "base",
 			ServiceAccount:             "base",
-			VolumeSize:                 resource.MustParse("1Mi"),
+			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
 		}
@@ -96,16 +98,17 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			PorterRepository:           "override",
 			PorterVersion:              "override",
 			ServiceAccount:             "override",
-			VolumeSize:                 resource.MustParse("2Mi"),
+			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
 		}
 
-		config := nsConfig.MergeConfig(instConfig)
+		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
+		require.NoError(t, err)
 		assert.Equal(t, "override", config.PorterRepository)
 		assert.Equal(t, "override", config.PorterVersion)
 		assert.Equal(t, "override", config.ServiceAccount)
-		assert.Equal(t, "2Mi", config.VolumeSize.String())
+		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
 	})

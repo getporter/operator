@@ -1,0 +1,125 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: porterconfigs.porter.sh
+spec:
+  group: porter.sh
+  names:
+    kind: PorterConfig
+    listKind: PorterConfigList
+    plural: porterconfigs
+    singular: porterconfig
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: PorterConfig is the Schema for the porterconfigs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: "PorterConfigSpec defines the desired state of PorterConfig
+              \n SERIALIZATION NOTE:  Use json to persist this resource to Kubernetes.
+              \ Use yaml to convert to Porter's representation of the resource.  The
+              mapstructure tags are used internally for PorterConfigSpec.MergeConfig."
+            properties:
+              buildDriver:
+                description: BuildDriver specifies the name of the current build driver.
+                  Requires that the build-drivers experimental feature is enabled.
+                type: string
+              debug:
+                description: Debug specifies if Porter should output debug logs.
+                type: boolean
+              debugPlugins:
+                description: DebugPlugins specifies if Porter should output debug
+                  logs for the plugins.
+                type: boolean
+              defaultSecrets:
+                description: DefaultSecrets is the name of the secrets configuration
+                  to use.
+                type: string
+              defaultSecretsPlugin:
+                description: DefaultSecretsPlugin is the name of the storage plugin
+                  to use when DefaultSecrets is unspecified.
+                type: string
+              defaultStorage:
+                description: DefaultStorage is the name of the storage configuration
+                  to use.
+                type: string
+              defaultStoragePlugin:
+                description: DefaultStoragePlugin is the name of the storage plugin
+                  to use when DefaultStorage is unspecified.
+                type: string
+              experimental:
+                description: Experimental specifies which experimental features are
+                  enabled.
+                items:
+                  type: string
+                type: array
+              namespace:
+                description: Namespace is the default Porter namespace.
+                type: string
+              secrets:
+                description: Secrets is a list of named secrets configurations.
+                items:
+                  description: SecretsConfig is the plugin stanza for secrets.
+                  properties:
+                    config:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    name:
+                      type: string
+                    plugin:
+                      type: string
+                  required:
+                  - name
+                  - plugin
+                  type: object
+                type: array
+              storage:
+                description: Storage is a list of named storage configurations.
+                items:
+                  description: StorageConfig is the plugin stanza for storage.
+                  properties:
+                    config:
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    name:
+                      type: string
+                    plugin:
+                      type: string
+                  required:
+                  - name
+                  - plugin
+                  type: object
+                type: array
+            required:
+            - defaultSecretsPlugin
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

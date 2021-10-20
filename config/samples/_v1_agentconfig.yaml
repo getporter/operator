@@ -1,0 +1,13 @@
+apiVersion: porter.sh/v1
+kind: AgentConfig
+metadata:
+  name: agentconfig-sample
+  labels:
+    porter.sh/testdata: "true"
+spec:
+  porterRepository: ghcr.io/getporter/porter-agent
+  porterVersion: canary
+  serviceAccount: porter-agent
+  volumeSize: 64Mi
+  pullPolicy: Always
+  installationServiceAccount: installation-agent

@@ -1,0 +1,7 @@
+# Use the local kind cluster created by mage EnsureTestCluster
+schemaVersion: 1.0.0
+name: kind
+credentials:
+  - name: kubeconfig
+    source:
+      path: kind.config
