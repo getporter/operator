@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-configure-namespace() {
+configureNamespace() {
   cd manifests/namespace
 
   spec="/cnab/app/porter-config-spec.yaml"
   if [ -s $spec ]; then
-    echo "Applying porter-config..."
+    echo "Applying porter configuration..."
   else
-    echo "Using the default porter-config"
+    echo "Using the default porter configuration"
     cp defaults/porter-config-spec.yaml $spec
   fi
   sed -i 's/debug-plugins/debugPlugins/g' $spec
@@ -42,7 +42,7 @@ configure-namespace() {
   echo "Namespace $NAMESPACE is ready to use with the Porter Operator"
 }
 
-remove-data() {
+removeData() {
   filter="porter.sh/generator=porter-operator-bundle"
   # This should get anything made by the bundle
   kubectl delete namespace -l $filter --wait

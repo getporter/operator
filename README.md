@@ -11,9 +11,9 @@ bundles from Kubernetes. It is the recommended way to automate your bundle
 pipeline with support for GitOps.
 
 * Manage bundle installations using desired state configuration.
-* Installs the bundle when an installation CRD is added. 
-* Upgrades the bundle when the bundle definition or values used to install the bundle change.
-* Uninstalls the bundle when the installation CRD is deleted.
+  * Installs the bundle when an installation CRD is added. 
+  * Upgrades the bundle when the bundle definition or values used to install the bundle change.
+  * Uninstalls the bundle when the installation CRD is deleted.
 * Automatically deploy new versions of bundles when a new version is pushed, and update an 
   installation when changes are pushed in git, through integration with Flux.
 * Isolated environments for running bundles in your organization, limiting
@@ -45,7 +45,33 @@ mage deploy
 
 Use explain to see what credentials and parameters you can use when installing and configuring the operator.
 ```
-porter explain -r ghcr.io/getporter/porter-operator:canary
+$ porter explain -r ghcr.io/getporter/porter-operator:canary
+Name: porter-operator
+Description: The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster.
+Version: 1.0.0-alpha.1
+Porter Version: v1.0.0-alpha.4
+
+Credentials:
+Name         Description                                                          Required   Applies To
+kubeconfig   Kubeconfig file for cluster where the operator should be installed   true       All Actions
+
+Parameters:
+Name                         Description                                                                                                                                                                                                                                                 Type     Default        Required   Applies To
+installationServiceAccount   Name of the service account to run installation with. If set, you are responsible for creating this service account and giving it required permissions.                                                                                                     string                  false      configureNamespace
+namespace                    Setup Porter in this namespace                                                                                                                                                                                                                              string   <nil>          true       configureNamespace
+porterConfig                 Porter config file, in yaml, same as ~/.porter/config.yaml                                                                                                                                                                                                  file                    false      configureNamespace
+porterRepository             Docker image repository of the Porter agent. Defaults to ghcr.io/getporter/porter.                                                                                                                                                                          string                  false      configureNamespace
+porterVersion                Version of the Porter agent, e.g. latest, canary, v0.33.0. Defaults to latest.                                                                                                                                                                              string                  false      configureNamespace
+pullPolicy                   Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled. Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.                                                                                string                  false      configureNamespace
+serviceAccount               Name of the service account to run the Porter agent. If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole. Defaults to the porter-agent account created by the configureNamespace custom action.   string   porter-agent   false      configureNamespace
+volumeSize                   Size of the volume shared between Porter and the bundles it executes. Defaults to 64Mi.                                                                                                                                                                     string                  false      configureNamespace
+
+Actions:
+Name                  Description                                                                                                                                        Modifies Installation   Stateless
+configureNamespace   Add necessary rbac, service account and configuration to use Porter Operator in a namespace. Creates the namespace if it does not already exist.   false                   false
+removeData           Remove Porter Operator data, such as namespaces used with configureNamespace, configuration, jobs, etc. These are not removed during uninstall.   false                   false
+
+This bundle uses the following tools: exec, helm3, kubernetes.
 ```
 
 Generate a credential set for the bundle, the only required credential for the operator is a kubeconfig for the cluster that the operator is to be installed in.
@@ -61,7 +87,7 @@ porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:canar
 Create a namespace with the appropriate RBAC and configuration. This is where you will run porter.
 
 ```
-porter invoke porterops --action configure-namespace --param namespace=TODO -c porterops
+porter invoke porterops --action configureNamespace --param namespace=TODO -c porterops
 ```
 
 **Notes**
@@ -79,7 +105,7 @@ mage bump SAMPLE
 ```
 
 This mage target handles running `porter installation apply` for you and sets an annotation to force the installation to be reconciled.
-You can do this by hand by following the instructions at [Apply an Installation](#apply-an-installation).
+You can do this manually by following the instructions at [Apply an Installation](#apply-an-installation).
 
 For example, to apply [config/samples]/porter-hello.yaml](/config/samples]/porter-hello.yaml), run command below.
 If the installation does not already exist, it will be created
@@ -96,7 +122,7 @@ directly to check the status of an installation.
 
 Expose the in-cluster mongodb server on the default mongo porter: 27017.
 ```
-kubectl port-forward --namespace porter-operator-system svc/mongodb 27017:27017 &
+kubectl port-forward --namespace porter-operator-system svc/mongodb 27017:27017 >/dev/null &
 ```
 
 Update ~/.porter/config.toml to use the in-cluster mongodb server.
@@ -115,6 +141,7 @@ default-storage = "in-cluster-mongodb"
 
 In the example below, the [config/samples/porter-hello.yaml](/config/samples/porter-hello.yaml) installation CRD is applied,
 and then porter is used to view the logs.
+
 ```
 mage bump porter-hello
 # wait a few seconds, the next command will only return logs once the bundle finishes
@@ -123,16 +150,16 @@ porter logs hello -n operator
 
 # Configure
 
-The bundle accepts a parameter, porter-config, that should be a YAML-formatted [Porter configuration file](https://release-v1.porter.sh/configuration).
+The bundle accepts a parameter, porteConfig, that should be a YAML-formatted [Porter configuration file](https://release-v1.porter.sh/configuration).
 
 Here is an example of the default configuration used when none is specified:
 
 ```yaml
 # Resolve secrets using secrets on the cluster in the current namespace.
-default-secrets-plugin: "kubernetes.secrets"
+defaultSecretsPlugin: "kubernetes.secrets"
 
 # Use the mongodb server that was deployed with the operator
-default-storage: "in-cluster-mongodb"
+defaultStorage: "in-cluster-mongodb"
 storage:
   - name: "in-cluster-mongodb"
     plugin: "mongodb"
@@ -143,7 +170,7 @@ storage:
 You can use a different file when installing the operator like so:
 
 ```
-porter install porterops --param porter-config=./myconfig.yaml  \
+porter install porterops --param porterConfig=./myconfig.yaml  \
   -c porterops -r ghcr.io/getporter/porter-operator:canary
 ```
 
@@ -151,14 +178,14 @@ The bundle also has parameters defined that control how the Porter agent is conf
 
 | Parameter  | Description  |
 |---|---|
-| installationServiceAccount  | Name of the service account to run installation with.<br/>If set, you are responsible for creating this service account and giving it required permissions.  |
 | namespace  | Setup Porter in this namespace  |
 | porterRepository  | Docker image repository of the Porter agent.<br/><br/>Defaults to ghcr.io/getporter/porter.  |
 | porterVersion  | Version of the Porter agent, e.g. latest, canary, v0.33.0.<br/><br/>Defaults to latest.  |
 | pullPolicy  | Specifies how the Porter agent image should be pulled. Does not affect how bundles are pulled.<br/><br/>Defaults to PullAlways for latest and canary, and PullIfNotPresent otherwise.  |
-| serviceAccount  | Name of the service account to run the Porter agent.<br/>If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole.<br/><br/>Defaults to the porter-agent account created by the configure-namespace custom action.  |
+| serviceAccount  | Name of the service account to run the Porter agent.<br/>If set, you are responsible for creating this service account and binding it to the porter-agent ClusterRole.<br/><br/>Defaults to the porter-agent account created by the configureNamespace custom action.  |
+| installationServiceAccount  | Name of the service account to run installation with.<br/>If set, you are responsible for creating this service account and giving it required permissions.  |
 | volumeSize  | Size of the volume shared between Porter and the bundles it executes.<br/><br/>Defaults to 64Mi.  |
-                                                                                                                                                                      string                  false      configure-namespace
+                                                                                                                                                                      string                  false      configureNamespace
 
 # Apply an installation
 
@@ -214,7 +241,7 @@ it would still trigger Porter to retry it.
 
 # Configure the Operator
 
-This section breaks down what the configure-namespace action of the bundle is
+This section breaks down what the configureNamespace action of the bundle is
 doing under the hood. If you end up having to manually configure these values,
 let us know! That means the custom action in our bundle isn't working out.
 
@@ -223,7 +250,7 @@ let us know! That means the custom action in our bundle isn't working out.
 The operator has a CRD, agentconfig.porter.sh, that contains settings for the
 porter operator. These values are used by the job that runs porter. Only
 serviceAccount is required, the rest may be omitted or set to "". This is generated
-for you by the **configure-namespace** custom action of the porter-operator bundle.
+for you by the **configureNamespace** custom action of the porter-operator bundle.
 
 ```yaml
 apiVersion: porter.sh/v1
@@ -261,7 +288,7 @@ metadata:
 spec:
   debug: true # Optional. Specifies if porter should output additional debug logs. Defaults to false.
   debugPlugins: true # Optional. Specifies if porter should output additional debug logs related to plugins. Defaults to false.
-  default-secrets-plugin: kubernetes.secrets. # Optional. Specifies the key of the secrets plugin to use. Defaults to the Kubernetes secrets plugin.
+  defaultSecretsPlugin: kubernetes.secrets. # Optional. Specifies the key of the secrets plugin to use. Defaults to the Kubernetes secrets plugin.
   default-storage: in-cluster-mongodb # Optional. Specifies the name of the storage configuration to use. Defaults to the in-cluster mongodb server deployed with the operator.
   storage: # Optional. Defines a storage configuration to use instead of the in-cluster mongodb server.
     - name: in-cluster-mongodb

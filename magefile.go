@@ -356,7 +356,7 @@ func SetupNamespace(name string) {
 		ps = "-p=./hack/params.yaml"
 	}
 
-	porter("invoke", "operator", "--action=configure-namespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
+	porter("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
 		CollapseArgs().Must().RunV()
 	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
 	setClusterNamespace(name)
@@ -378,7 +378,7 @@ func CleanTestdata() {
 // Remove any porter data in the cluster
 func CleanAllData() {
 	if useCluster() {
-		porter("invoke", "operator", "--action=remove-data", "-c", "kind", "-n=operator").Must().RunV()
+		porter("invoke", "operator", "--action=removeData", "-c", "kind", "-n=operator").Must().RunV()
 	}
 }
 

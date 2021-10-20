@@ -73,7 +73,7 @@ spec:
                   type: string
                 type: array
               namespace:
-                description: Namespace is the current Porter namespace.
+                description: Namespace is the default Porter namespace.
                 type: string
               secrets:
                 description: Secrets is a list of named secrets configurations.

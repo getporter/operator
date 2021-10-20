@@ -1,6 +1,7 @@
 # These are the default values to use for the Porter configuration file
 # They are copied into manifests/namespace/porter-config.yaml when the porter-config
 # parameter is unset.
+# The key names are converted by the bundle from Porter's snake-case to Kubernetes camelCase.
 default-secrets-plugin: "kubernetes.secrets"
 default-storage: "in-cluster-mongodb"
 storage:

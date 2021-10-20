@@ -41,10 +41,15 @@ Configuration is hierarchical and has the following precedence:
 | -----------  | ----------- | ------- | ----------- |
 | porterRepository  | false  | ghcr.io/getporter/porter-agent | The repository for the Porter Agent image. |
 | porterVersion | false      | latest  | The tag for the Porter Agent image. |
-| serviceAccount | false | (none) | The service account to run the Porter Agent under. |
+| serviceAccount | true | (none) | The service account to run the Porter Agent under. |
 | installationServiceAccount | false | (none) | The service account to run the Kubernetes pod/job for the installation image. |
 | volumeSize | false | 64Mi | The size of the persistent volume that Porter will request when running the Porter Agent. It is used to share data between the Porter Agent and the bundle invocation image. It must be large enough to store any files used by the bundle including credentials, parameters and outputs. |
 | pullPolicy | false | PullAlways when the tag is canary or latest, otherwise PullIfNotPresent. | Specifies when to pull the Porter Agent image |
+
+### Service Account
+
+The only required configuration is the name of the service account under which Porter should run.
+The configureNamespace action of the porter operator bundle creates a service account named "porter-agent" for you with the porter-operator-agent-role role binding.
 
 ## Porter Config
 
