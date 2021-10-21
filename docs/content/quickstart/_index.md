@@ -93,7 +93,7 @@ Let's create an installation resource that specifies that we want to have the ge
       namespace: quickstart
     spec:
       schemaVersion: 1.0.0
-      namespace: operator
+      namespace: quickstart
       name: mellama
       bundle:
         repository: getporter/hello-llama
@@ -104,7 +104,6 @@ Let's create an installation resource that specifies that we want to have the ge
 1. Apply the installation resource to the cluster
    ```
    kubectl apply -f llama.yaml
-   
    ```
 1. The operator detects the installation and runs the Porter Agent (a job that runs the porter CLI). The agent will run the appropriate porter install command to install the bundle. The bundle runs in a separate job (known as the installer). You can watch the progress of these events with kubectl with `kubectl get pods -n quickstart --watch`.
    ```console
@@ -120,15 +119,14 @@ Let's create an installation resource that specifies that we want to have the ge
 1. Use `porter list` to see the status of the installation:
    ```console
    $ porter list
-   NAMESPACE    NAME    CREATED          MODIFIED         LAST ACTION   LAST STATUS
-   quickstart   llama   34 seconds ago   34 seconds ago   install       succeeded
+   NAMESPACE    NAME      CREATED          MODIFIED         LAST ACTION   LAST STATUS
+   quickstart   mellama   19 seconds ago   19 seconds ago   install       succeeded
    ```
 1. You can see the logs from the installation with `porter logs --installation llama`.
    ```console
-   $ porter logs --installation llama
-   Could not stream logs for pod install-llama-bc4sl-7dw6f. Retrying...: container "invocation" in pod "install-llama-bc4sl-7dw6f" is waiting to start: ContainerCreating
-   Could not stream logs for pod install-llama-bc4sl-7dw6f. Retrying...: container "invocation" in pod "install-llama-bc4sl-7dw6f" is waiting to start: ContainerCreating
-   executing install action from hello-llama (installation: llama)
+   $ porter logs --installation mellama
+   Could not stream logs for pod install-mellama-5xjch-tdgts. Retrying...: container "invocation" in pod "install-mellama-5xjch-tdgts" is waiting to start: ContainerCreating
+   executing install action from hello-llama (installation: mellama)
    Hello, quickstart
    execution completed successfully!
    ```
@@ -146,7 +144,7 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
       namespace: quickstart
     spec:
       schemaVersion: 1.0.0
-      namespace: operator
+      namespace: quickstart
       name: mellama
       bundle:
         repository: getporter/hello-llama
@@ -159,30 +157,34 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
    kubectl apply -f llama.yaml
    ```
 1. The operator will detect that the parameter has changed, and run porter upgrade.
-   Again, use `kubectl get pods -n quickstart --watch` to wait for Porter Agent to finish executing the upgrade-llama-* job.
+   Again, use `kubectl get pods -n quickstart --watch` to wait for Porter Agent to finish executing the upgrade-mellama-* job.
    ```console
    $ kubectl get pods -n quickstart --watch
    NAME                          READY   STATUS      RESTARTS   AGE
-   hello-llama-7245-hhcq4        0/1     Completed   0          13m
-   hello-llama-9550-sms74        0/1     Completed   0          8s
-   install-llama-g769d-nzqsn     0/1     Completed   0          13m
-   upgrade-llama-wl8xp-knng5     0/1     Completed   0          3s
+   hello-llama-7245-hhcq4        0/1     Completed   0          18m
+   hello-llama-9550-sms74        0/1     Completed   0          3m12s
+   install-mellama-g769d-nzqsn   0/1     Completed   0          17m
+   upgrade-mellama-2d6rg-4kc9z   0/1     Completed   0          3m2s
    ```
 1. Let's run `porter show llama` to see more details about the installation.
    Note that the installation is using the updated value "Grogu" for the name parameter.
    ```console
    $ porter show llama
-   Name: llama
+   Name: mellama
    Namespace: quickstart
    Created: 12 minutes ago
    Modified: 6 seconds ago
-   
+
+   Bundle:
+     Repository: getporter/hello-llama
+     Version: 0.1.1
+
    Parameters:
    -----------------------
    Name  Type    Value
    -----------------------
    name  string  Grogu
-   
+
    Status:
      Reference: getporter/hello-llama:v0.1.1
      Version: 0.1.1
