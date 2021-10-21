@@ -13,7 +13,7 @@ $ porter explain -r ghcr.io/getporter/porter-operator:canary
 Name: porter-operator
 Description: The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster.
 Version: 1.0.0-alpha.1
-Porter Version: v1.0.0-alpha.4
+Porter Version: v1.0.0-alpha.5
 
 Credentials:
 Name         Description                                                          Required   Applies To
@@ -62,7 +62,7 @@ porter invoke porterops --action configureNamespace --param namespace=TODO -c po
 
 # Configuration
 
-The bundle accepts a parameter, porterConfig, that should be a YAML-formatted [Porter configuration file](https://release-v1.porter.sh/configuration).
+The bundle accepts a parameter, porterConfig, that should be a YAML-formatted [Porter configuration file](/configuration/).
 
 Here is an example of the default configuration used when none is specified:
 
@@ -103,5 +103,5 @@ The bundle also has parameters defined that control how the [Porter Agent] is co
 You can use the porter CLI to query and interact with installations created by the operator.
 Follow the instructions in [Connect to the in-cluster mongo database][connect] to point porter at the Mongodb server that was installed with the operator.
 
-[install Porter]: https://github.com/getporter/porter/releases/tag/v1.0.0-alpha.4
-[Porter Agent]: /docs/content/resources.md#agent-config
+[install the Porter v1 prerelease]: /install/#v1-prerelease
+[Porter Agent]: /operator/file-formats/#agent-config
