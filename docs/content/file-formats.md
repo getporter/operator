@@ -19,7 +19,7 @@ The Installation CRD represents an installation of a bundle in Porter.
 The Installation CRD spec is a superset of the Installation resource in Porter, so it is safe to copy/paste the output of
 the `porter installation show NAME -o yaml` command into the spec field and have that be a valid installation.
 
-In addition to the normal fields available on a [Porter Installation document](https://release-v1--porter.netlify.app/reference/file-formats/)
+In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/)
 the following fields are supported:
 
 | Field        | Required    | Default | Description |
@@ -126,5 +126,5 @@ Values are merged from all resolved PorterConfig resources, so that you can defi
 | storage | false | The mongodb server installed with the operator. | A list of named storage configurations. |
 | secrets | false | (empty) | A list of named secrets configurations. |
 
-[Porter Feature Flags]: https://release-v1.porter.sh/configuration/#experimental-feature-flags
-[configuration file](https://release-v1.porter.sh/configuration/)
+[Porter Feature Flags]: /configuration/#experimental-feature-flags
+[configuration file](/configuration/)

@@ -1,15 +1,18 @@
 ---
-title: QuickStart
+title: Porter Operator QuickStart
 description: Try out the Porter Operator!
+layout: single
 ---
 
-In this QuickStart you will learn how to install and use the Porter Operator on a non-production cluster.
+In this QuickStart you will learn how to install and use the [Porter Operator] on a non-production cluster.
+
+[Porter Operator]: /operator/
 
 # Prerequisites
 
 * [Install the latest Porter v1 prerelease][install-porter]
 * Docker, either a local installation or a remote Docker Host.
-* A Kubernetes cluster. [KinD] or Minikube works well.
+* A Kubernetes cluster. [KinD] or [Minikube] work well but follow the links for required configuration.
 * kubectl, with its kubeconfig configured to use the cluster.
 
 # Install the Operator
@@ -213,9 +216,9 @@ I chose retry, however you could use "favorite-color: blue", changing the value 
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
 
-* [Porter Operator Custom Resources](/docs/content/resources.md)
+* [Porter Operator Custom Resources](/operator/file-formats/)
 
-[install-porter]: https://github.com/getporter/porter/releases/tag/v1.0.0-alpha.4
-[KinD]: https://kind.sigs.k8s.io/docs/user/quick-start/#installation
-[Minikube]: https://minikube.sigs.k8s.io/docs/start/
+[install-porter]: /install/#v1-prerelease
+[KinD]: /best-practices/kind/
+[Minikube]: /best-practices/minikube/
 [getporter/hello-llama]: https://hub.docker.com/r/getporter/hello-llama
