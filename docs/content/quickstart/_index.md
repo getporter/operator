@@ -122,7 +122,7 @@ Let's create an installation resource that specifies that we want to have the ge
    NAMESPACE    NAME      CREATED          MODIFIED         LAST ACTION   LAST STATUS
    quickstart   mellama   19 seconds ago   19 seconds ago   install       succeeded
    ```
-1. You can see the logs from the installation with `porter logs --installation llama`.
+1. You can see the logs from the installation with `porter logs --installation mellama`.
    ```console
    $ porter logs --installation mellama
    Could not stream logs for pod install-mellama-5xjch-tdgts. Retrying...: container "invocation" in pod "install-mellama-5xjch-tdgts" is waiting to start: ContainerCreating
@@ -166,10 +166,10 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
    install-mellama-g769d-nzqsn   0/1     Completed   0          17m
    upgrade-mellama-2d6rg-4kc9z   0/1     Completed   0          3m2s
    ```
-1. Let's run `porter show llama` to see more details about the installation.
+1. Let's run `porter show mellama` to see more details about the installation.
    Note that the installation is using the updated value "Grogu" for the name parameter.
    ```console
-   $ porter show llama
+   $ porter show mellama
    Name: mellama
    Namespace: quickstart
    Created: 12 minutes ago
@@ -199,7 +199,7 @@ This isn't supported yet. Once it's implemented, uninstall is triggered when the
 
 # Retry the last operation
 
-If your bundle operation failed, you can run it again by changing an annotation on the installation CRD:
+If your bundle operation failed, you can run it again by changing an annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
 
 ```yaml
 apiVersion: porter.sh/v1
