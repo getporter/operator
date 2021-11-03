@@ -4,9 +4,9 @@ description: Automate Porter on Kubernetes with the Porter Operator
 layout: single
 ---
 
-We are currently working on creating a Kubernetes operator for Porter.
+We are developing a Kubernetes operator for Porter.
 With Porter Operator, you define installations, credential sets and parameter sets in custom resources on a cluster, and the operator handles executing Porter when the desired state of an installation changes.
-Learn more about Porter manages desired state in the [Desired State QuickStart].
+Learn more about how Porter manages desired state in the [Desired State QuickStart].
 
 ![architectural diagram showing that an installation resource triggers the operator to run a porter agent job, which then runs the bundle, saving state in mongodb](operator.png)
 
@@ -46,4 +46,4 @@ The porter CLI has a [configuration file] when run normally on your local comput
 
 ## Next Steps
 
-* [QuickStart](/operator/quickstart/)
+* [QuickStart: Using the Porter Operator](/operator/quickstart/)
