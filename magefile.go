@@ -254,15 +254,18 @@ func Deploy() {
 
 func isDeployed() bool {
 	if useCluster() {
-		if err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).Must(false).RunS(); err != nil {
+		if err := kubectl("rollout", "status", "deployment", "porter-operator-controller-manager", "--namespace", operatorNamespace).Must(false).Run(); err != nil {
 			log.Println("the operator is not installed")
 			return false
 		}
-		if err := kubectl("rollout", "status", "deployment", "mongodb", "--namespace", operatorNamespace).Must(false).RunS(); err != nil {
+		if err := kubectl("rollout", "status", "deployment", "mongodb", "--namespace", operatorNamespace).Must(false).Run(); err != nil {
 			log.Println("the database is not installed")
 			return false
 		}
+		log.Println("the operator is installed and ready to use")
+		return true
 	}
+	log.Println("could not connect to the test cluster")
 	return false
 }
 
