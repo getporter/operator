@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.2
 
 # Build the manager binary
-FROM golang:1.15 as builder
+FROM golang:1.17 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -24,8 +24,8 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
-WORKDIR /
+WORKDIR /app
 COPY --from=builder /workspace/manager .
 USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/app/manager"]

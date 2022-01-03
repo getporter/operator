@@ -29,7 +29,7 @@ spec:
         runAsUser: 65532
       containers:
       - command:
-        - /manager
+        - /app/manager
         args:
         - --leader-elect
         image: manager
