@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/pkg/errors"
@@ -8,6 +10,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	Prefix          = "porter.sh/"
+	AnnotationRetry = Prefix + "retry"
 )
 
 // We marshal installation spec to yaml when converting to a porter object
@@ -40,6 +47,9 @@ type InstallationSpec struct {
 
 	// Namespace (in Porter) where the installation is defined.
 	Namespace string `json:"namespace" yaml:"namespace"`
+
+	// Active specifies if the bundle should be installed.
+	Active bool `json:"active" yaml:"active"`
 
 	Bundle OCIReferenceParts `json:"bundle" yaml:"bundle"`
 
@@ -100,10 +110,67 @@ func (in InstallationSpec) MarshalYAML() (interface{}, error) {
 
 // InstallationStatus defines the observed state of Installation
 type InstallationStatus struct {
-	ActiveJob v1.LocalObjectReference `json:"activeJob,omitempty"`
-	LastJob   v1.LocalObjectReference `json:"lastJob,omitempty"`
-	// TODO: Include values from the claim such as success/failure, last action
+	// The last generation observed by the controller.
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// The currently active job that is running Porter.
+	ActiveJob *v1.LocalObjectReference `json:"activeJob,omitempty"`
+
+	// The current status of the installation
+	// Possible values are: Unknown, Pending, Running, Succeeded, and Failed.
+	// +kubebuilder:validation:Type=string
+	Phase InstallationPhase `json:"phase,omitempty"`
+
+	// Conditions store a list of states that have been reached.
+	// Each condition refers to the status of the ActiveJob
+	// Possible conditions are: Scheduled, Started, Completed, and Failed
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
+
+// Reset the installation status before Porter is run.
+// This wipes out the status from any previous runs.
+func (s *InstallationStatus) Initialize() {
+	s.Conditions = []metav1.Condition{}
+	s.Phase = PhaseUnknown
+	s.ActiveJob = nil
+}
+
+// These are valid statuses for an Installation.
+type InstallationPhase string
+
+const (
+	// PhaseUnknown means that we don't know what porter is doing yet.
+	PhaseUnknown InstallationPhase = "Unknown"
+
+	// PhasePending means that Porter's execution is pending.
+	PhasePending InstallationPhase = "Pending"
+
+	// PhasePending indicates that Porter is running.
+	PhaseRunning InstallationPhase = "Running"
+
+	// PhaseSucceeded means that calling Porter succeeded.
+	PhaseSucceeded InstallationPhase = "Succeeded"
+
+	// PhaseFailed means that calling Porter failed.
+	PhaseFailed InstallationPhase = "Failed"
+)
+
+// These are valid conditions of an Installation.
+type InstallationConditionType string
+
+const (
+	// RunScheduled means that the Porter run has been scheduled.
+	ConditionScheduled InstallationConditionType = "Scheduled"
+
+	// RunStarted means that the Porter run has started.
+	ConditionStarted InstallationConditionType = "Started"
+
+	// RunComplete means the Porter run has completed successfully.
+	ConditionComplete InstallationConditionType = "Completed"
+
+	// RunFailed means the Porter run failed.
+	ConditionFailed InstallationConditionType = "Failed"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -115,6 +182,21 @@ type Installation struct {
 
 	Spec   InstallationSpec   `json:"spec,omitempty"`
 	Status InstallationStatus `json:"status,omitempty"`
+}
+
+// BuidRetryLabel returns a value that is safe to use
+// as a label value and represents the retry annotation used
+// to trigger reconciliation. Annotations don't have limits on
+// the value, but labels are restricted to alphanumeric and .-_
+// I am just hashing the annotation value here to avoid problems
+// using it directly as a label value.
+func (i Installation) GetRetryLabelValue() string {
+	retry := i.Annotations[AnnotationRetry]
+	if retry == "" {
+		return ""
+	}
+	sum := md5.Sum([]byte(retry))
+	return hex.EncodeToString(sum[:])
 }
 
 // +kubebuilder:object:root=true

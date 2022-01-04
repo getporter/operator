@@ -8,14 +8,14 @@ In this QuickStart you will learn how to install and use the [Porter Operator] o
 
 [Porter Operator]: /operator/
 
-# Prerequisites
+## Prerequisites
 
 * [Install the latest Porter v1 prerelease][install-porter]
 * Docker, either a local installation or a remote Docker Host.
 * A Kubernetes cluster. [KinD] or [Minikube] work well but follow the links for required configuration.
 * kubectl, with its kubeconfig configured to use the cluster.
 
-# Install the Operator
+## Install the Operator
 
 The Porter Operator is installed using Porter, and requires an existing Kubernetes cluster.
 First, generate a credential set that points to the location of your kubeconfig file, for example using the path $HOME/.kube/config.
@@ -41,7 +41,7 @@ The Porter Operator is now installed on your cluster in the porter-operator-syst
 This database is not secured with a username/password, so do not use this default installation configuration with production secrets!
 The cluster has a namespace, quickstart, where we will create resources and Porter will create jobs to run Porter.
 
-# Point porter at the operator's datastore
+## Point porter at the operator's datastore
 
 Let's update your local porter CLI to read the data from the operator's datastore.
 This isn't necessary for the operator to work, but will allow us to see what's happening and understand how the operator works.
@@ -74,7 +74,7 @@ $ porter list
 NAMESPACE   NAME   CREATED   MODIFIED   LAST ACTION   LAST STATUS
 ```
 
-# Install a Bundle
+## Install a Bundle
 
 For this QuickStart, we will use the [getporter/hello-llama] bundle. It does not allocate any resources or require credentials, and is a demo bundle that prints the specified name to the console.
 
@@ -131,7 +131,7 @@ Let's create an installation resource that specifies that we want to have the ge
    execution completed successfully!
    ```
 
-# Upgrade an installation
+## Upgrade an installation
 
 Now that our bundle is installed, let's make some changes to trigger an upgrade.
 
@@ -193,13 +193,13 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
      Digest: sha256:22cdfad0756c9ce1a8f4694b0411440dfab99fa2e07125ff78efe555dd63d73e
    ```
 
-# Uninstall a bundle
+## Uninstall a bundle
 
 This isn't supported yet. Once it's implemented, uninstall is triggered when the CRD is deleted.
 
-# Retry the last operation
+## Retry the last operation
 
-If your bundle operation failed, you can run it again by changing an annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
+If your bundle operation failed, you can run it again by changing the `porter.sh/retry` annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
 
 ```yaml
 apiVersion: porter.sh/v1
@@ -207,14 +207,13 @@ kind: Installation
 metadata:
   name: porter-hello
   annotations:
-    retry: "1"
+    porter.sh/retry: "2022-01-01 12:00:00"
 ```
 
-Each time you need to repeat the operation, change the annotation value again.
-There is nothing special about the key used for the annotation.
-I chose retry, however you could use "favorite-color: blue", changing the value each time, and it would still trigger Porter to retry it.
+Each time you need to repeat the operation without changing the spec, change the annotation value to a different value.
+A good strategy is to set the retry annotation to the current timestamp to generate a unique value.
 
-# Next Steps
+## Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
 

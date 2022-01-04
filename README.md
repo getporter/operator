@@ -13,7 +13,7 @@ pipeline with support for GitOps.
 * Manage bundle installations using desired state configuration.
   * Installs the bundle when an installation CRD is added. 
   * Upgrades the bundle when the bundle definition or values used to install the bundle change.
-  * Uninstalls the bundle when the installation CRD is deleted.
+  * Uninstalls the bundle when the installation CRD is deleted or when spec.active is set to false.
 * Automatically deploy new versions of bundles when a new version is pushed, and update an 
   installation when changes are pushed in git, through integration with Flux.
 * Isolated environments for running bundles in your organization, limiting

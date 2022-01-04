@@ -1,10 +1,9 @@
 package v1
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
+	"get.porter.sh/porter/pkg/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +38,7 @@ func TestPorterConfigSpec_MergeConfig(t *testing.T) {
 	})
 }
 
-func TestPorterConfigSpec_Marshal(t *testing.T) {
+func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 	// Check that we can marshal from the CRD representation to Porter's
 	cfg := PorterConfigSpec{
 		Debug:                pointer.BoolPtr(true),
@@ -69,18 +68,5 @@ func TestPorterConfigSpec_Marshal(t *testing.T) {
 
 	b, err := cfg.ToPorterDocument()
 	require.NoError(t, err)
-	CompareGoldenFile(t, "testdata/porter-config.yaml", string(b))
-}
-
-// TODO: Export this from Porter
-func CompareGoldenFile(t *testing.T, goldenFile string, got string) {
-	wantSchema, err := ioutil.ReadFile(goldenFile)
-	require.NoError(t, err)
-
-	if os.Getenv("PORTER_UPDATE_TEST_FILES") == "true" {
-		t.Logf("Updated test file %s to match latest test output", goldenFile)
-		require.NoError(t, ioutil.WriteFile(goldenFile, []byte(got), 0755), "could not update golden file %s", goldenFile)
-	} else {
-		assert.Equal(t, string(wantSchema), got, "The test output doesn't match the expected output in %s. If this was intentional, run mage updateTestfiles to fix the tests.", goldenFile)
-	}
+	test.CompareGoldenFile(t, "testdata/porter-config.yaml", string(b))
 }

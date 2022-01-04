@@ -22,6 +22,7 @@ operator
 installer/manifests/operator.yaml
 
 # editor and IDE paraphernalia
+.env
 .idea
 *.swp
 *.swo

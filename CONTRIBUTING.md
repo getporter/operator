@@ -78,12 +78,13 @@ This will build an agent for you named localhost:5000/porter-agent:canary-dev an
 it to the local registry running on the test cluster you have set up for the operator.
 
 Then set the PORTER_AGENT_REPOSITORY and PORTER_AGENT_VERSION environment variables and
-deploy the operator to your test cluster:
+then use the SetupNamespace target to configure your Kubernetes namespace with a custom
+AgentConfig that uses your local build:
 
 ```
 export PORTER_AGENT_REPOSITORY=localhost:5000/porter-agent
 export PORTER_AGENT_VERSION=canary-dev
-mage deploy
+mage SetupNamespace test
 ```
 
 
@@ -96,7 +97,7 @@ mage bump SAMPLE
 ```
 
 This mage target handles running `porter installation apply` for you and sets an annotation to force the installation to be reconciled.
-You can do this manually by following the instructions at [Apply an Installation](/README.md#apply-an-installation).
+You can do this manually by following the instructions at [Retry the last operation](https://release-v1.porter.sh/operator/quickstart/#retry-the-last-operation).
 
 For example, to apply [config/samples/porter-hello.yaml](/config/samples]/porter-hello.yaml), run command below.
 If the installation does not already exist, it will be created

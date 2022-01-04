@@ -8,6 +8,7 @@ spec:
   schemaVersion: 1.0.0
   namespace: operator
   name: hello
+  active: true
   bundle:
     repository: getporter/porter-hello
     version: 0.1.1
