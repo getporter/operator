@@ -8,7 +8,6 @@ spec:
   schemaVersion: 1.0.0
   namespace: operator
   name: kubeflow
-  active: true
   bundle:
     repository: ghcr.io/squillace/aks-kubeflow-msi
     version: 0.1.7

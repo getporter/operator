@@ -18,7 +18,6 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 		SchemaVersion: "1.0.0",
 		Name:          "mybuns",
 		Namespace:     "dev",
-		Active:        true,
 		Bundle: OCIReferenceParts{
 			Repository: "getporter/porter-hello",
 			Version:    "0.1.0",

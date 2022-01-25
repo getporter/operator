@@ -4,10 +4,6 @@ go 1.17
 
 // These replace  statements should be kept in sync with the ones in Porter's go.mod
 replace (
-	// fix-local-registry
-	// https://github.com/getporter/porter/pull/1866
-	get.porter.sh/porter => github.com/carolynvs/porter v1.0.0-alpha.6.0.20220119140641-63a9f6b0a522
-
 	// Use Porter's cnab-go
 	github.com/cnabio/cnab-go => github.com/carolynvs/cnab-go v0.20.2-0.20210805155536-9a543e0636f4
 
@@ -28,7 +24,7 @@ replace (
 )
 
 require (
-	get.porter.sh/porter v1.0.0-alpha.7
+	get.porter.sh/porter v1.0.0-alpha.7.0.20220125144534-fb15bd907135
 	github.com/carolynvs/magex v0.6.0
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0

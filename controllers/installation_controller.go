@@ -228,8 +228,8 @@ func (r *InstallationReconciler) uninstallInstallation(ctx context.Context, log 
 	}
 
 	// Mark the document for deletion before giving it to Porter
-	log.V(Log5Trace).Info("Setting active=false to uninstall the bundle")
-	inst.Spec.Active = false
+	log.V(Log5Trace).Info("Setting uninstalled=true to uninstall the bundle")
+	inst.Spec.Uninstalled = true
 
 	return r.runPorter(ctx, log, inst, "installation", "apply", "/porter-config/installation.yaml")
 }

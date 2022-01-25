@@ -48,9 +48,10 @@ type InstallationSpec struct {
 	// Namespace (in Porter) where the installation is defined.
 	Namespace string `json:"namespace" yaml:"namespace"`
 
-	// Active specifies if the bundle should be installed.
-	Active bool `json:"active" yaml:"active"`
+	// Uninstalled specifies if the installation should be uninstalled.
+	Uninstalled bool `json:"uninstalled,omitempty" yaml:"uninstalled,omitempty"`
 
+	// Bundle definition for the installation.
 	Bundle OCIReferenceParts `json:"bundle" yaml:"bundle"`
 
 	// Labels applied to the installation.

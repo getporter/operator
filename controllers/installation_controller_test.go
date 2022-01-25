@@ -330,8 +330,7 @@ func Test_Reconcile(t *testing.T) {
 
 	testdata := []client.Object{
 		&porterv1.Installation{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mybuns", Generation: 1},
-			Spec:       porterv1.InstallationSpec{Active: true}},
+			ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "mybuns", Generation: 1}},
 	}
 	controller := setupTestController(testdata...)
 
@@ -475,7 +474,6 @@ func Test_createAgentVolume(t *testing.T) {
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
-			Active: true,
 			Bundle: porterv1.OCIReferenceParts{Repository: "getporter/porter-hello", Version: "0.1.1"},
 		},
 	}
@@ -515,7 +513,6 @@ func Test_createAgentSecret(t *testing.T) {
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
-			Active: true,
 			Bundle: porterv1.OCIReferenceParts{Repository: "getporter/porter-hello", Version: "0.1.1"},
 		},
 	}
@@ -551,7 +548,6 @@ func Test_createAgentJob(t *testing.T) {
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
-			Active: true,
 			Bundle: porterv1.OCIReferenceParts{Repository: "getporter/porter-hello", Version: "0.1.1"},
 		},
 	}

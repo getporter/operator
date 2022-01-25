@@ -8,7 +8,6 @@ spec:
   schemaVersion: 1.0.0
   namespace: operator
   name: mellama
-  active: true
   bundle:
     repository: getporter/hello-llama
     version: 0.1.1

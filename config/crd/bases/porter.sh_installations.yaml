@@ -39,9 +39,6 @@ spec:
               to Kubernetes. * The yaml serialization is for creating a Porter representation
               of the resource."
             properties:
-              active:
-                description: Active specifies if the bundle should be installed.
-                type: boolean
               agentConfig:
                 description: AgentConfig is the name of an AgentConfig to use instead
                   of the AgentConfig defined at the namespace or system level.
@@ -52,6 +49,7 @@ spec:
                     type: string
                 type: object
               bundle:
+                description: Bundle definition for the installation.
                 properties:
                   digest:
                     description: Digest is the current digest of the bundle.
@@ -110,8 +108,10 @@ spec:
                 description: SchemaVersion is the version of the installation state
                   schema.
                 type: string
+              uninstalled:
+                description: Uninstalled specifies if the installation should be uninstalled.
+                type: boolean
             required:
-            - active
             - bundle
             - name
             - namespace
