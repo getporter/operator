@@ -160,16 +160,16 @@ const (
 type InstallationConditionType string
 
 const (
-	// RunScheduled means that the Porter run has been scheduled.
+	// ConditionScheduled means that the Porter run has been scheduled.
 	ConditionScheduled InstallationConditionType = "Scheduled"
 
-	// RunStarted means that the Porter run has started.
+	// ConditionStarted means that the Porter run has started.
 	ConditionStarted InstallationConditionType = "Started"
 
-	// RunComplete means the Porter run has completed successfully.
+	// ConditionComplete means the Porter run has completed successfully.
 	ConditionComplete InstallationConditionType = "Completed"
 
-	// RunFailed means the Porter run failed.
+	// ConditionFailed means the Porter run failed.
 	ConditionFailed InstallationConditionType = "Failed"
 )
 
@@ -185,7 +185,7 @@ type Installation struct {
 	Status InstallationStatus `json:"status,omitempty"`
 }
 
-// BuidRetryLabel returns a value that is safe to use
+// GetRetryLabelValue returns a value that is safe to use
 // as a label value and represents the retry annotation used
 // to trigger reconciliation. Annotations don't have limits on
 // the value, but labels are restricted to alphanumeric and .-_
