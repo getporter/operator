@@ -21,7 +21,8 @@ type AgentConfigSpec struct {
 	PorterRepository string `json:"porterRepository,omitempty" mapstructure:"porterRepository,omitempty"`
 
 	// PorterVersion is the tag for the Porter Agent image.
-	// Defaults to latest.
+	// Defaults to a well-known version of the agent that has been tested with the operator.
+	// Users SHOULD override this to use more recent versions.
 	PorterVersion string `json:"porterVersion,omitempty" mapstructure:"porterVersion,omitempty"`
 
 	// ServiceAccount is the service account to run the Porter Agent under.
@@ -50,7 +51,10 @@ type AgentConfigSpec struct {
 func (c AgentConfigSpec) GetPorterImage() string {
 	version := c.PorterVersion
 	if version == "" {
-		version = "latest"
+		// We don't use a mutable tag like latest, or canary because it's a bad practice that we don't want to encourage.
+		// As we test out the operator with new versions of Porter, keep this value up-to-date so that the default
+		// version is guaranteed to work.
+		version = "v1.0.0-alpha.8"
 	}
 	repo := c.PorterRepository
 	if repo == "" {

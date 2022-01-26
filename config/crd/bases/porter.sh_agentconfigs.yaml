@@ -51,7 +51,9 @@ spec:
                 type: string
               porterVersion:
                 description: PorterVersion is the tag for the Porter Agent image.
-                  Defaults to latest.
+                  Defaults to a well-known version of the agent that has been tested
+                  with the operator. Users SHOULD override this to use more recent
+                  versions.
                 type: string
               pullPolicy:
                 description: PullPolicy specifies when to pull the Porter Agent image.

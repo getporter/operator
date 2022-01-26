@@ -31,7 +31,7 @@ the following fields are supported:
 
 The Porter Agent is a Kubernetes job that executes the porter CLI when an [installation resource](#installation) is modified.
 The agent is a Docker image with the porter CLI installed, and a custom entry point to assist with applying the Porter [configuration file].
-By default, the job uses the getporter/porter-agent:latest image.
+
 The AgentConfig CRD represents the configuration that the operator should use when executing Porter on Kubernetes, which is known as the Porter agent.
 
 A default AgentConfig is generated for you by the **configureNamespace** custom action of the porter-operator bundle.
@@ -45,7 +45,7 @@ metadata:
   name: customAgent
 spec:
   porterRepository: ghcr.io/getporter/porter-agent
-  porterVersion: canary
+  porterVersion: v1.0.0-alpha.8
   serviceAccount: porter-agent
   volumeSize: 64Mi
   pullPolicy: Always
@@ -63,7 +63,7 @@ Values are merged from all resolved AgentConfig resources, so that you can defin
 | Field        | Required    | Default | Description |
 | -----------  | ----------- | ------- | ----------- |
 | porterRepository  | false  | ghcr.io/getporter/porter-agent | The repository for the Porter Agent image. |
-| porterVersion | false      | latest  | The tag for the Porter Agent image. For example, vX.Y.Z, latest, or canary.  |
+| porterVersion | false      | varies  | The tag for the Porter Agent image. For example, vX.Y.Z, latest, or canary. Defaults to the most recent version of porter that has been tested with the operator.  |
 | serviceAccount | true | (none) | The service account to run the Porter Agent under. Must exist in the same namespace as the installation. |
 | installationServiceAccount | false | (none) | The service account to run the Kubernetes pod/job for the installation image. |
 | volumeSize | false | 64Mi | The size of the persistent volume that Porter will request when running the Porter Agent. It is used to share data between the Porter Agent and the bundle invocation image. It must be large enough to store any files used by the bundle including credentials, parameters and outputs. |
