@@ -1,3 +1,4 @@
+//go:build mage
 // +build mage
 
 // This is a magefile, and is a "makefile for go".
@@ -17,6 +18,8 @@ import (
 
 	. "get.porter.sh/operator/mage"
 	"get.porter.sh/operator/mage/docker"
+	. "get.porter.sh/porter/mage/docker"
+	"get.porter.sh/porter/mage/releases"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/pkg/archive"
@@ -96,7 +99,7 @@ func Build() {
 func BuildController() {
 	mg.SerialDeps(EnsureControllerGen, GenerateController)
 
-	LoadMetadatda()
+	releases.LoadMetadata()
 
 	must.RunV("go", "build", "-o", "bin/manager", "main.go")
 }
@@ -111,7 +114,7 @@ func BuildBundle() {
 
 	buildManifests()
 
-	meta := LoadMetadatda()
+	meta := releases.LoadMetadata()
 	version := strings.TrimPrefix(meta.Version, "v")
 	porter("build", "--version", version, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
 }
@@ -119,7 +122,7 @@ func BuildBundle() {
 // Build the controller image
 func BuildImages() {
 	mg.Deps(BuildController)
-	meta := LoadMetadatda()
+	meta := releases.LoadMetadata()
 	img := Env.ControllerImagePrefix + meta.Version
 	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
 
@@ -173,7 +176,7 @@ func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
 	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
 
-	meta := LoadMetadatda()
+	meta := releases.LoadMetadata()
 	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
@@ -197,7 +200,7 @@ func buildManifests() {
 
 func resolveControllerImage() string {
 	fmt.Println("Using environment", Env.Name)
-	meta := LoadMetadatda()
+	meta := releases.LoadMetadata()
 	img := Env.ControllerImagePrefix + meta.Version
 
 	imgDef, err := must.Output("docker", "image", "inspect", img)
@@ -245,11 +248,13 @@ func EnsureDeployed() {
 func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster)
 
+	meta := releases.LoadMetadata()
 	PublishLocalPorterAgent()
 	PublishBundle()
 
 	porter("credentials", "apply", "hack/creds.yaml", "-n=operator", "--debug", "--debug-plugins").Must().RunV()
-	porter("install", "operator", "-r=localhost:5000/porter-operator:canary", "-c=kind", "--force", "-n=operator").Must().RunV()
+	bundleRef := Env.BundlePrefix + meta.Version
+	porter("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {
@@ -272,7 +277,7 @@ func isDeployed() bool {
 // Push the operator image.
 func PublishImages() {
 	mg.Deps(BuildImages)
-	meta := LoadMetadatda()
+	meta := releases.LoadMetadata()
 	img := Env.ControllerImagePrefix + meta.Version
 	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
 
@@ -317,13 +322,14 @@ func Bump(sample string) {
 	dataB, err := ioutil.ReadFile(sampleFile)
 	mgx.Must(errors.Wrapf(err, "error reading installation definition %s", sampleFile))
 
-	retryCountField := ".metadata.annotations.retry"
-
-	crd, _ := must.Command("yq", "eval", fmt.Sprintf("%s = %q", retryCountField, time.Now().String()), "-").
+	updateRetry := fmt.Sprintf(`.metadata.annotations."porter.sh/retry" = "%s"`, time.Now().Format(time.RFC3339))
+	crd, _ := must.Command("yq", "eval", updateRetry, "-").
 		Stdin(bytes.NewReader(dataB)).OutputE()
 
 	log.Println(crd)
 	kubectl("apply", "--namespace", testNamespace, "-f", "-").Stdin(strings.NewReader(crd)).RunV()
+
+	setClusterNamespace(testNamespace)
 }
 
 // Ensures that a namespace named "test" exists.
@@ -347,10 +353,6 @@ func namespaceExists(name string) bool {
 // Configures the namespace for use with the operator.
 func SetupNamespace(name string) {
 	mg.Deps(EnsureTestCluster)
-
-	if namespaceExists(name) {
-		kubectl("delete", "ns", name, "--wait=true").RunS()
-	}
 
 	// Only specify the parameter set we have the env vars set
 	// It would be neat if Porter could handle this for us

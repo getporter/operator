@@ -13,13 +13,6 @@ rules:
   verbs:
   - create
   - delete
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - create
-  - delete
   - get
   - list
   - patch
@@ -34,6 +27,8 @@ rules:
   - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - batch
@@ -76,6 +71,7 @@ rules:
   resources:
   - installations/finalizers
   verbs:
+  - patch
   - update
 - apiGroups:
   - porter.sh

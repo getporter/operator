@@ -91,14 +91,9 @@ install:
         auth.enabled: false
   - exec:
       description: "Wait for operator deployment to complete"
-      command: kubectl
+      command: ./helpers.sh
       arguments:
-        - rollout
-        - status
-        - deploy/porter-operator-controller-manager
-      flags:
-        namespace: porter-operator-system
-        timeout: 30s
+        - waitForDeployment
 
 upgrade:
   - kubernetes:
@@ -108,14 +103,9 @@ upgrade:
       wait: true
   - exec:
       description: "Wait for operator deployment to complete"
-      command: kubectl
+      command: ./helpers.sh
       arguments:
-        - rollout
-        - status
-        - deploy/porter-operator-controller-manager
-      flags:
-        namespace: porter-operator-system
-        timeout: 30s
+        - waitForDeployment
 
 # TODO: Add a test action that runs a test bundle to check if everything is configured properly
 

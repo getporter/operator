@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 package controllers_test
@@ -10,7 +11,6 @@ import (
 	apiv1 "get.porter.sh/operator/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
@@ -26,7 +26,7 @@ var _ = Describe("Installation controller", func() {
 	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
 		InstallationName        = "porter-hello"
-		AffinityMatchLabelValue = "porter.sh/resourceKind=Installation porter.sh/resourceName=" + InstallationName + " porter.sh/resourceVersion="
+		AffinityMatchLabelValue = "porter.sh/resourceKind=Installation porter.sh/resourceName=" + InstallationName + " porter.sh/resourceGeneration=1"
 	)
 
 	Context("When working with Porter", func() {
@@ -57,33 +57,7 @@ var _ = Describe("Installation controller", func() {
 
 			// Wait for the job to be created
 			jobs := waitForJobStarted(ctx)
-
-			expectedLabelsMatcher := gstruct.MatchKeys(gstruct.IgnoreExtras, gstruct.Keys{
-				"porter.sh/managed":         Equal("true"),
-				"porter.sh/resourceKind":    Equal("Installation"),
-				"porter.sh/resourceName":    Equal(InstallationName),
-				"porter.sh/resourceVersion": Equal(inst.ObjectMeta.ResourceVersion),
-			})
-
 			job := jobs.Items[0]
-
-			Expect(job.Labels).Should(expectedLabelsMatcher)
-
-			Expect(job.Spec.Template.Labels).Should(expectedLabelsMatcher)
-
-			Expect(job.Spec.Template.Spec.Containers).Should(HaveLen(1))
-
-			container := job.Spec.Template.Spec.Containers[0]
-			Expect(container.Args).Should(Equal([]string{"installation", "apply", "/porter-config/installation.yaml"}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "PORTER_RUNTIME_DRIVER", Value: "kubernetes"}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "KUBE_NAMESPACE", Value: testNamespace}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "IN_CLUSTER", Value: "true"}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "SERVICE_ACCOUNT", Value: "installation-agent"}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "JOB_VOLUME_NAME", Value: job.Name}))
-			Expect(container.Env).Should(ContainElement(corev1.EnvVar{Name: "AFFINITY_MATCH_LABELS", Value: fmt.Sprintf("%s%s", AffinityMatchLabelValue, inst.ObjectMeta.ResourceVersion)}))
-
-			Expect(job.Spec.Template.Spec.Volumes).Should(ContainElement(IsVolume("porter-config")))
-			Expect(container.VolumeMounts).Should(ContainElement(IsVolumeMount("porter-config")))
 
 			// Validate that the job succeeded
 			job = waitForJobFinished(ctx, job)

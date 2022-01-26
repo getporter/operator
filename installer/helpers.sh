@@ -42,6 +42,15 @@ configureNamespace() {
   echo "Namespace $NAMESPACE is ready to use with the Porter Operator"
 }
 
+waitForDeployment() {
+  set +e # allow this next command to fail
+  kubectl rollout status deploy/porter-operator-controller-manager --namespace porter-operator-system --timeout 30s
+  if [[ $? != 0 ]]; then
+    echo "Deployment failed, retrieving logs to troubleshoot"
+    kubectl logs deploy/porter-operator-controller-manager --namespace porter-operator-system -c manager
+  fi
+}
+
 removeData() {
   filter="porter.sh/generator=porter-operator-bundle"
   # This should get anything made by the bundle

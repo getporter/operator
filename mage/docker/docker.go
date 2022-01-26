@@ -6,6 +6,7 @@ import (
 )
 
 func ExtractRepoDigest(inspectOutput string) (string, error) {
+	// TODO: move this into get.porter.sh/porter/mage/docker
 	var imgDefRaw []map[string]interface{}
 	if err := json.Unmarshal([]byte(inspectOutput), &imgDefRaw); err != nil {
 		return "", err
