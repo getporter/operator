@@ -24,7 +24,7 @@ replace (
 )
 
 require (
-	get.porter.sh/porter v1.0.0-alpha.7.0.20220125144534-fb15bd907135
+	get.porter.sh/porter v1.0.0-alpha.8
 	github.com/carolynvs/magex v0.6.0
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
