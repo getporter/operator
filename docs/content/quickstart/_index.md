@@ -193,10 +193,6 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
      Digest: sha256:22cdfad0756c9ce1a8f4694b0411440dfab99fa2e07125ff78efe555dd63d73e
    ```
 
-## Uninstall a bundle
-
-This isn't supported yet. Once it's implemented, uninstall is triggered when the CRD is deleted.
-
 ## Retry the last operation
 
 If your bundle operation failed, you can run it again by changing the `porter.sh/retry` annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
@@ -212,6 +208,72 @@ metadata:
 
 Each time you need to repeat the operation without changing the spec, change the annotation value to a different value.
 A good strategy is to set the retry annotation to the current timestamp to generate a unique value.
+
+## Uninstall a bundle
+
+There are two methods for uninstalling a bundle:
+1. Delete the installation resource with `kubectl delete installation NAME`.
+2. Set uninstalled=true on the installation spec.
+
+Setting a flag on the installation is useful when you want to preserve a record of the installation in Kubernetes.
+With either method, a record is preserved in Porter's database.
+Let's walk through the second method in detail.
+
+1. Edit llama.yaml and add `uninstalled: true` under the spec:
+   ```yaml
+    apiVersion: porter.sh/v1
+    kind: Installation
+    metadata:
+      name: hello-llama
+      namespace: quickstart
+    spec:
+      uninstalled: true
+      schemaVersion: 1.0.0
+      namespace: quickstart
+      name: mellama
+      # Contents truncated because they aren't relevant to uninstall
+    ```
+1. Apply the updated installation resource:
+   ```
+   kubectl apply -f llama.yaml
+   ```
+1. The operator will detect that the parameter has changed, and run porter upgrade.
+    Again, use `kubectl get pods -n quickstart --watch` to wait for Porter Agent to finish executing the uninstall-mellama-* job.
+    ```console
+    $ kubectl get pods -n quickstart --watch
+    NAME                          READY   STATUS      RESTARTS   AGE
+    hello-llama-7245-hhcq4         0/1     Completed   0          18m
+    hello-llama-9550-sms74         0/1     Completed   0          3m12s
+    hello-llama-29rxx-257sm        0/1     Completed   0          1m20s
+    install-mellama-g769d-nzqsn    0/1     Completed   0          17m
+    upgrade-mellama-2d6rg-4kc9z    0/1     Completed   0          3m2s
+    uninstall-mellama-31866-jxclw  0/1     Completed   0          43s
+    ```
+1. Let's run `porter show mellama` to see more details about the installation. Note that the last action in the status section is "uninstall".
+    ```console
+    $ porter show mellama
+    Name: mellama
+    Namespace: quickstart
+    Created: 16 minutes ago
+    Modified: 10 seconds ago
+
+    Bundle:
+     Repository: getporter/hello-llama
+     Version: 0.1.1
+
+    Parameters:
+    -----------------------
+    Name  Type    Value
+    -----------------------
+    name  string  Grogu
+
+    Status:
+     Reference: getporter/hello-llama:v0.1.1
+     Version: 0.1.1
+     Last Action: uninstall
+     Status: succeeded
+     Digest: sha256:22cdfad0756c9ce1a8f4694b0411440dfab99fa2e07125ff78efe555dd63d73e
+    ```
 
 ## Next Steps
 
