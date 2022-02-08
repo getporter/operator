@@ -505,6 +505,12 @@ func (r *InstallationReconciler) createAgentJob(ctx context.Context, log logr.Lo
 					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
 					ServiceAccountName: agentCfg.ServiceAccount,
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
+					// Mount the volumes used by this pod as the nonroot user
+					// Porter's agent doesn't run as root and won't have access to files on the volume
+					// otherwise.
+					SecurityContext: &corev1.PodSecurityContext{
+						FSGroup: pointer.Int64Ptr(65532),
+					},
 				},
 			},
 		},
