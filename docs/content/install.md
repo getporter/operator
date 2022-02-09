@@ -3,7 +3,7 @@ title: Install the Porter Operator
 description: Get up and running with the Porter Operator
 ---
 
-If you aren't already familiar with Porter, we recommend that you [install the Porter v1 prerelease] first and then once you are comfortable, learn how to automate Porter with the operator.
+If you aren't already familiar with Porter, we recommend that you install and use [Porter v1.0.0-alpha.9][install-porter] first and then once you are comfortable, learn how to automate Porter with the operator.
 
 The commands below use the v0.3.0 release, but there may be a more recent release of the Operator.
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
@@ -15,8 +15,8 @@ First, use explain to see what credentials and parameters you can use when insta
 $ porter explain -r ghcr.io/getporter/porter-operator:v0.3.0
 Name: porter-operator
 Description: The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster.
-Version: 1.0.0-alpha.1
-Porter Version: v1.0.0-alpha.5
+Version: v0.3.0
+Porter Version: v1.0.0-alpha.9
 
 Credentials:
 Name         Description                                                          Required   Applies To
@@ -106,5 +106,5 @@ The bundle also has parameters defined that control how the [Porter Agent] is co
 You can use the porter CLI to query and interact with installations created by the operator.
 Follow the instructions in [Connect to the in-cluster mongo database][connect] to point porter at the Mongodb server that was installed with the operator.
 
-[install the Porter v1 prerelease]: /install/#v1-prerelease
+[install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
 [Porter Agent]: /operator/file-formats/#agent-config

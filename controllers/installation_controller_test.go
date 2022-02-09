@@ -591,6 +591,9 @@ func Test_createAgentJob(t *testing.T) {
 	assert.Equal(t, "porter-shared", podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
 	assert.Equal(t, "porter-config", podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
+	assert.NotNil(t, podTemplate.Spec.SecurityContext, "incorrect pod security context")
+	nonroot := pointer.Int64Ptr(65532)
+	assert.Equal(t, nonroot, podTemplate.Spec.SecurityContext.FSGroup, "we should mount the pod volumes as the nonroot user")
 
 	// Verify the agent container
 	agentContainer := podTemplate.Spec.Containers[0]
