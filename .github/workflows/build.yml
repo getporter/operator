@@ -22,7 +22,7 @@ jobs:
       - name: Setup Porter
         uses: getporter/gh-action@v0.1.3
         with:
-          porter_version: v1.0.0-alpha.8
+          porter_version: v1.0.0-alpha.12
       - name: Set up Mage
         run: go run mage.go EnsureMage
       - name: Test
@@ -48,4 +48,4 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: mage -v Publish
         env:
-          ENV: production
+          PORTER_ENV: production

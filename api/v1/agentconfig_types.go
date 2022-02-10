@@ -54,7 +54,7 @@ func (c AgentConfigSpec) GetPorterImage() string {
 		// We don't use a mutable tag like latest, or canary because it's a bad practice that we don't want to encourage.
 		// As we test out the operator with new versions of Porter, keep this value up-to-date so that the default
 		// version is guaranteed to work.
-		version = "v1.0.0-alpha.8"
+		version = "v1.0.0-alpha.12"
 	}
 	repo := c.PorterRepository
 	if repo == "" {

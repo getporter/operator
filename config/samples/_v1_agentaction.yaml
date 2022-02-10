@@ -1,0 +1,9 @@
+apiVersion: porter.sh/v1
+kind: AgentAction
+metadata:
+  name: agentaction-sample
+spec:
+  args: ["installation", "apply", "installation.yaml"]
+  files:
+    # base64 encoded file contents
+    installation.yaml: c2NoZW1hVmVyc2lvbjogMS4wLjAKbmFtZXNwYWNlOiBvcGVyYXRvcgpuYW1lOiBoZWxsbwpidW5kbGU6CiAgcmVwb3NpdG9yeTogZ2hjci5pby9nZXRwb3J0ZXIvdGVzdC9wb3J0ZXItaGVsbG8KICB2ZXJzaW9uOiAwLjIuMApwYXJhbWV0ZXJzOgogIG5hbWU6IGxsYW1hcyAK

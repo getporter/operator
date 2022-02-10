@@ -19,8 +19,8 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 		Name:          "mybuns",
 		Namespace:     "dev",
 		Bundle: OCIReferenceParts{
-			Repository: "getporter/porter-hello",
-			Version:    "0.1.0",
+			Repository: "ghcr.io/getporter/porter-hello",
+			Version:    "0.1.1",
 		},
 		Parameters: runtime.RawExtension{
 			Raw: []byte(`{"name":"Porter Operator"}`),
@@ -35,11 +35,13 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 
 func TestInstallationStatus_Initialize(t *testing.T) {
 	s := &InstallationStatus{
-		ObservedGeneration: 2,
-		ActiveJob:          &corev1.LocalObjectReference{Name: "somejob"},
-		Phase:              PhaseSucceeded,
-		Conditions: []metav1.Condition{
-			{Type: string(ConditionComplete), Status: metav1.ConditionTrue},
+		PorterResourceStatus: PorterResourceStatus{
+			ObservedGeneration: 2,
+			Action:             &corev1.LocalObjectReference{Name: "something"},
+			Phase:              PhaseSucceeded,
+			Conditions: []metav1.Condition{
+				{Type: string(ConditionComplete), Status: metav1.ConditionTrue},
+			},
 		},
 	}
 
@@ -47,6 +49,12 @@ func TestInstallationStatus_Initialize(t *testing.T) {
 
 	assert.Equal(t, int64(2), s.ObservedGeneration, "ObservedGeneration should not be reset")
 	assert.Empty(t, s.Conditions, "Conditions should be empty")
-	assert.Nil(t, s.ActiveJob, "ActiveJob should be nil")
+	assert.Nil(t, s.Action, "Active should be nil")
 	assert.Equal(t, PhaseUnknown, s.Phase, "Phase should reset to Unknown")
+}
+
+func TestInstallation_SetRetryAnnotation(t *testing.T) {
+	inst := Installation{}
+	inst.SetRetryAnnotation("retry-1")
+	assert.Equal(t, "retry-1", inst.Annotations[AnnotationRetry])
 }

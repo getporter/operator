@@ -2,29 +2,10 @@ module get.porter.sh/operator
 
 go 1.17
 
-// These replace  statements should be kept in sync with the ones in Porter's go.mod
-replace (
-	// Use Porter's cnab-go
-	github.com/cnabio/cnab-go => github.com/carolynvs/cnab-go v0.20.2-0.20210805155536-9a543e0636f4
-
-	// return-digest
-	github.com/cnabio/cnab-to-oci => github.com/carolynvs/cnab-to-oci v0.3.0-beta4.0.20210812163007-0766f78b7ee1
-
-	// See https://github.com/hashicorp/go-plugin/pull/127 and
-	// https://github.com/hashicorp/go-plugin/pull/163
-	// Also includes a branch we haven't PR'd yet: capture-yamux-logs
-	// Tagged from v1.4.0, the improved-configuration branch
-	github.com/hashicorp/go-plugin => github.com/getporter/go-plugin v1.4.0-improved-configuration.1
-
-	// go.mod doesn't propogate replacements in the dependency graph so I'm copying this from github.com/moby/buildkit
-	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
-
-	// Fixes https://github.com/spf13/viper/issues/761
-	github.com/spf13/viper => github.com/getporter/viper v1.7.1-porter.2.0.20210514172839-3ea827168363
-)
+// Any replace  statements should be kept in sync with the ones in Porter's go.mod
 
 require (
-	get.porter.sh/porter v1.0.0-alpha.8
+	get.porter.sh/porter v1.0.0-alpha.12
 	github.com/carolynvs/magex v0.6.1
 	github.com/go-logr/logr v0.3.0
 	github.com/magefile/mage v1.11.0
@@ -60,13 +41,13 @@ require (
 	github.com/carolynvs/aferox v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
-	github.com/cnabio/cnab-go v0.21.0 // indirect
+	github.com/cnabio/cnab-go v0.23.0 // indirect
 	github.com/cnabio/cnab-to-oci v0.3.1-beta1.0.20210614060230-e4d2bd5441c8 // indirect
 	github.com/containerd/containerd v1.5.3 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20210303052042-6bc126869bf4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.7+incompatible // indirect
-	github.com/docker/distribution v2.7.1+incompatible // indirect
+	github.com/docker/distribution v2.8.0+incompatible // indirect
 	github.com/docker/docker v20.10.7+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect

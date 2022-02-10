@@ -12,7 +12,7 @@ import (
 func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Equal(t, "ghcr.io/getporter/porter-agent:v1.0.0-alpha.8", c.GetPorterImage())
+		assert.Equal(t, "ghcr.io/getporter/porter-agent:v1.0.0-alpha.12", c.GetPorterImage())
 	})
 
 	t.Run("porter version set", func(t *testing.T) {
@@ -23,7 +23,7 @@ func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 	t.Run("porter repository set", func(t *testing.T) {
 		// Test if someone has mirrored porter's agent to another registry
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter"}
-		assert.Equal(t, "localhost:5000/myporter:v1.0.0-alpha.8", c.GetPorterImage())
+		assert.Equal(t, "localhost:5000/myporter:v1.0.0-alpha.12", c.GetPorterImage())
 	})
 
 	t.Run("porter repository and version set", func(t *testing.T) {

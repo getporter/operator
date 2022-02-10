@@ -65,7 +65,7 @@ parameters:
 credentials:
   - name: kubeconfig
     description: Kubeconfig file for cluster where the operator should be installed
-    path: /root/.kube/config
+    path: /home/nonroot/.kube/config
 
 mixins:
   - exec
