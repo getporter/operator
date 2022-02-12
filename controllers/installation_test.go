@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	apiv1 "get.porter.sh/operator/api/v1"
+	porterv1 "get.porter.sh/operator/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	gomegatypes "github.com/onsi/gomega/types"
@@ -16,6 +16,7 @@ import (
 	"github.com/tidwall/pretty"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +35,7 @@ var _ = Describe("Installation controller", func() {
 			By("By creating a new Installation")
 			ctx := context.Background()
 
-			inst := &apiv1.Installation{
+			inst := &porterv1.Installation{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "porter.sh/v1",
 					Kind:       "Installation",
@@ -43,11 +44,11 @@ var _ = Describe("Installation controller", func() {
 					Name:      InstallationName,
 					Namespace: testNamespace,
 				},
-				Spec: apiv1.InstallationSpec{
+				Spec: porterv1.InstallationSpec{
 					SchemaVersion: "1.0.0",
 					Name:          "hello",
 					Namespace:     "operator-tests",
-					Bundle: apiv1.OCIReferenceParts{
+					Bundle: porterv1.OCIReferenceParts{
 						Repository: "getporter/porter-hello",
 						Version:    "0.1.1",
 					},
@@ -75,6 +76,13 @@ var _ = Describe("Installation controller", func() {
 				}
 				Fail("The job was not successful")
 			}
+
+			// Validate that the installation status was updated
+			instName := types.NamespacedName{Namespace: inst.Namespace, Name: inst.Name}
+			Expect(k8sClient.Get(ctx, instName, inst)).To(Succeed())
+			Expect(apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionScheduled)))
+			Expect(apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionStarted)))
+			Expect(apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionComplete)))
 		})
 	})
 })

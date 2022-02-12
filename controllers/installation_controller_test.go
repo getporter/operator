@@ -16,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/pointer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -308,9 +310,8 @@ func Test_installationChanged_Update(t *testing.T) {
 
 func setupTestController(objs ...client.Object) InstallationReconciler {
 	scheme := runtime.NewScheme()
-	porterv1.AddToScheme(scheme)
-	batchv1.AddToScheme(scheme)
-	corev1.AddToScheme(scheme)
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(porterv1.AddToScheme(scheme))
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)
@@ -320,6 +321,7 @@ func setupTestController(objs ...client.Object) InstallationReconciler {
 	return InstallationReconciler{
 		Log:    logr.Discard(),
 		Client: fakeClient,
+		Scheme: scheme,
 	}
 }
 
@@ -574,6 +576,7 @@ func Test_createAgentJob(t *testing.T) {
 		Kind:               "Installation",
 		Name:               "porter-hello",
 		UID:                "random-uid",
+		Controller:         pointer.BoolPtr(true),
 		BlockOwnerDeletion: pointer.BoolPtr(true),
 	}
 	assert.Equal(t, wantOwnerRef, job.OwnerReferences[0], "incorrect owner reference")

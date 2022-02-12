@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -58,14 +59,8 @@ type InstallationReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// We want reconcile called on an installation when the job that it spawned finishes
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, ".metadata.controller", getOwner); err != nil {
-		return err
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&porterv1.Installation{}).
-		WithEventFilter(installationChanged{}).
+		For(&porterv1.Installation{}, builder.WithPredicates(installationChanged{})).
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
@@ -123,7 +118,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{Requeue: false}, err
 	}
 
-	log.WithValues("resourceVersion", inst.ResourceVersion, "generation", inst.Generation)
+	log = log.WithValues("resourceVersion", inst.ResourceVersion, "generation", inst.Generation)
 	log.V(Log5Trace).Info("Reconciling installation")
 
 	// Check if we have scheduled a job for this change yet
@@ -263,7 +258,7 @@ func (r *InstallationReconciler) runPorter(ctx context.Context, log logr.Logger,
 		return err
 	}
 
-	return r.syncStatus(ctx, log, inst, &job)
+	return r.syncStatus(ctx, log, inst, job)
 }
 
 func getSharedAgentLabels(inst *porterv1.Installation) map[string]string {
@@ -374,7 +369,7 @@ func (r *InstallationReconciler) createAgentSecret(ctx context.Context, log logr
 	return secret, nil
 }
 
-func (r *InstallationReconciler) createAgentJob(ctx context.Context, log logr.Logger, porterCommand []string, inst *porterv1.Installation, agentCfg porterv1.AgentConfigSpec, pvc corev1.PersistentVolumeClaim, secret corev1.Secret) (batchv1.Job, error) {
+func (r *InstallationReconciler) createAgentJob(ctx context.Context, log logr.Logger, porterCommand []string, inst *porterv1.Installation, agentCfg porterv1.AgentConfigSpec, pvc corev1.PersistentVolumeClaim, secret corev1.Secret) (*batchv1.Job, error) {
 	sharedLabels := getSharedAgentLabels(inst)
 
 	// not checking for a job because that happens earlier during reconcile
@@ -388,17 +383,18 @@ func (r *InstallationReconciler) createAgentJob(ctx context.Context, log logr.Lo
 	}
 	sort.Strings(sortedInstallerLabels)
 
-	porterJob := batchv1.Job{
+	porterJob := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: getNamePrefix(inst),
 			Namespace:    inst.Namespace,
 			Labels:       getAgentJobLabels(inst),
 			OwnerReferences: []metav1.OwnerReference{
-				{
+				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
 					APIVersion:         inst.APIVersion,
 					Kind:               inst.Kind,
 					Name:               inst.Name,
 					UID:                inst.UID,
+					Controller:         pointer.BoolPtr(true),
 					BlockOwnerDeletion: pointer.BoolPtr(true),
 				},
 			},
@@ -516,8 +512,8 @@ func (r *InstallationReconciler) createAgentJob(ctx context.Context, log logr.Lo
 		},
 	}
 
-	if err := r.Create(ctx, &porterJob); err != nil {
-		return batchv1.Job{}, errors.Wrap(err, "error creating Porter agent job")
+	if err := r.Create(ctx, porterJob); err != nil {
+		return nil, errors.Wrap(err, "error creating Porter agent job")
 	}
 
 	log.V(Log4Debug).Info("Created Job for the Porter agent", "name", porterJob.Name)
