@@ -460,6 +460,9 @@ func Test_Reconcile(t *testing.T) {
 }
 
 func Test_createAgentVolume(t *testing.T) {
+	testLabels := map[string]string{
+		"testLabel": "abc123",
+	}
 	controller := setupTestController()
 
 	inst := &porterv1.Installation{
@@ -473,6 +476,7 @@ func Test_createAgentVolume(t *testing.T) {
 			Generation:      1,
 			ResourceVersion: "123",
 			UID:             "random-uid",
+			Labels:          testLabels,
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
@@ -496,9 +500,15 @@ func Test_createAgentVolume(t *testing.T) {
 	assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, pvc.Spec.AccessModes, "incorrect pvc access modes")
 	assert.Equal(t, pvc.Spec.Resources.Requests[corev1.ResourceStorage], resource.MustParse("128Mi"))
 	assertSharedAgentLabels(t, pvc.Labels)
+	for k, v := range testLabels {
+		assertContains(t, pvc.Labels, k, v)
+	}
 }
 
 func Test_createAgentSecret(t *testing.T) {
+	testLabels := map[string]string{
+		"testLabel": "abc123",
+	}
 	controller := setupTestController()
 
 	inst := &porterv1.Installation{
@@ -512,6 +522,7 @@ func Test_createAgentSecret(t *testing.T) {
 			Generation:      1,
 			ResourceVersion: "123",
 			UID:             "random-uid",
+			Labels:          testLabels,
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
@@ -530,9 +541,15 @@ func Test_createAgentSecret(t *testing.T) {
 	assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
 	assert.Contains(t, secret.Data, "installation.yaml", "expected the secret to have installation.yaml")
 	assertSharedAgentLabels(t, secret.Labels)
+	for k, v := range testLabels {
+		assertContains(t, secret.Labels, k, v)
+	}
 }
 
 func Test_createAgentJob(t *testing.T) {
+	testLabels := map[string]string{
+		"testLabel": "abc123",
+	}
 	controller := setupTestController()
 
 	cmd := []string{"porter", "installation", "apply", "-f=installation.yaml"}
@@ -547,6 +564,7 @@ func Test_createAgentJob(t *testing.T) {
 			Generation:      1,
 			ResourceVersion: "123",
 			UID:             "random-uid",
+			Labels:          testLabels,
 		},
 		Spec: porterv1.InstallationSpec{
 			Name:   "mybuns",
@@ -581,6 +599,9 @@ func Test_createAgentJob(t *testing.T) {
 	}
 	assert.Equal(t, wantOwnerRef, job.OwnerReferences[0], "incorrect owner reference")
 	assertSharedAgentLabels(t, job.Labels)
+	for k, v := range testLabels {
+		assertContains(t, job.Labels, k, v)
+	}
 	assertContains(t, job.Labels, labelJobType, jobTypeAgent)
 	assert.Equal(t, pointer.Int32Ptr(1), job.Spec.Completions, "incorrect job completions")
 	assert.Equal(t, pointer.Int32Ptr(0), job.Spec.BackoffLimit, "incorrect job back off limit")
@@ -611,7 +632,7 @@ func Test_createAgentJob(t *testing.T) {
 	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", "/porter-shared")
 	assertEnvVar(t, agentContainer.Env, "CLEANUP_JOBS", "false") // this will be configurable in the future
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
-	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=Installation porter.sh/resourceName=porter-hello porter.sh/resourceVersion=123 porter.sh/retry=")
+	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=Installation porter.sh/resourceName=porter-hello porter.sh/resourceVersion=123 porter.sh/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "porter.sh/resourceKind=Installation porter.sh/resourceName=porter-hello porter.sh/resourceGeneration=1 porter.sh/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.BoolPtr(true))
 	assertVolumeMount(t, agentContainer.VolumeMounts, "porter-config", "/porter-config")
