@@ -262,7 +262,7 @@ func (r *InstallationReconciler) runPorter(ctx context.Context, log logr.Logger,
 }
 
 func getSharedAgentLabels(inst *porterv1.Installation) map[string]string {
-	return map[string]string{
+	labels := map[string]string{
 		labelManaged:            "true",
 		labelResourceKind:       "Installation",
 		labelResourceName:       inst.Name,
@@ -270,6 +270,11 @@ func getSharedAgentLabels(inst *porterv1.Installation) map[string]string {
 		labelResourceGeneration: fmt.Sprintf("%d", inst.Generation),
 		labelRetry:              inst.GetRetryLabelValue(),
 	}
+	for k, v := range inst.ObjectMeta.Labels {
+		labels[k] = v
+	}
+
+	return labels
 }
 
 // get the labels that should be applied to the porter agent job
