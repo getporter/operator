@@ -18,10 +18,10 @@ var (
 )
 
 type Environment struct {
-	Name                  string
-	Registry              string
-	ControllerImagePrefix string
-	BundlePrefix          string
+	Name               string
+	Registry           string
+	ManagerImagePrefix string
+	BundlePrefix       string
 }
 
 func getAmbientEnvironment() Environment {
@@ -55,9 +55,9 @@ func GetProductionEnvironment() Environment {
 
 func buildEnvironment(name string, registry string) Environment {
 	return Environment{
-		Name:                  name,
-		Registry:              registry,
-		ControllerImagePrefix: path.Join(registry, "porterops-controller:"),
-		BundlePrefix:          path.Join(registry, "porter-operator:"),
+		Name:               name,
+		Registry:           registry,
+		ManagerImagePrefix: path.Join(registry, "porterops-controller:"),
+		BundlePrefix:       path.Join(registry, "porter-operator:"),
 	}
 }

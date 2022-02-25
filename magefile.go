@@ -20,6 +20,7 @@ import (
 	"get.porter.sh/operator/mage/docker"
 	. "get.porter.sh/porter/mage/docker"
 	"get.porter.sh/porter/mage/releases"
+	"get.porter.sh/porter/pkg/cnab"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/pkg/archive"
@@ -116,15 +117,15 @@ func BuildBundle() {
 
 	meta := releases.LoadMetadata()
 	version := strings.TrimPrefix(meta.Version, "v")
-	porter("build", "--version", version, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
+	porter("build", "--version", version, "-f=porter.yaml").In("installer").Must().RunV()
 }
 
 // Build the controller image
 func BuildImages() {
 	mg.Deps(BuildController)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
-	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+	img := Env.ManagerImagePrefix + meta.Version
+	imgPermalink := Env.ManagerImagePrefix + meta.Permalink
 
 	log.Println("Building", img)
 	must.Command("docker", "build", "-t", img, ".").
@@ -174,18 +175,23 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
+	porter("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
 
 	meta := releases.LoadMetadata()
-	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
+	porter("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
 func buildManifests() {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
-	img := resolveControllerImage()
-	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
+	// Set the image reference in porter.yaml so that the manager image is packaged with the bundle
+	managerRef := resolveManagerImage()
+	mgx.Must(shx.Copy("installer/vanilla.porter.yaml", "installer/porter.yaml"))
+	setRepo := fmt.Sprintf(`.images.manager.repository = "%s"`, managerRef.Repository())
+	must.Command("yq", "eval", setRepo, "-i", "installer/porter.yaml").RunV()
+	setDigest := fmt.Sprintf(`.images.manager.digest = "%s"`, managerRef.Digest())
+	must.Command("yq", "eval", setDigest, "-i", "installer/porter.yaml").RunV()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
@@ -198,20 +204,23 @@ func buildManifests() {
 	kustomize("build", "config/default", "-o", "installer/manifests/operator.yaml").RunV()
 }
 
-func resolveControllerImage() string {
+func resolveManagerImage() cnab.OCIReference {
 	fmt.Println("Using environment", Env.Name)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
+	img := Env.ManagerImagePrefix + meta.Version
 
 	imgDef, err := must.Output("docker", "image", "inspect", img)
 	if err != nil {
-		panic("the controller image has not been built yet")
+		panic("the manager image has not been built yet")
 	}
 	imgWithDigest, err := docker.ExtractRepoDigest(imgDef)
 	if err != nil {
-		panic("could not resolve the repository digest of the controller image")
+		panic("could not resolve the repository digest of the manager image")
 	}
-	return imgWithDigest
+	ref, err := cnab.ParseOCIReference(imgWithDigest)
+	mgx.Must(err)
+
+	return ref
 }
 
 // Run all tests
@@ -278,8 +287,8 @@ func isDeployed() bool {
 func PublishImages() {
 	mg.Deps(BuildImages)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
-	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+	img := Env.ManagerImagePrefix + meta.Version
+	imgPermalink := Env.ManagerImagePrefix + meta.Permalink
 
 	log.Println("Pushing", img)
 	must.RunV("docker", "push", img)

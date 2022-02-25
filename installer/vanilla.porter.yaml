@@ -76,6 +76,12 @@ mixins:
   - kubernetes
 
 install:
+  - exec:
+      description: "Set manager image reference"
+      command: ./helpers.sh
+      arguments:
+        - setControllerImage
+        - "{{bundle.images.manager.repository}}@{{bundle.images.manager.digest}}"
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -96,6 +102,12 @@ install:
         - waitForDeployment
 
 upgrade:
+  - exec:
+      description: "Set manager image reference"
+      command: ./helpers.sh
+      arguments:
+        - setControllerImage
+        - "{{bundle.images.manager.repository}}@{{bundle.images.manager.digest}}"
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -140,3 +152,10 @@ configureNamespace:
       command: ./helpers.sh
       arguments:
         - configureNamespace
+
+images:
+  manager:
+    description: "The porter operator manager"
+    imageType: "docker"
+    repository: "PLACEHOLDER"
+    digest: "PLACEHOLDER"

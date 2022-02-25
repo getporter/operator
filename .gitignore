@@ -20,6 +20,7 @@ operator
 !vendor/**/zz_generated.*
 /manifests.yaml
 installer/manifests/operator.yaml
+installer/porter.yaml
 
 # editor and IDE paraphernalia
 .env
