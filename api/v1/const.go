@@ -1,16 +1,69 @@
 package v1
 
 const (
-	LabelJobType            = Prefix + "jobType"
-	JobTypeAgent            = "porter-agent"
-	JobTypeInstaller        = "bundle-installer"
-	LabelSecretType         = Prefix + "secretType"
-	SecretTypeConfig        = "porter-config"
-	SecretTypeWorkdir       = "workdir"
-	LabelManaged            = Prefix + "managed"
-	LabelResourceKind       = Prefix + "resourceKind"
-	LabelResourceName       = Prefix + "resourceName"
+	// DefaultPorterAgentRepository is the default image repository of the Porter
+	// Agent to use when it is not configured in the operator.
+	DefaultPorterAgentRepository = "ghcr.io/getporter/porter-agent"
+
+	// DefaultPorterAgentVersion is the default version of the Porter Agent to
+	// use when it is not configured in the operator.
+	//
+	// As we test out the operator with new versions of Porter, keep this value
+	// up-to-date so that the default version is guaranteed to work.
+	DefaultPorterAgentVersion = "v1.0.0-alpha.13"
+
+	// LabelJobType is a label applied to jobs created by the operator. It
+	// indicates the purpose of the job.
+	LabelJobType = Prefix + "jobType"
+
+	// JobTypeAgent is the value of job type label applied to the Porter Agent.
+	JobTypeAgent = "porter-agent"
+
+	// JobTypeInstaller is the value of the job type label applied to the job
+	// that runs the bundle.
+	JobTypeInstaller = "bundle-installer"
+
+	// LabelSecretType is a label applied to secrets created by the operator. It
+	// indicates the purpose of the secret.
+	LabelSecretType = Prefix + "secretType"
+
+	// SecretTypeConfig is the value of the secret type label applied to the
+	// secret that contains files to copy into the porter home directory.
+	SecretTypeConfig = "porter-config"
+
+	// SecretTypeWorkdir is the value of the secret type label applied to the
+	// secret that contains files to copy into the working directory of the
+	// Porter Agent.
+	SecretTypeWorkdir = "workdir"
+
+	// LabelManaged is a label applied to resources created by the Porter
+	// Operator.
+	LabelManaged = Prefix + "managed"
+
+	// LabelResourceKind is a label applied to resources created by the Porter
+	// Operator, representing the kind of owning resource. It is used to help the
+	// operator determine if a resource has already been created.
+	LabelResourceKind = Prefix + "resourceKind"
+
+	// LabelResourceName is a label applied to the resources created by the
+	// Porter Operator, representing the name of the owning resource. It is used
+	// to help the operator determine if a resource has
+	// already been created.
+	LabelResourceName = Prefix + "resourceName"
+
+	// LabelResourceGeneration is a label applied to the resources created by the
+	// Porter Operator, representing the generation of the owning resource. It is
+	// used to help the operator determine if a resource has
+	// already been created.
 	LabelResourceGeneration = Prefix + "resourceGeneration"
-	LabelRetry              = Prefix + "retry"
-	FinalizerName           = Prefix + "finalizer"
+
+	// LabelRetry is a label applied to the resources created by the
+	// Porter Operator, representing the retry attempt identifier. It is used to
+	// help the operator determine if a resource has
+	LabelRetry = Prefix + "retry"
+
+	// FinalizerName is the name of the finalizer applied to Porter Operator
+	// resources that should be reconciled by the operator before allowing it to
+	// be deleted.
+	FinalizerName = Prefix + "finalizer"
 )

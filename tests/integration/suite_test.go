@@ -179,7 +179,7 @@ func createTestNamespace(ctx context.Context) string {
 	agentVersion := os.Getenv("PORTER_AGENT_VERSION")
 	if agentVersion == "" {
 		// We can switch this back to latest when 1.0.0 of porter releases
-		agentVersion = "v1.0.0-alpha.12"
+		agentVersion = porterv1.DefaultPorterAgentVersion
 	}
 	// Tweak porter agent config for testing
 	agentCfg := &porterv1.AgentConfig{

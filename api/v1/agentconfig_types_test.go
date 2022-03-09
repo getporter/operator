@@ -12,18 +12,18 @@ import (
 func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Equal(t, "ghcr.io/getporter/porter-agent:v1.0.0-alpha.12", c.GetPorterImage())
+		assert.Equal(t, DefaultPorterAgentRepository+":"+DefaultPorterAgentVersion, c.GetPorterImage())
 	})
 
 	t.Run("porter version set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterVersion: "canary"}
-		assert.Equal(t, "ghcr.io/getporter/porter-agent:canary", c.GetPorterImage())
+		assert.Equal(t, DefaultPorterAgentRepository+":canary", c.GetPorterImage())
 	})
 
 	t.Run("porter repository set", func(t *testing.T) {
 		// Test if someone has mirrored porter's agent to another registry
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter"}
-		assert.Equal(t, "localhost:5000/myporter:v1.0.0-alpha.12", c.GetPorterImage())
+		assert.Equal(t, "localhost:5000/myporter:"+DefaultPorterAgentVersion, c.GetPorterImage())
 	})
 
 	t.Run("porter repository and version set", func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
 		c := AgentConfigSpec{
 			PorterVersion: "sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da",
 		}
-		assert.Equal(t, "ghcr.io/getporter/porter-agent@sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da", c.GetPorterImage())
+		assert.Equal(t, DefaultPorterAgentRepository+"@sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da", c.GetPorterImage())
 	})
 }
 
