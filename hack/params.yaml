@@ -2,7 +2,7 @@
 # build with mage XBuildAll LocalPorterAgentBuild
 # export PORTER_AGENT_REPOSITORY=localhost:5000/porter-agent
 # export PORTER_AGENT_VERSION=canary-dev
-schemaVersion: 1.0.0
+schemaVersion: 1.0.1
 name: dev-build
 parameters:
   - name: porterRepository
