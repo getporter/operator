@@ -107,10 +107,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to uninstall the installation.")
 		return ctrl.Result{}, err
 	} else if isDeleted(inst) {
-		// This is installation without a finalizer that was deleted
-		// We remove the finalizer af
-		//ter we successfully uninstall (or someone is manually cleaning things up)
-		// Just let it go
+		// This is installation without a finalizer that was deleted We remove the
+		// finalizer after we successfully uninstall (or someone is manually cleaning
+		// things up) Just let it go
 		log.V(Log4Debug).Info("Reconciliation complete: Installation CRD is ready for deletion.")
 		return ctrl.Result{}, nil
 	}

@@ -437,9 +437,9 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Len(t, podTemplate.Spec.Volumes, 3, "incorrect pod volumes")
 	assert.Len(t, podTemplate.Spec.Volumes, 3)
-	assert.Equal(t, "porter-shared", podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
-	assert.Equal(t, "porter-config", podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
-	assert.Equal(t, "porter-workdir", podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
 	assert.Equal(t, pointer.Int64Ptr(65532), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
 	assert.Equal(t, pointer.Int64Ptr(0), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
@@ -455,16 +455,16 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertEnvVar(t, agentContainer.Env, "KUBE_NAMESPACE", "test")
 	assertEnvVar(t, agentContainer.Env, "IN_CLUSTER", "true")
 	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_NAME", pvc.Name)
-	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", "/porter-shared")
+	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", porterv1.VolumePorterSharedPath)
 	assertEnvVar(t, agentContainer.Env, "CLEANUP_JOBS", "false") // this will be configurable in the future
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
 	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/resourceGeneration=1 porter.sh/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.BoolPtr(true))
 	assert.Len(t, agentContainer.VolumeMounts, 3)
-	assertVolumeMount(t, agentContainer.VolumeMounts, "porter-config", "/porter-config")
-	assertVolumeMount(t, agentContainer.VolumeMounts, "porter-shared", "/porter-shared")
-	assertVolumeMount(t, agentContainer.VolumeMounts, "porter-workdir", "/porter-workdir")
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
 }
 
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {

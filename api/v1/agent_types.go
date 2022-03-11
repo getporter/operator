@@ -1,6 +1,6 @@
 package v1
 
-// AgentPhase are valid status of a Porter agent job
+// AgentPhase are valid statuses of a Porter agent job
 // that is managing a change to a Porter resource.
 type AgentPhase string
 

@@ -153,27 +153,27 @@ func (r *AgentActionReconciler) applyJobToStatus(log logr.Logger, action *porter
 		action.Status.Job = nil
 		action.Status.Conditions = nil
 		log.V(Log5Trace).Info("Cleared status because there is no current job")
-	} else {
-		action.Status.Job = &corev1.LocalObjectReference{Name: job.Name}
-		setCondition(log, action, porterv1.ConditionScheduled, "JobCreated")
-		action.Status.Phase = porterv1.PhasePending
+		return
+	}
+	action.Status.Job = &corev1.LocalObjectReference{Name: job.Name}
+	setCondition(log, action, porterv1.ConditionScheduled, "JobCreated")
+	action.Status.Phase = porterv1.PhasePending
 
-		if job.Status.Active+job.Status.Failed+job.Status.Succeeded > 0 {
-			action.Status.Phase = porterv1.PhaseRunning
-			setCondition(log, action, porterv1.ConditionStarted, "JobStarted")
-		}
+	if job.Status.Active+job.Status.Failed+job.Status.Succeeded > 0 {
+		action.Status.Phase = porterv1.PhaseRunning
+		setCondition(log, action, porterv1.ConditionStarted, "JobStarted")
+	}
 
-		for _, condition := range job.Status.Conditions {
-			switch condition.Type {
-			case batchv1.JobComplete:
-				action.Status.Phase = porterv1.PhaseSucceeded
-				setCondition(log, action, porterv1.ConditionComplete, "JobCompleted")
-				break
-			case batchv1.JobFailed:
-				action.Status.Phase = porterv1.PhaseFailed
-				setCondition(log, action, porterv1.ConditionFailed, "JobFailed")
-				break
-			}
+	for _, condition := range job.Status.Conditions {
+		switch condition.Type {
+		case batchv1.JobComplete:
+			action.Status.Phase = porterv1.PhaseSucceeded
+			setCondition(log, action, porterv1.ConditionComplete, "JobCompleted")
+			break
+		case batchv1.JobFailed:
+			action.Status.Phase = porterv1.PhaseFailed
+			setCondition(log, action, porterv1.ConditionFailed, "JobFailed")
+			break
 		}
 	}
 }
@@ -398,7 +398,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 							Env:             env,
 							EnvFrom:         envFrom,
 							VolumeMounts:    volumeMounts,
-							WorkingDir:      "/porter-workdir",
+							WorkingDir:      porterv1.VolumePorterWorkDirPath,
 						},
 					},
 					Volumes:            volumes,
@@ -573,7 +573,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 		{
 			Name:  "JOB_VOLUME_PATH",
-			Value: "/porter-shared",
+			Value: porterv1.VolumePorterSharedPath,
 		},
 		{
 			Name:  "CLEANUP_JOBS",
@@ -615,7 +615,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{
 		{
-			Name: "porter-shared",
+			Name: porterv1.VolumePorterSharedName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 					ClaimName: pvc.Name,
@@ -623,7 +623,7 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 			},
 		},
 		{
-			Name: "porter-config",
+			Name: porterv1.VolumePorterConfigName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: configSecret.Name,
@@ -632,7 +632,7 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 			},
 		},
 		{
-			Name: "porter-workdir",
+			Name: porterv1.VolumePorterWorkDirName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: workdirSecret.Name,
@@ -647,16 +647,16 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name:      "porter-shared",
-			MountPath: "/porter-shared",
+			Name:      porterv1.VolumePorterSharedName,
+			MountPath: porterv1.VolumePorterSharedPath,
 		},
 		{
-			Name:      "porter-config",
-			MountPath: "/porter-config",
+			Name:      porterv1.VolumePorterConfigName,
+			MountPath: porterv1.VolumePorterConfigPath,
 		},
 		{
-			Name:      "porter-workdir",
-			MountPath: "/porter-workdir",
+			Name:      porterv1.VolumePorterWorkDirName,
+			MountPath: porterv1.VolumePorterWorkDirPath,
 		},
 	}
 	for _, mount := range action.Spec.VolumeMounts {
