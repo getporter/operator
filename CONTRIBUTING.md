@@ -7,6 +7,7 @@
   * [Makefile explained](#makefile-explained)
   * [Run a test installation](#run-a-test-installation)  
   * [Modify the porter agent](#modify-the-porter-agent)
+  * [Publish to another registry](#publish-to-another-registry)
 ---
 
 # New Contributor Guide
@@ -63,7 +64,7 @@ These are targets that you won't usually run directly, other targets use them as
 * **DeleteTestCluster** deletes the KIND cluster named porter.
 * **Clean** deletes all data from the test cluster.
 * **CleanManual** removes all 
-* **CleanTests** removes any namespaces created by the test suite (where porter-test=true).
+* **CleanTests** removes any namespaces created by the test suite (with label porter.sh/testdata=true).
 
 ## Modify the porter agent
 
@@ -146,4 +147,15 @@ kubectl get pods -n test --wait
 
 # Now you can see the result in porter!
 porter logs hello -n operator
+```
+
+## Publish to Another Registry
+
+When working on the operator, it can be helpful to publish the operator's bundle to another registry instead of the default localhost:5000.
+For example, when you are testing the operator on a real cluster instead of KinD.
+
+```
+export PORTER_ENV=custom # this can be anything but production or test
+export PORTER_OPERATOR_REGISTRY=ghcr.io/getporter/test # Set this to a registry for which you have push access
+mage publish
 ```

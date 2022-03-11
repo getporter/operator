@@ -10,6 +10,7 @@ although they both use the term namespace, there is no relation between Kubernet
 The same goes for the name and labels fields.
 
 * [Installation](#installation)
+* [AgentAction](#agent-action)
 * [AgentConfig](#agent-config)
 * [PorterConfig](#porter-config)
 
@@ -22,10 +23,27 @@ the `porter installation show NAME -o yaml` command into the spec field and have
 In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/)
 the following fields are supported:
 
-| Field        | Required    | Default | Description |
-| -----------  | ----------- | ------- | ----------- |
-| agentConfig  | false       | See [Agent Config](#agent-config) | Reference to an AgentConfig resource in the same namespace.  |
-| porterConfig | false       | See [Porter Config](#porter-config) | Reference to a PorterConfig resource in the same namespace.  |
+| Field        | Required | Default                             | Description                                                 |
+|--------------|----------|-------------------------------------|-------------------------------------------------------------|
+| agentConfig  | false    | See [Agent Config](#agent-config)   | Reference to an AgentConfig resource in the same namespace. |
+| porterConfig | false    | See [Porter Config](#porter-config) | Reference to a PorterConfig resource in the same namespace. |
+
+## Agent Action
+
+The AgentAction CRD represents running a Porter command with the [Porter Agent](https://release-v1.porter.sh/operator/#porter-agent).
+The operator uses this resource internally to run `porter installation apply` when an Installation resource is changed and you may use it to execute arbitrary commands as well, such as executing a custom action on an installation.
+
+| Field        | Required | Default                                | Description                                                                             |
+|--------------|----------|----------------------------------------|-----------------------------------------------------------------------------------------|
+| agentConfig  | false    | See [Agent Config](#agent-config)      | Reference to an AgentConfig resource in the same namespace.                             |
+| porterConfig | false    | See [Porter Config](#porter-config)    | Reference to a PorterConfig resource in the same namespace.                             |
+| command      | false    | /app/.porter/agent                     | Overrides the entrypoint of the Porter Agent image.                                     |
+| args         | true     | None.                                  | Arguments to pass to the porter command. Do not include "porter" as the first argument. |
+| files        | false    | None.                                  | Files that should be present in the working directory where the command is run.         |
+| env          | false    | Settings for the kubernetes driver.    | Additional environment variables that should be set.                                    | 
+| envFrom      | false    | None.                                  | Load environment variables from a ConfigMap or Secret.                                  |
+| volumeMounts | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                        |
+| volumes      | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                        |                
 
 ## Agent Config
 
@@ -45,7 +63,7 @@ metadata:
   name: customAgent
 spec:
   porterRepository: ghcr.io/getporter/porter-agent
-  porterVersion: v1.0.0-alpha.8
+  porterVersion: v1.0.0-alpha.13
   serviceAccount: porter-agent
   volumeSize: 64Mi
   pullPolicy: Always

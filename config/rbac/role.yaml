@@ -1,4 +1,3 @@
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -42,6 +41,32 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - porter.sh
   resources:

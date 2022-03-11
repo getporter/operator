@@ -1,0 +1,24 @@
+# permissions for end users to edit agentactions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agentaction-editor-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions/status
+  verbs:
+  - get

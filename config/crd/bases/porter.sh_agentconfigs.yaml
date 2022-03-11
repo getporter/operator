@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: agentconfigs.porter.sh
 spec:
@@ -35,8 +34,8 @@ spec:
             type: object
           spec:
             description: "AgentConfigSpec defines the configuration for the Porter
-              agent. \n SERIALIZATION NOTE: \tThe json serialization is for persisting
-              this to Kubernetes.  The mapstructure tags is used internally for AgentConfigSpec.MergeConfig."
+              agent. \n SERIALIZATION NOTE: The json serialization is for persisting
+              this to Kubernetes. The mapstructure tags is used internally for AgentConfigSpec.MergeConfig."
             properties:
               installationServiceAccount:
                 description: InstallationServiceAccount specifies a service account

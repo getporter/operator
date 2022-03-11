@@ -52,13 +52,11 @@ func (c AgentConfigSpec) GetPorterImage() string {
 	version := c.PorterVersion
 	if version == "" {
 		// We don't use a mutable tag like latest, or canary because it's a bad practice that we don't want to encourage.
-		// As we test out the operator with new versions of Porter, keep this value up-to-date so that the default
-		// version is guaranteed to work.
-		version = "v1.0.0-alpha.8"
+		version = DefaultPorterAgentVersion
 	}
 	repo := c.PorterRepository
 	if repo == "" {
-		repo = "ghcr.io/getporter/porter-agent"
+		repo = DefaultPorterAgentRepository
 	}
 
 	if digest, err := digest.Parse(version); err == nil {

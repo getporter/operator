@@ -1,13 +1,25 @@
+# syntax=docker.io/docker/dockerfile:1.4
 FROM debian:stretch-slim
 
-ARG BUNDLE_DIR
+# PORTER_INIT
 
-RUN apt-get update && apt-get install -y ca-certificates curl
+ARG KUSTOMIZE_VERSION="v3.8.7"
 
-RUN curl -sLo /usr/bin/yq https://github.com/mikefarah/yq/releases/download/v4.5.1/yq_linux_amd64 && \
-    chmod +x /usr/bin/yq
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+    apt-get update && apt-get install -y ca-certificates curl
+
+# Install yq and kustomize
+RUN curl -sLo /usr/bin/yq https://github.com/mikefarah/yq/releases/download/v4.20.2/yq_linux_amd64 && \
+    chmod +x /usr/bin/yq &&\
+    curl -sLo /tmp/kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz &&\
+    tar -C /tmp -xzf /tmp/kustomize.tar.gz &&\
+    chmod +x /tmp/kustomize &&\
+    mv /tmp/kustomize /usr/bin/kustomize &&\
+    rm /tmp/kustomize.tar.gz
 
 # PORTER_MIXINS
 
 # Use the BUNDLE_DIR build argument to copy files into the bundle
-COPY . $BUNDLE_DIR
+COPY --link . $BUNDLE_DIR
+

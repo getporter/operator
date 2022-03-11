@@ -20,6 +20,7 @@ import (
 	"get.porter.sh/operator/mage/docker"
 	. "get.porter.sh/porter/mage/docker"
 	"get.porter.sh/porter/mage/releases"
+	"get.porter.sh/porter/pkg/cnab"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/pkg/archive"
@@ -116,15 +117,21 @@ func BuildBundle() {
 
 	meta := releases.LoadMetadata()
 	version := strings.TrimPrefix(meta.Version, "v")
-	porter("build", "--version", version, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
+	verbose := ""
+	if mg.Verbose() {
+		verbose = "--verbose"
+	}
+	porter("build", "--version", version, "-f=porter.yaml", verbose).
+		CollapseArgs().Env("PORTER_EXPERIMENTAL=build-drivers", "PORTER_BUILD_DRIVER=buildkit").
+		In("installer").Must().RunV()
 }
 
 // Build the controller image
 func BuildImages() {
 	mg.Deps(BuildController)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
-	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+	img := Env.ManagerImagePrefix + meta.Version
+	imgPermalink := Env.ManagerImagePrefix + meta.Permalink
 
 	log.Println("Building", img)
 	must.Command("docker", "build", "-t", img, ".").
@@ -139,10 +146,11 @@ func getMixins() error {
 
 	mixins := []struct {
 		name    string
+		url     string
 		feed    string
 		version string
 	}{
-		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v0.1.14"},
+		{name: "helm3", url: "https://github.com/carolynvs/porter-helm3/releases/download", version: "v0.1.15-8-g864f450"},
 		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "latest"},
 	}
 	var errG errgroup.Group
@@ -159,7 +167,13 @@ func getMixins() error {
 			if mixin.version == "" {
 				mixin.version = "latest"
 			}
-			return porter("mixin", "install", mixin.name, "--version", mixin.version, "--feed-url", mixin.feed).Run()
+			var source string
+			if mixin.feed != "" {
+				source = "--feed-url=" + mixin.feed
+			} else {
+				source = "--url=" + mixin.url
+			}
+			return porter("mixin", "install", mixin.name, "--version", mixin.version, source).Run()
 		})
 	}
 
@@ -174,44 +188,49 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml").In("installer").Must().RunV()
+	porter("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
 
 	meta := releases.LoadMetadata()
-	porter("publish", "--registry", Env.Registry, "-f=vanilla.porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
+	porter("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
 func buildManifests() {
 	mg.Deps(EnsureKustomize, EnsureControllerGen)
 
-	img := resolveControllerImage()
-	kustomize("edit", "set", "image", "manager="+img).In("config/manager").Run()
+	// Set the image reference in porter.yaml so that the manager image is packaged with the bundle
+	managerRef := resolveManagerImage()
+	mgx.Must(shx.Copy("installer/vanilla.porter.yaml", "installer/porter.yaml"))
+	setRepo := fmt.Sprintf(`.images.manager.repository = "%s"`, managerRef.Repository())
+	must.Command("yq", "eval", setRepo, "-i", "installer/porter.yaml").RunV()
+	setDigest := fmt.Sprintf(`.images.manager.digest = "%s"`, managerRef.Digest())
+	must.Command("yq", "eval", setDigest, "-i", "installer/porter.yaml").RunV()
 
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
 	}
 
-	// Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-	crdOpts := "crd:trivialVersions=true,preserveUnknownFields=false"
-
-	must.RunV("controller-gen", crdOpts, "rbac:roleName=manager-role", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
+	must.RunV("controller-gen", "rbac:roleName=manager-role", "crd", "webhook", `paths="./..."`, "output:crd:artifacts:config=config/crd/bases")
 	kustomize("build", "config/default", "-o", "installer/manifests/operator.yaml").RunV()
 }
 
-func resolveControllerImage() string {
+func resolveManagerImage() cnab.OCIReference {
 	fmt.Println("Using environment", Env.Name)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
+	img := Env.ManagerImagePrefix + meta.Version
 
 	imgDef, err := must.Output("docker", "image", "inspect", img)
 	if err != nil {
-		panic("the controller image has not been built yet")
+		panic("the manager image has not been built yet")
 	}
 	imgWithDigest, err := docker.ExtractRepoDigest(imgDef)
 	if err != nil {
-		panic("could not resolve the repository digest of the controller image")
+		panic("could not resolve the repository digest of the manager image")
 	}
-	return imgWithDigest
+	ref, err := cnab.ParseOCIReference(imgWithDigest)
+	mgx.Must(err)
+
+	return ref
 }
 
 // Run all tests
@@ -234,7 +253,20 @@ func UpdateTestfiles() {
 func TestIntegration() {
 	mg.Deps(UseTestEnvironment, CleanTestdata, EnsureGinkgo, EnsureDeployed)
 
-	must.RunV("go", "test", "-tags=integration", "./...", "-coverprofile=coverage-integration.out")
+	// TODO: we need to run these tests either isolated against EnvTest, or
+	// against a cluster that doesn't have the operator deployed. Otherwise
+	// both the controller running in the test, and the controller on the cluster
+	// are responding to the same events.
+	// For now, it's up to the caller to use a fresh cluster with CRDs installed until we can fix it.
+
+	kubectl("delete", "deployment", "porter-operator-controller-manager", "-n=porter-operator-system").RunV()
+
+	v := ""
+	if mg.Verbose() {
+		v = "-v"
+	}
+	must.Command("go", "test", v, "-tags=integration", "./tests/integration/...", "-coverprofile=coverage-integration.out", "-args", "-ginkgo.v").
+		CollapseArgs().RunV()
 }
 
 // Check if the operator is deployed to the test cluster.
@@ -252,7 +284,7 @@ func Deploy() {
 	PublishLocalPorterAgent()
 	PublishBundle()
 
-	porter("credentials", "apply", "hack/creds.yaml", "-n=operator", "--debug", "--debug-plugins").Must().RunV()
+	porter("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	bundleRef := Env.BundlePrefix + meta.Version
 	porter("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 }
@@ -278,8 +310,8 @@ func isDeployed() bool {
 func PublishImages() {
 	mg.Deps(BuildImages)
 	meta := releases.LoadMetadata()
-	img := Env.ControllerImagePrefix + meta.Version
-	imgPermalink := Env.ControllerImagePrefix + meta.Permalink
+	img := Env.ManagerImagePrefix + meta.Version
+	imgPermalink := Env.ManagerImagePrefix + meta.Permalink
 
 	log.Println("Pushing", img)
 	must.RunV("docker", "push", img)
@@ -358,7 +390,8 @@ func SetupNamespace(name string) {
 	// It would be neat if Porter could handle this for us
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		ps = "-p=./hack/params.yaml"
+		porter("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
+		ps = "-p=dev-build"
 	}
 
 	porter("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
@@ -376,8 +409,47 @@ func Clean() {
 // Remove data created by running the test suite
 func CleanTestdata() {
 	if useCluster() {
-		kubectl("delete", "ns", "-l", "porter.sh/testdata=true").RunV()
+		// find all test namespaces
+		output, _ := kubectl("get", "ns", "-l", "porter.sh/testdata=true", `--template={{range .items}}{{.metadata.name}},{{end}}`).
+			OutputE()
+		namespaces := strings.Split(output, ",")
+
+		// Remove the finalizers from any testdata in that namespace
+		// Otherwise they will block when you delete the namespace
+		for _, namespace := range namespaces {
+			if namespace == "" {
+				continue
+			}
+
+			output, _ = kubectl("get", "installation,agentaction", "-n", namespace, `--template={{range .items}}{{.kind}}/{{.metadata.name}},{{end}}`).
+				Output()
+			resources := strings.Split(output, ",")
+			for _, resource := range resources {
+				if resource == "" {
+					continue
+				}
+
+				removeFinalizers(namespace, resource)
+			}
+
+			// Okay, now it's safe to delete the namespace
+			kubectl("delete", "ns", namespace).Run()
+		}
 	}
+}
+
+// Remove all finalizers from the specified resource
+// name should be in the format: kind/name
+func removeFinalizers(namespace, name string) {
+	// Get the resource definition
+	resource, _ := kubectl("get", name, "-n", namespace, "-o=yaml").Output()
+
+	// Use yq to remove the finalizers
+	resource, _ = must.Command("yq", "eval", ".metadata.finalizers = null").
+		Stdin(strings.NewReader(resource)).Output()
+
+	// Update the resource
+	kubectl("apply", "-f", "-").Stdin(strings.NewReader(resource)).Run()
 }
 
 // Remove any porter data in the cluster
@@ -474,7 +546,7 @@ func EnsureKustomize() {
 
 // Ensure controller-gen is installed.
 func EnsureControllerGen() {
-	mgx.Must(pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.4.1", "--version"))
+	mgx.Must(pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.8.0", "--version"))
 }
 
 func pwd() string {

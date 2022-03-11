@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package controllers_test
+package integration_test
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"get.porter.sh/operator/controllers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -27,6 +26,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"get.porter.sh/operator/controllers"
+
+	portershv1 "get.porter.sh/operator/api/v1"
 	porterv1 "get.porter.sh/operator/api/v1"
 	// +kubebuilder:scaffold:imports
 )
@@ -63,6 +65,12 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(clientgoscheme.AddToScheme(scheme.Scheme)).To(Succeed())
 	Expect(porterv1.AddToScheme(scheme.Scheme)).To(Succeed())
 
+	err = portershv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = portershv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	// +kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -77,6 +85,12 @@ var _ = BeforeSuite(func(done Done) {
 	err = (&controllers.InstallationReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Installation"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&controllers.AgentActionReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("AgentAction"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -113,7 +127,7 @@ func createTestNamespace(ctx context.Context) string {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "ginkgo-tests",
 			Labels: map[string]string{
-				"porter-test": "true",
+				"porter.sh/testdata": "true",
 			},
 		},
 	}
@@ -164,10 +178,11 @@ func createTestNamespace(ctx context.Context) string {
 	}
 	agentVersion := os.Getenv("PORTER_AGENT_VERSION")
 	if agentVersion == "" {
-		agentVersion = "latest"
+		// We can switch this back to latest when 1.0.0 of porter releases
+		agentVersion = porterv1.DefaultPorterAgentVersion
 	}
 	// Tweak porter agent config for testing
-	porterOpsCfg := &porterv1.AgentConfig{
+	agentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: ns.Name,
@@ -179,7 +194,7 @@ func createTestNamespace(ctx context.Context) string {
 			InstallationServiceAccount: "installation-agent",
 		},
 	}
-	Expect(k8sClient.Create(ctx, porterOpsCfg)).To(Succeed())
+	Expect(k8sClient.Create(ctx, agentCfg)).To(Succeed())
 
 	return ns.Name
 }

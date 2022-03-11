@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+setControllerImage() {
+  # Replace the manager image with the image packaged with the bundle
+  echo "Setting manager image to $1"
+  cd manifests
+  kustomize edit set image manager=$1
+  kustomize build -o operator.yaml
+}
+
 configureNamespace() {
   cd manifests/namespace
 

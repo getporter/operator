@@ -3,7 +3,7 @@ title: Install the Porter Operator
 description: Get up and running with the Porter Operator
 ---
 
-If you aren't already familiar with Porter, we recommend that you install and use [Porter v1.0.0-alpha.9][install-porter] first and then once you are comfortable, learn how to automate Porter with the operator.
+If you aren't already familiar with Porter, we recommend that you install and use [Porter v1.0.0-alpha.13][install-porter] first and then once you are comfortable, learn how to automate Porter with the operator.
 
 The commands below use the v0.4.0 release, but there may be a more recent release of the Operator.
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
@@ -16,7 +16,7 @@ $ porter explain -r ghcr.io/getporter/porter-operator:v0.4.0
 Name: porter-operator
 Description: The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster.
 Version: v0.4.0
-Porter Version: v1.0.0-alpha.9
+Porter Version: v1.0.0-alpha.13
 
 Credentials:
 Name         Description                                                          Required   Applies To

@@ -1,0 +1,20 @@
+# permissions for end users to view agentactions.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agentaction-viewer-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentactions/status
+  verbs:
+  - get

@@ -18,22 +18,25 @@ var (
 )
 
 type Environment struct {
-	Name                  string
-	Registry              string
-	ControllerImagePrefix string
-	BundlePrefix          string
+	Name               string
+	Registry           string
+	ManagerImagePrefix string
+	BundlePrefix       string
 }
 
 func getAmbientEnvironment() Environment {
-	name := os.Getenv("ENV")
+	name := os.Getenv("PORTER_ENV")
 	switch name {
 	case "prod", "production":
 		return GetProductionEnvironment()
 	case "test", "":
 		return GetTestEnvironment()
 	default:
-		mgx.Must(errors.Errorf("invalid ENV %q", name))
-		return Environment{}
+		registry := os.Getenv("PORTER_OPERATOR_REGISTRY")
+		if registry == "" {
+			mgx.Must(errors.New("environment variable PORTER_OPERATOR_REGISTRY must be set to push to a custom registry"))
+		}
+		return buildEnvironment(name, registry)
 	}
 }
 
@@ -55,9 +58,9 @@ func GetProductionEnvironment() Environment {
 
 func buildEnvironment(name string, registry string) Environment {
 	return Environment{
-		Name:                  name,
-		Registry:              registry,
-		ControllerImagePrefix: path.Join(registry, "porterops-controller:"),
-		BundlePrefix:          path.Join(registry, "porter-operator:"),
+		Name:               name,
+		Registry:           registry,
+		ManagerImagePrefix: path.Join(registry, "porter-operator-manager:"),
+		BundlePrefix:       path.Join(registry, "porter-operator:"),
 	}
 }
