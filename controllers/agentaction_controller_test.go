@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -263,114 +264,392 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 }
 
 func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
-	controller := setupAgentActionController()
-
-	action := &porterv1.AgentAction{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
-			Kind:       "AgentAction",
+	tests := []struct {
+		name            string
+		createNamespace bool
+		existingVolume  bool
+		matchLabels     bool
+		created         bool
+	}{
+		{
+			name:            "No agent volumes exist in cluster creates volume",
+			createNamespace: false,
+			existingVolume:  false,
+			matchLabels:     false,
+			created:         true,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       "test",
-			Name:            "porter-hello",
-			Generation:      1,
-			ResourceVersion: "123",
-			UID:             "random-uid",
-			Labels: map[string]string{
-				"testLabel": "abc123",
-			},
+		{
+			name:            "Existing volume with matching labels in separate namespace creates volume",
+			createNamespace: true,
+			existingVolume:  true,
+			matchLabels:     true,
+			created:         true,
+		},
+		{
+			name:            "Existing volume without matching labels in separate namespace creates volume",
+			createNamespace: true,
+			existingVolume:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing volume in agent namespace without matching labels creates volume",
+			createNamespace: false,
+			existingVolume:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing volume in agent namespace with matching labels does not create volume",
+			createNamespace: false,
+			existingVolume:  true,
+			matchLabels:     true,
+			created:         false,
 		},
 	}
-	agentCfg := porterv1.AgentConfigSpec{
-		VolumeSize:                 "128Mi",
-		PorterRepository:           "getporter/custom-agent",
-		PorterVersion:              "v1.0.0",
-		PullPolicy:                 "Always",
-		ServiceAccount:             "porteraccount",
-		InstallationServiceAccount: "installeraccount",
-	}
-	pvc, err := controller.createAgentVolume(context.Background(), logr.Discard(), action, agentCfg)
-	require.NoError(t, err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			controller := setupAgentActionController()
+			action := &porterv1.AgentAction{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: porterv1.GroupVersion.String(),
+					Kind:       "AgentAction",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:       "test",
+					Name:            "porter-hello",
+					Generation:      1,
+					ResourceVersion: "123",
+					UID:             "random-uid",
+					Labels: map[string]string{
+						"testLabel": "abc123",
+					},
+				},
+			}
+			agentCfg := porterv1.AgentConfigSpec{
+				VolumeSize:                 "128Mi",
+				PorterRepository:           "getporter/custom-agent",
+				PorterVersion:              "v1.0.0",
+				PullPolicy:                 "Always",
+				ServiceAccount:             "porteraccount",
+				InstallationServiceAccount: "installeraccount",
+			}
+			if test.existingVolume {
+				namespace := action.Namespace
+				if test.createNamespace {
+					namespace = "test-existing"
+					existingNs := &v1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: namespace,
+							Labels: map[string]string{
+								"porter-test": "true",
+							},
+						},
+					}
+					err := controller.Client.Create(context.Background(), existingNs)
+					require.NoError(t, err)
+				}
+				sharedLabels := map[string]string{
+					"match": "false",
+				}
+				// Overwrite the labels with the action labels
+				if test.matchLabels {
+					sharedLabels = controller.getSharedAgentLabels(action)
+				}
+				existingPvc := &corev1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "existing-",
+						Namespace:    namespace,
+						Labels:       sharedLabels,
+					},
+					Spec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany},
+						Resources: corev1.ResourceRequirements{
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceStorage: resource.MustParse("64Mi"),
+							},
+						},
+					},
+				}
+				err := controller.Client.Create(context.Background(), existingPvc)
+				require.NoError(t, err)
+			}
+			pvc, err := controller.createAgentVolume(context.Background(), logr.Discard(), action, agentCfg)
+			require.NoError(t, err)
 
-	// Verify the pvc properties
-	assert.Equal(t, "porter-hello-", pvc.GenerateName, "incorrect pvc name")
-	assert.Equal(t, action.Namespace, pvc.Namespace, "incorrect pvc namespace")
-	assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, pvc.Spec.AccessModes, "incorrect pvc access modes")
-	assert.Equal(t, pvc.Spec.Resources.Requests[corev1.ResourceStorage], resource.MustParse("128Mi"))
-	assertSharedAgentLabels(t, pvc.Labels)
-	assertContains(t, pvc.Labels, "testLabel", "abc123", "incorrect label")
+			// Verify the pvc properties
+			if test.created {
+				assert.Equal(t, "porter-hello-", pvc.GenerateName, "incorrect pvc name")
+				assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, pvc.Spec.AccessModes, "incorrect pvc access modes")
+				assert.Equal(t, pvc.Spec.Resources.Requests[corev1.ResourceStorage], resource.MustParse("128Mi"))
+			} else {
+				assert.Equal(t, "existing-", pvc.GenerateName, "incorrect pvc name")
+				assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}, pvc.Spec.AccessModes, "incorrect pvc access modes")
+				assert.Equal(t, pvc.Spec.Resources.Requests[corev1.ResourceStorage], resource.MustParse("64Mi"))
+			}
+			assert.Equal(t, action.Namespace, pvc.Namespace, "incorrect pvc namespace")
+			assertSharedAgentLabels(t, pvc.Labels)
+			assertContains(t, pvc.Labels, "testLabel", "abc123", "incorrect label")
+		})
+	}
 }
 
 func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
-	controller := setupAgentActionController()
-
-	action := &porterv1.AgentAction{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
-			Kind:       "AgentAction",
+	tests := []struct {
+		name            string
+		createNamespace bool
+		existingSecret  bool
+		matchLabels     bool
+		created         bool
+	}{
+		{
+			name:            "No config secret exist in cluster creates secret",
+			createNamespace: false,
+			existingSecret:  false,
+			matchLabels:     false,
+			created:         true,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       "test",
-			Name:            "porter-hello",
-			Generation:      1,
-			ResourceVersion: "123",
-			UID:             "random-uid",
-			Labels: map[string]string{
-				"testLabel": "abc123",
-			},
+		{
+			name:            "Existing config secret with matching labels in separate namespace creates secret",
+			createNamespace: true,
+			existingSecret:  true,
+			matchLabels:     true,
+			created:         true,
+		},
+		{
+			name:            "Existing config secret without matching labels in separate namespace creates secret",
+			createNamespace: true,
+			existingSecret:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing config secret in agent namespace without matching labels creates secret",
+			createNamespace: false,
+			existingSecret:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing config secret in agent namespace with matching labels does not create secret",
+			createNamespace: false,
+			existingSecret:  true,
+			matchLabels:     true,
+			created:         false,
 		},
 	}
-	porterCfg := porterv1.PorterConfigSpec{}
-	secret, err := controller.createConfigSecret(context.Background(), logr.Discard(), action, porterCfg)
-	require.NoError(t, err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			controller := setupAgentActionController()
+			action := &porterv1.AgentAction{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: porterv1.GroupVersion.String(),
+					Kind:       "AgentAction",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:       "test",
+					Name:            "porter-hello",
+					Generation:      1,
+					ResourceVersion: "123",
+					UID:             "random-uid",
+					Labels: map[string]string{
+						"testLabel": "abc123",
+					},
+				},
+			}
+			if test.existingSecret {
+				namespace := action.Namespace
+				if test.createNamespace {
+					namespace = "test-existing"
+					existingNs := &v1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: namespace,
+							Labels: map[string]string{
+								"porter-test": "true",
+							},
+						},
+					}
+					err := controller.Client.Create(context.Background(), existingNs)
+					require.NoError(t, err)
+				}
+				sharedLabels := map[string]string{
+					"match": "false",
+				}
+				// Overwrite the labels with the action labels
+				if test.matchLabels {
+					sharedLabels = controller.getSharedAgentLabels(action)
+					sharedLabels[porterv1.LabelSecretType] = porterv1.SecretTypeConfig
+				}
+				porterCfg := porterv1.PorterConfigSpec{}
+				porterCfgB, _ := porterCfg.ToPorterDocument()
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "existing-",
+						Namespace:    namespace,
+						Labels:       sharedLabels,
+					},
+					Type:      corev1.SecretTypeBasicAuth,
+					Immutable: pointer.BoolPtr(false),
+					Data: map[string][]byte{
+						"config.yaml": porterCfgB,
+					},
+				}
+				err := controller.Client.Create(context.Background(), secret)
+				require.NoError(t, err)
+			}
+			porterCfg := porterv1.PorterConfigSpec{}
+			secret, err := controller.createConfigSecret(context.Background(), logr.Discard(), action, porterCfg)
+			require.NoError(t, err)
 
-	// Verify the secret properties
-	assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
-	assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
-	assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
-	assert.Equal(t, pointer.BoolPtr(true), secret.Immutable, "expected the secret to be immutable")
-	assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
-	assertSharedAgentLabels(t, secret.Labels)
-	assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeConfig, "incorrect label")
-	assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
+			// Verify the secret properties
+			if test.created {
+				assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
+				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
+				assert.Equal(t, pointer.BoolPtr(true), secret.Immutable, "expected the secret to be immutable")
+				assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
+			} else {
+				assert.Equal(t, "existing-", secret.GenerateName, "incorrect secret name")
+				assert.Equal(t, corev1.SecretTypeBasicAuth, secret.Type, "expected the secret to be of type Opaque")
+				assert.Equal(t, pointer.BoolPtr(false), secret.Immutable, "expected the secret to be immutable")
+				assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
+
+			}
+			assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
+			assertSharedAgentLabels(t, secret.Labels)
+			assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeConfig, "incorrect label")
+			assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
+		})
+	}
 }
 
 func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
-	controller := setupAgentActionController()
-
-	action := &porterv1.AgentAction{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
-			Kind:       "AgentAction",
+	tests := []struct {
+		name            string
+		createNamespace bool
+		existingSecret  bool
+		matchLabels     bool
+		created         bool
+	}{
+		{
+			name:            "No workdir secret exist in cluster creates secret",
+			createNamespace: false,
+			existingSecret:  false,
+			matchLabels:     false,
+			created:         true,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       "test",
-			Name:            "porter-hello",
-			Generation:      1,
-			ResourceVersion: "123",
-			UID:             "random-uid",
-			Labels: map[string]string{
-				"testLabel": "abc123",
-			},
+		{
+			name:            "Existing workdir secret with matching labels in separate namespace creates secret",
+			createNamespace: true,
+			existingSecret:  true,
+			matchLabels:     true,
+			created:         true,
 		},
-		Spec: porterv1.AgentActionSpec{
-			Files: map[string][]byte{
-				"installation.yaml": []byte(`{}`),
-			},
+		{
+			name:            "Existing workdir secret without matching labels in separate namespace creates secret",
+			createNamespace: true,
+			existingSecret:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing workdir secret in agent namespace without matching labels creates secret",
+			createNamespace: false,
+			existingSecret:  true,
+			matchLabels:     false,
+			created:         true,
+		},
+		{
+			name:            "Existing workdir secret in agent namespace with matching labels does not create secret",
+			createNamespace: false,
+			existingSecret:  true,
+			matchLabels:     true,
+			created:         false,
 		},
 	}
-	secret, err := controller.createWorkdirSecret(context.Background(), logr.Discard(), action)
-	require.NoError(t, err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			controller := setupAgentActionController()
 
-	// Verify the secret properties
-	assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
-	assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
-	assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
-	assert.Equal(t, pointer.BoolPtr(true), secret.Immutable, "expected the secret to be immutable")
-	assert.Contains(t, secret.Data, "installation.yaml", "expected the secret to have config.yaml")
-	assertSharedAgentLabels(t, secret.Labels)
-	assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeWorkdir, "incorrect label")
-	assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
+			action := &porterv1.AgentAction{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: porterv1.GroupVersion.String(),
+					Kind:       "AgentAction",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:       "test",
+					Name:            "porter-hello",
+					Generation:      1,
+					ResourceVersion: "123",
+					UID:             "random-uid",
+					Labels: map[string]string{
+						"testLabel": "abc123",
+					},
+				},
+				Spec: porterv1.AgentActionSpec{
+					Files: map[string][]byte{
+						"installation.yaml": []byte(`{}`),
+					},
+				},
+			}
+			if test.existingSecret {
+				namespace := action.Namespace
+				if test.createNamespace {
+					namespace = "test-existing"
+					existingNs := &v1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: namespace,
+							Labels: map[string]string{
+								"porter-test": "true",
+							},
+						},
+					}
+					err := controller.Client.Create(context.Background(), existingNs)
+					require.NoError(t, err)
+				}
+				sharedLabels := map[string]string{
+					"match": "false",
+				}
+				// Overwrite the labels with the action labels
+				if test.matchLabels {
+					sharedLabels = controller.getSharedAgentLabels(action)
+					sharedLabels[porterv1.LabelSecretType] = porterv1.SecretTypeWorkdir
+				}
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "existing-",
+						Namespace:    namespace,
+						Labels:       sharedLabels,
+					},
+					Type:      corev1.SecretTypeBasicAuth,
+					Immutable: pointer.BoolPtr(false),
+					Data: map[string][]byte{
+						"existing.yaml": []byte(`{}`),
+					},
+				}
+				err := controller.Client.Create(context.Background(), secret)
+				require.NoError(t, err)
+			}
+			secret, err := controller.createWorkdirSecret(context.Background(), logr.Discard(), action)
+			require.NoError(t, err)
+
+			// Verify the secret properties
+			if test.created {
+				assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
+				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
+				assert.Equal(t, pointer.BoolPtr(true), secret.Immutable, "expected the secret to be immutable")
+				assert.Contains(t, secret.Data, "installation.yaml", "expected the secret to have config.yaml")
+			} else {
+				assert.Equal(t, "existing-", secret.GenerateName, "incorrect secret name")
+				assert.Equal(t, corev1.SecretTypeBasicAuth, secret.Type, "expected the secret to be of type Opaque")
+				assert.Equal(t, pointer.BoolPtr(false), secret.Immutable, "expected the secret to be immutable")
+				assert.Contains(t, secret.Data, "existing.yaml", "expected the secret to have config.yaml")
+			}
+			assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
+			assertSharedAgentLabels(t, secret.Labels)
+			assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeWorkdir, "incorrect label")
+			assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
+		})
+	}
 }
 
 func TestAgentActionReconciler_createAgentJob(t *testing.T) {
