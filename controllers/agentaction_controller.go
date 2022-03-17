@@ -236,9 +236,8 @@ func (r *AgentActionReconciler) getSharedAgentLabels(action *porterv1.AgentActio
 
 func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec) (*corev1.PersistentVolumeClaim, error) {
 	labels := r.getSharedAgentLabels(action)
-
 	var results corev1.PersistentVolumeClaimList
-	if err := r.List(ctx, &results, client.MatchingLabels(labels)); err != nil {
+	if err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(labels)); err != nil {
 		return nil, errors.Wrap(err, "error checking for an existing agent volume (pvc)")
 	}
 	if len(results.Items) > 0 {
@@ -276,7 +275,7 @@ func (r *AgentActionReconciler) createConfigSecret(ctx context.Context, log logr
 	labels[porterv1.LabelSecretType] = porterv1.SecretTypeConfig
 
 	var results corev1.SecretList
-	if err := r.List(ctx, &results, client.MatchingLabels(labels)); err != nil {
+	if err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(labels)); err != nil {
 		return nil, errors.Wrap(err, "error checking for a existing config secret")
 	}
 
@@ -318,7 +317,7 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 	labels[porterv1.LabelSecretType] = porterv1.SecretTypeWorkdir
 
 	var results corev1.SecretList
-	if err := r.List(ctx, &results, client.MatchingLabels(labels)); err != nil {
+	if err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(labels)); err != nil {
 		return nil, errors.Wrap(err, "error checking for a existing workdir secret")
 	}
 
