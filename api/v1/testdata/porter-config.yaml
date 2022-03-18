@@ -7,7 +7,7 @@ build-driver: buildkit
 default-storage: in-cluster-mongodb
 default-secrets: keyvault
 default-storage-plugin: mongodb
-default-secrets-plugin: kubernetes.secrets
+default-secrets-plugin: kubernetes.secret
 storage:
     - config:
         url: mongodb://...

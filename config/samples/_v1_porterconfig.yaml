@@ -7,7 +7,7 @@ metadata:
 spec:
   debug: true
   debugPlugins: false
-  defaultSecretsPlugin: kubernetes.secrets
+  defaultSecretsPlugin: kubernetes.secret
   defaultStorage: in-cluster-mongodb
   storage:
     - name: in-cluster-mongodb

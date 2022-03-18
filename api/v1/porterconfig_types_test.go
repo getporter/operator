@@ -49,7 +49,7 @@ func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 		DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
 		DefaultSecrets:       pointer.StringPtr("keyvault"),
 		DefaultStoragePlugin: pointer.StringPtr("mongodb"),
-		DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
+		DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secret"),
 		Storage: []StorageConfig{
 			{PluginConfig{
 				Name:         "in-cluster-mongodb",

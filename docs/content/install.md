@@ -61,7 +61,7 @@ porter invoke porterops --action configureNamespace --param namespace=TODO -c po
 * The operator installs a mongodb server in its namespace (with no password set for root). This is only
   suitable for testing the operator.
 * A PorterConfig resource named default is created in the specified namespace configuring Porter to use
-  the kubernetes.secrets and mongodb plugin.
+  the kubernetes.secret and mongodb plugin.
 
 # Configuration
 
@@ -71,7 +71,7 @@ Here is an example of the default configuration used when none is specified:
 
 ```yaml
 # Resolve secrets using secrets on the cluster in the current namespace.
-defaultSecretsPlugin: "kubernetes.secrets"
+defaultSecretsPlugin: "kubernetes.secret"
 
 # Use the mongodb server that was deployed with the operator
 defaultStorage: "in-cluster-mongodb"

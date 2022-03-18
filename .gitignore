@@ -21,6 +21,7 @@ operator
 /manifests.yaml
 installer/manifests/operator.yaml
 installer/porter.yaml
+vendor/
 
 # editor and IDE paraphernalia
 .env

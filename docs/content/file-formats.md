@@ -113,7 +113,7 @@ metadata:
 spec:
   debug: true
   debugPlugins: false
-  defaultSecretsPlugin: kubernetes.secrets
+  defaultSecretsPlugin: kubernetes.secret
   defaultStorage: in-cluster-mongodb
   storage:
     - name: in-cluster-mongodb
@@ -140,7 +140,7 @@ Values are merged from all resolved PorterConfig resources, so that you can defi
 | defaultStorage | false     | in-cluster-mongodb | The name of the storage configuration to use. |
 | defaultSecrets | false     | (empty) | The name of the secrets configuration to use. |
 | defaultStoragePlugin | false | (empty) | The name of the storage plugin to use when defaultStorage is unspecified. |
-| defaultSecretsPlugin | false | kubernetes.secrets | The name of the storage plugin to use when defaultSecrets is unspecified. |
+| defaultSecretsPlugin | false | kubernetes.secret | The name of the storage plugin to use when defaultSecrets is unspecified. |
 | storage | false | The mongodb server installed with the operator. | A list of named storage configurations. |
 | secrets | false | (empty) | A list of named secrets configurations. |
 
