@@ -1,0 +1,16 @@
+[settings]
+  ID = "porter-operator"
+
+[build]
+  base = "/"
+  publish = "docs/public"
+  command = "go run mage.go -v DocsDeploy"
+
+  [build.environment]
+    GO_VERSION = "1.17.8"
+
+[context.branch-deploy]
+  command = "go run mage.go -v DocsDeployPreview"
+
+[context.deploy-preview]
+  command = "go run mage.go -v DocsDeployPreview"
