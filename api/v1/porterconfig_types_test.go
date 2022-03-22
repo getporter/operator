@@ -94,19 +94,8 @@ secrets:
 `),
 		},
 		{
-			name: "Minimum fields set",
+			name: "Storage config not provided",
 			cfg: PorterConfigSpec{
-				DefaultStoragePlugin: pointer.StringPtr("mongodb"),
-				DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
-			},
-			expDocument: []byte(`default-storage-plugin: mongodb
-default-secrets-plugin: kubernetes.secrets
-`),
-		},
-		{
-			name: "Storage Config minimum fields set",
-			cfg: PorterConfigSpec{
-				DefaultStoragePlugin: pointer.StringPtr("mongodb"),
 				DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
 				DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
 				Storage: []StorageConfig{
@@ -117,7 +106,6 @@ default-secrets-plugin: kubernetes.secrets
 				},
 			},
 			expDocument: []byte(`default-storage: in-cluster-mongodb
-default-storage-plugin: mongodb
 default-secrets-plugin: kubernetes.secrets
 storage:
     - name: in-cluster-mongodb
@@ -125,11 +113,17 @@ storage:
 `),
 		},
 		{
-			name: "Secrets Config minimum fields set",
+			name: "Secrets config not provided",
 			cfg: PorterConfigSpec{
-				DefaultStoragePlugin: pointer.StringPtr("mongodb"),
-				DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
-				DefaultSecrets:       pointer.StringPtr("kubernetes-secrets"),
+				DefaultStorage: pointer.StringPtr("in-cluster-mongodb"),
+				DefaultSecrets: pointer.StringPtr("kubernetes-secrets"),
+				Storage: []StorageConfig{
+					{PluginConfig{
+						Name:         "in-cluster-mongodb",
+						PluginSubKey: "mongodb",
+						Config:       runtime.RawExtension{Raw: []byte(`{"url": "mongodb://..."}`)},
+					}},
+				},
 				Secrets: []SecretsConfig{
 					{PluginConfig{
 						Name:         "kubernetes-secrets",
@@ -137,9 +131,13 @@ storage:
 					}},
 				},
 			},
-			expDocument: []byte(`default-secrets: kubernetes-secrets
-default-storage-plugin: mongodb
-default-secrets-plugin: kubernetes.secrets
+			expDocument: []byte(`default-storage: in-cluster-mongodb
+default-secrets: kubernetes-secrets
+storage:
+    - config:
+        url: mongodb://...
+      name: in-cluster-mongodb
+      plugin: mongodb
 secrets:
     - name: kubernetes-secrets
       plugin: kubernetes.secrets
