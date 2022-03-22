@@ -116,12 +116,12 @@ default-secrets-plugin: kubernetes.secrets
 					}},
 				},
 			},
-			expDocument: []byte(`default-storage: in-cluster-mongodb 
+			expDocument: []byte(`default-storage: in-cluster-mongodb
 default-storage-plugin: mongodb
 default-secrets-plugin: kubernetes.secrets
 storage:
-    name: in-cluster-mongodb
-		plugin: mongodb
+    - name: in-cluster-mongodb
+      plugin: mongodb
 `),
 		},
 		{
@@ -142,7 +142,7 @@ default-storage-plugin: mongodb
 default-secrets-plugin: kubernetes.secrets
 secrets:
     - name: kubernetes-secrets
-		  plugin: kubernetes.secrets
+      plugin: kubernetes.secrets
 `),
 		},
 	}

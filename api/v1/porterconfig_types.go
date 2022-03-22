@@ -115,15 +115,17 @@ var _ yaml.Marshaler = PluginConfig{}
 // MarshalYAML handles writing the plugin config with its runtime.RawExtension
 // which only has special marshal logic for json by default.
 func (in PluginConfig) MarshalYAML() (interface{}, error) {
-	var rawCfg = map[string]interface{}{}
 	raw := map[string]interface{}{
 		"name":   in.Name,
 		"plugin": in.PluginSubKey,
-		"config": rawCfg,
 	}
-
-	if err := json.Unmarshal(in.Config.Raw, &rawCfg); err != nil {
-		return nil, errors.Wrap(err, "could not marshal the plugin config to json")
+	// Don't add the config for unmarshal unless something is defined
+	if len(in.Config.Raw) != 0 {
+		var rawCfg = map[string]interface{}{}
+		raw["config"] = rawCfg
+		if err := json.Unmarshal(in.Config.Raw, &rawCfg); err != nil {
+			return nil, errors.Wrap(err, "could not marshal the plugin config to json")
+		}
 	}
 
 	return raw, nil
