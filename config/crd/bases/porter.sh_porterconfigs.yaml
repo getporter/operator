@@ -108,8 +108,6 @@ spec:
                   - plugin
                   type: object
                 type: array
-            required:
-            - defaultSecretsPlugin
             type: object
         type: object
     served: true
