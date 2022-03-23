@@ -40,10 +40,10 @@ type PorterConfigSpec struct {
 	DefaultSecrets *string `json:"defaultSecrets,omitempty" yaml:"default-secrets,omitempty" mapstructure:"default-secrets,omitempty"`
 
 	// DefaultStoragePlugin is the name of the storage plugin to use when DefaultStorage is unspecified.
-	DefaultStoragePlugin *string `json:"defaultStoragePlugin,omitempty" yaml:"default-storage-plugin" mapstructure:"default-storage-plugin"`
+	DefaultStoragePlugin *string `json:"defaultStoragePlugin,omitempty" yaml:"default-storage-plugin,omitempty" mapstructure:"default-storage-plugin,omitempty"`
 
 	// DefaultSecretsPlugin is the name of the storage plugin to use when DefaultSecrets is unspecified.
-	DefaultSecretsPlugin *string `json:"defaultSecretsPlugin" yaml:"default-secrets-plugin" mapstructure:"default-secrets-plugin"`
+	DefaultSecretsPlugin *string `json:"defaultSecretsPlugin,omitempty" yaml:"default-secrets-plugin,omitempty" mapstructure:"default-secrets-plugin,omitempty"`
 
 	// Storage is a list of named storage configurations.
 	Storage []StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty" mapstructure:"storage,omitempty"`
@@ -115,15 +115,17 @@ var _ yaml.Marshaler = PluginConfig{}
 // MarshalYAML handles writing the plugin config with its runtime.RawExtension
 // which only has special marshal logic for json by default.
 func (in PluginConfig) MarshalYAML() (interface{}, error) {
-	var rawCfg = map[string]interface{}{}
 	raw := map[string]interface{}{
 		"name":   in.Name,
 		"plugin": in.PluginSubKey,
-		"config": rawCfg,
 	}
-
-	if err := json.Unmarshal(in.Config.Raw, &rawCfg); err != nil {
-		return nil, errors.Wrap(err, "could not marshal the plugin config to json")
+	// Don't add the config for unmarshal unless something is defined
+	if len(in.Config.Raw) != 0 {
+		var rawCfg = map[string]interface{}{}
+		raw["config"] = rawCfg
+		if err := json.Unmarshal(in.Config.Raw, &rawCfg); err != nil {
+			return nil, errors.Wrap(err, "could not marshal the plugin config to json")
+		}
 	}
 
 	return raw, nil
