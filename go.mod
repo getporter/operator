@@ -2,11 +2,11 @@ module get.porter.sh/operator
 
 go 1.17
 
-// Any replace  statements should be kept in sync with the ones in Porter's go.mod
+// Any replace statements should be kept in sync with the ones in Porter's go.mod
 
 require (
-	get.porter.sh/porter v1.0.0-alpha.15
-	github.com/carolynvs/magex v0.6.1
+	get.porter.sh/porter v1.0.0-alpha.15.0.20220325195830-40dfc92f45e4
+	github.com/carolynvs/magex v0.7.1
 	github.com/go-logr/logr v1.2.2
 	github.com/magefile/mage v1.13.0
 	github.com/mitchellh/mapstructure v1.4.1
