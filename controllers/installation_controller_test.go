@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,9 +48,9 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, result.IsZero())
 
-		var updatedInst porterv1.Installation
-		if err := controller.Get(ctx, key, &updatedInst); err == nil {
-			inst = updatedInst
+		err = controller.Get(ctx, key, &inst)
+		if !apierrors.IsNotFound(err) {
+			require.NoError(t, err)
 		}
 	}
 
@@ -163,11 +164,9 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that the finalizer was removed (which will allow the resource to be deleted)
-	assert.Empty(t, inst.Finalizers, "expected the finalizer to be removed")
-
-	// The installation is deleted after the finalizer is removed
-	controller.Delete(ctx, &inst)
+	// Verify that the installation was removed
+	err := controller.Get(ctx, client.ObjectKeyFromObject(&inst), &inst)
+	require.True(t, apierrors.IsNotFound(err), "expected the installation was deleted")
 
 	// Verify that reconcile doesn't error out after it's deleted
 	triggerReconcile()
