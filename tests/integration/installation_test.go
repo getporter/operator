@@ -147,9 +147,12 @@ func debugFailedInstallation(ctx context.Context, inst *porterv1.Installation) {
 func getWaitTimeout() time.Duration {
 	if value := os.Getenv("PORTER_TEST_WAIT_TIMEOUT"); value != "" {
 		timeout, err := time.ParseDuration(value)
-		if err == nil {
-			return timeout
+		if err != nil {
+			fmt.Printf("WARNING: An invalid value, %q, was set for PORTER_TEST_WAIT_TIMEOUT environment variable. The format should be a Go time duration such as 30s or 1m. Ignoring and using the default instead", value)
+			return defaultWaitTimeout
 		}
+
+		return timeout
 	}
 	return defaultWaitTimeout
 }
