@@ -8,6 +8,7 @@
   * [Run a test installation](#run-a-test-installation)  
   * [Modify the porter agent](#modify-the-porter-agent)
   * [Publish to another registry](#publish-to-another-registry)
+  * [Increase Test Timeout](#increase-test-timeout)
 ---
 
 # New Contributor Guide
@@ -158,4 +159,20 @@ For example, when you are testing the operator on a real cluster instead of KinD
 export PORTER_ENV=custom # this can be anything but production or test
 export PORTER_OPERATOR_REGISTRY=ghcr.io/getporter/test # Set this to a registry for which you have push access
 mage publish
+```
+
+## Increase Test Timeout
+
+The ginkgo integration tests interact with a real cluster, and sometimes that means that things take longer depending on the machine you are running on.
+If you are seeing timeouts while running the tests like the example error below, you can increase the time that the tests wait for an action to finish by setting the `PORTER_TEST_WAIT_TIMEOUT` environment variable to a Go time.Duration string value such as "30s" or "2m".
+
+```plain
+Installation Lifecycle
+/home/runner/work/operator/operator/tests/integration/installation_test.go:27
+  When an installation is changed
+  /home/runner/work/operator/operator/tests/integration/installation_test.go:28
+    Should run porter [It]
+    /home/runner/work/operator/operator/tests/integration/installation_test.go:29
+    timeout waiting for installation to delete: context deadline exceeded
+    /home/runner/work/operator/operator/tests/integration/installation_test.go:150
 ```
