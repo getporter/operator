@@ -47,17 +47,17 @@ spec:
 
 ```
 
-| Field        | Required | Default                                | Description                                                                             |
-|--------------|----------|----------------------------------------|-----------------------------------------------------------------------------------------|
-| agentConfig  | false    | See [Agent Config](#agentconfig)      | Reference to an AgentConfig resource in the same namespace.                             |
-| porterConfig | false    | See [Porter Config](#porterconfig)    | Reference to a PorterConfig resource in the same namespace.                             |
-| command      | false    | /app/.porter/agent                     | Overrides the entrypoint of the Porter Agent image.                                     |
-| args         | true     | None.                                  | Arguments to pass to the porter command. Do not include "porter" as the first argument. |
-| files        | false    | None.                                  | Files that should be present in the working directory where the command is run.         |
-| env          | false    | Settings for the kubernetes driver.    | Additional environment variables that should be set.                                    | 
-| envFrom      | false    | None.                                  | Load environment variables from a ConfigMap or Secret.                                  |
-| volumeMounts | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                        |
-| volumes      | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                        |                
+| Field        | Required | Default                                | Description                                                                                                                           |
+|--------------|----------|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
+| agentConfig  | false    | See [Agent Config](#agentconfig)       | Reference to an AgentConfig resource in the same namespace.                                                                           |
+| porterConfig | false    | See [Porter Config](#porterconfig)     | Reference to a PorterConfig resource in the same namespace.                                                                           |
+| command      | false    | /app/.porter/agent                     | Overrides the entrypoint of the Porter Agent image.                                                                                   |
+| args         | true     | None.                                  | Arguments to pass to the porter command. Do not include "porter" in the arguments. For example, use ["help"], not ["porter", "help"]. |
+| files        | false    | None.                                  | Files that should be present in the working directory where the command is run.                                                       |
+| env          | false    | Settings for the kubernetes driver.    | Additional environment variables that should be set.                                                                                  | 
+| envFrom      | false    | None.                                  | Load environment variables from a ConfigMap or Secret.                                                                                |
+| volumeMounts | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                                                                      |
+| volumes      | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                                                                      |                
 
 [AgentAction]: /operator/glossary/#agentaction
 
