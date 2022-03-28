@@ -16,10 +16,13 @@ import (
 	"strings"
 	"time"
 
+	// mage:import
+	. "get.porter.sh/magefiles/tests"
+
+	"get.porter.sh/magefiles/docker"
+	"get.porter.sh/magefiles/releases"
 	. "get.porter.sh/operator/mage"
-	"get.porter.sh/operator/mage/docker"
-	. "get.porter.sh/porter/mage/docker"
-	"get.porter.sh/porter/mage/releases"
+	"get.porter.sh/operator/mage/docs"
 	"get.porter.sh/porter/pkg/cnab"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
@@ -30,19 +33,9 @@ import (
 	"github.com/magefile/mage/mg"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-
-	// mage:import
-	. "get.porter.sh/porter/mage/tests"
 )
 
-// Default target to run when none is specified
-// If not set, running mage will list available targets
-// var Default = Build
-
 const (
-	// Version of KIND to install if not already present
-	kindVersion = "v0.10.0"
-
 	// Name of the KIND cluster used for testing
 	kindClusterName = "porter"
 
@@ -54,9 +47,6 @@ const (
 
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
-
-	// Container name of the local registry
-	registryContainer = "registry"
 )
 
 // Build a command that stops the build on if the command fails
@@ -111,7 +101,7 @@ func GenerateController() error {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(getMixins, StartDockerRegistry, PublishImages)
+	mg.SerialDeps(getMixins, docker.StartDockerRegistry, PublishImages)
 
 	buildManifests()
 
@@ -206,6 +196,7 @@ func buildManifests() {
 	setDigest := fmt.Sprintf(`.images.manager.digest = "%s"`, managerRef.Digest())
 	must.Command("yq", "eval", setDigest, "-i", "installer/porter.yaml").RunV()
 
+	fmt.Printf("Using porter-operator-manager %s@%s", managerRef.Repository(), managerRef.Digest())
 	if err := os.Remove("manifests.yaml"); err != nil && !os.IsNotExist(err) {
 		mgx.Must(errors.Wrap(err, "could not remove generated manifests directory"))
 	}
@@ -274,6 +265,21 @@ func EnsureDeployed() {
 	if !isDeployed() {
 		Deploy()
 	}
+}
+
+// Deploy the website
+func DocsDeploy() error {
+	return docs.DeployWebsite()
+}
+
+// Preview the website
+func DocsPreview() error {
+	return docs.Preview()
+}
+
+// Deploy a preview of the website
+func DocsDeployPreview() error {
+	return docs.DeployWebsitePreview()
 }
 
 // Build the operator and deploy it to the test cluster using
@@ -402,7 +408,7 @@ func SetupNamespace(name string) {
 
 // Remove the test cluster and registry.
 func Clean() {
-	mg.Deps(DeleteTestCluster, StopDockerRegistry)
+	mg.Deps(DeleteTestCluster, docker.StopDockerRegistry)
 	os.RemoveAll("bin")
 }
 
@@ -527,7 +533,7 @@ func EnsureYq() {
 
 // Ensure ginkgo is installed.
 func EnsureGinkgo() {
-	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", ""))
+	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "v1.16.4"))
 }
 
 // Ensure kustomize is installed.
