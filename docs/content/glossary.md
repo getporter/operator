@@ -52,7 +52,7 @@ The invoke command, which is used to run custom commands defined by the bundle, 
 
 ### AgentConfig
 
-The [AgentConfig] custom resource represents the configuration used by the [PorterAgent](#porteragent)
+The [AgentConfig] custom resource represents the configuration used by the [PorterAgent](#porteragent).
 A default AgentConfig in the specified namespace is generated for you by the **configureNamespace** custom action of the porter-operator bundle.
 You can change the configuration for running Porter by creating an AgentConfig resource and overriding relevant fields.
 

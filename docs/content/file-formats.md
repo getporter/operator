@@ -21,7 +21,7 @@ See the glossary for more information about the [Installation] resource.
 The Installation spec is the same schema as the Installation resource in Porter.
 You can copy/paste the output of the `porter installation show NAME -o yaml` command into the Installation resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/) the following fields are supported:
+In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/), the following fields are supported:
 
 | Field        | Required | Default                             | Description                                                 |
 |--------------|----------|-------------------------------------|-------------------------------------------------------------|
