@@ -57,8 +57,8 @@ contrib.go.opencensus.io/resource v0.1.1/go.mod h1:F361eGI91LCmW1I/Saf+rX0+OFcig
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 get.porter.sh/magefiles v0.1.0 h1:saKnqpFx2pynA3KcMUDiwuSvPducYpm205bVFsi+6HQ=
 get.porter.sh/magefiles v0.1.0/go.mod h1:wtCIGWp79ARl8Agt1JE4Wchtb0Pn9fea/7LbkOnFbEc=
-get.porter.sh/porter v1.0.0-alpha.15 h1:xgLjP6nlGlvoqelF/OlGpfhFSvjM2I2Dc/COXgIFq9Q=
-get.porter.sh/porter v1.0.0-alpha.15/go.mod h1:0cFztIP2/UCxT8o39/APCMezoWdoXghJHUmXQcXoVE0=
+get.porter.sh/porter v1.0.0-alpha.15.0.20220325195830-40dfc92f45e4 h1:4oDYCDkBIrMlDuyf4JRcQmMkf2YS2PIWyzoLwttPNDI=
+get.porter.sh/porter v1.0.0-alpha.15.0.20220325195830-40dfc92f45e4/go.mod h1:31J1PJH+20ADIvt2HOXnqukZJL2G77X4WTqaY+SK2bQ=
 git.apache.org/thrift.git v0.0.0-20180902110319-2566ecd5d999/go.mod h1:fPE2ZNJGynbRyZ4dJvy6G277gSllfV2HJqblrnkyeyg=
 git.apache.org/thrift.git v0.12.0/go.mod h1:fPE2ZNJGynbRyZ4dJvy6G277gSllfV2HJqblrnkyeyg=
 github.com/AdaLogics/go-fuzz-headers v0.0.0-20210715213245-6c3934b029d8/go.mod h1:CzsSbkDixRphAF5hS6wbMKq0eI6ccJRb7/A0M6JBnwg=
@@ -266,7 +266,6 @@ github.com/campoy/unique v0.0.0-20180121183637-88950e537e7e/go.mod h1:9IOqJGCPMS
 github.com/carolynvs/aferox v0.3.0 h1:CMT50zX88amTMbFfFIWSTKRVRaOw6sejUMbbKiCD4zE=
 github.com/carolynvs/aferox v0.3.0/go.mod h1:eb7CHGIO33CCZS//xtnblvPZbuuZMv0p1VbhiSwZnH4=
 github.com/carolynvs/datetime-printer v0.2.0/go.mod h1:p9W8ZUhmQUOVD5kiDuGXwRG65/nTkZWlLylY7s+Qw2k=
-github.com/carolynvs/magex v0.6.1/go.mod h1:hqaEkr9TAv+kFb/5wgDiTdszF13rpe0Q+bWHmTe6N74=
 github.com/carolynvs/magex v0.7.0/go.mod h1:vZB3BkRfkd5ZMtkxJkCGbdFyWGoZiuNPKhx6uEQARmY=
 github.com/carolynvs/magex v0.7.1 h1:Rn3Hn+uza1doKge0Qbhk9Lj1topOUMZ/sRxOKDseMM0=
 github.com/carolynvs/magex v0.7.1/go.mod h1:vZB3BkRfkd5ZMtkxJkCGbdFyWGoZiuNPKhx6uEQARmY=

@@ -24,6 +24,7 @@ import (
 	. "get.porter.sh/operator/mage"
 	"get.porter.sh/operator/mage/docs"
 	"get.porter.sh/porter/pkg/cnab"
+	"github.com/carolynvs/magex/ci"
 	"github.com/carolynvs/magex/mgx"
 	"github.com/carolynvs/magex/pkg"
 	"github.com/carolynvs/magex/pkg/archive"
@@ -129,6 +130,10 @@ func BuildImages() {
 
 	log.Println("Tagging as", imgPermalink)
 	must.RunV("docker", "tag", img, imgPermalink)
+
+	// Make the full image name available as an environment variable
+	p, _ := ci.DetectBuildProvider()
+	mgx.Must(p.SetEnv("MANAGER_IMAGE", img))
 }
 
 func getMixins() error {
