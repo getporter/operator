@@ -4,10 +4,12 @@
 * [New Contributor Guide](#new-contributor-guide)
 * [Developer Tasks](#developer-tasks)
   * [Initial setup](#initial-setup)
-  * [Makefile explained](#makefile-explained)
-  * [Run a test installation](#run-a-test-installation)  
+  * [Magefile explained](#magefile-explained)
   * [Modify the porter agent](#modify-the-porter-agent)
+  * [Run a test installation](#run-a-test-installation)  
+  * [Connect to the in-cluster mongo database](#connect-to-the-in-cluster-mongo-database)
   * [Publish to another registry](#publish-to-another-registry)
+  * [Increase Test Timeout](#increase-test-timeout)
 ---
 
 # New Contributor Guide
@@ -88,7 +90,6 @@ export PORTER_AGENT_VERSION=canary-dev
 mage SetupNamespace test
 ```
 
-
 ## Run a test installation
 
 There are sample installation CRDs in [config/samples](/config/samples) that you can quickly try out with:
@@ -107,7 +108,6 @@ Otherwise, the retry annotation on the installation to force the operator to ree
 ```
 mage bump porter-hello
 ```
-
 
 ## Connect to the in-cluster mongo database
 
@@ -149,6 +149,9 @@ kubectl get pods -n test --wait
 porter logs hello -n operator
 ```
 
+You can also use this to work-around the operator's lack of support for creating credential and parameter sets.
+After you have configured the porter cli to connect to the in-cluster mongodb, use the porter cli to save credential and parameter sets before applying an installation resource to the cluster.
+
 ## Publish to Another Registry
 
 When working on the operator, it can be helpful to publish the operator's bundle to another registry instead of the default localhost:5000.
@@ -158,4 +161,20 @@ For example, when you are testing the operator on a real cluster instead of KinD
 export PORTER_ENV=custom # this can be anything but production or test
 export PORTER_OPERATOR_REGISTRY=ghcr.io/getporter/test # Set this to a registry for which you have push access
 mage publish
+```
+
+## Increase Test Timeout
+
+The ginkgo integration tests interact with a real cluster, and sometimes that means that things take longer depending on the machine you are running on.
+If you are seeing timeouts while running the tests like the example error below, you can increase the time that the tests wait for an action to finish by setting the `PORTER_TEST_WAIT_TIMEOUT` environment variable to a Go time.Duration string value such as "30s" or "2m".
+
+```plain
+Installation Lifecycle
+/home/runner/work/operator/operator/tests/integration/installation_test.go:27
+  When an installation is changed
+  /home/runner/work/operator/operator/tests/integration/installation_test.go:28
+    Should run porter [It]
+    /home/runner/work/operator/operator/tests/integration/installation_test.go:29
+    timeout waiting for installation to delete: context deadline exceeded
+    /home/runner/work/operator/operator/tests/integration/installation_test.go:150
 ```

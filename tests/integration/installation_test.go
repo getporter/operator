@@ -6,6 +6,7 @@ package integration_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	porterv1 "get.porter.sh/operator/api/v1"
@@ -23,6 +24,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// The default amount of time to wait while a test action is processed.
+const defaultWaitTimeout = 120 * time.Second
 
 var _ = Describe("Installation Lifecycle", func() {
 	Context("When an installation is changed", func() {
@@ -82,7 +86,7 @@ var _ = Describe("Installation Lifecycle", func() {
 func waitForPorter(ctx context.Context, inst *porterv1.Installation, msg string) error {
 	Log("%s: %s/%s", msg, inst.Namespace, inst.Name)
 	key := client.ObjectKey{Namespace: inst.Namespace, Name: inst.Name}
-	ctx, cancel := context.WithTimeout(ctx, 120*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, getWaitTimeout())
 	defer cancel()
 	for {
 		select {
@@ -139,10 +143,24 @@ func debugFailedInstallation(ctx context.Context, inst *porterv1.Installation) {
 	Log("DEBUG: ----------------------------------------------------")
 }
 
+// Get the amount of time that we should wait for a test action to be processed.
+func getWaitTimeout() time.Duration {
+	if value := os.Getenv("PORTER_TEST_WAIT_TIMEOUT"); value != "" {
+		timeout, err := time.ParseDuration(value)
+		if err != nil {
+			fmt.Printf("WARNING: An invalid value, %q, was set for PORTER_TEST_WAIT_TIMEOUT environment variable. The format should be a Go time duration such as 30s or 1m. Ignoring and using the default instead", value)
+			return defaultWaitTimeout
+		}
+
+		return timeout
+	}
+	return defaultWaitTimeout
+}
+
 func waitForInstallationDeleted(ctx context.Context, inst *porterv1.Installation) error {
 	Log("Waiting for installation to finish deleting: %s/%s", inst.Namespace, inst.Name)
 	key := client.ObjectKey{Namespace: inst.Namespace, Name: inst.Name}
-	waitCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	waitCtx, cancel := context.WithTimeout(ctx, getWaitTimeout())
 	defer cancel()
 	for {
 		select {

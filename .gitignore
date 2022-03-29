@@ -5,6 +5,7 @@
 *.so
 *.dylib
 bin
+docs/public/
 testbin/*
 operator
 /kind.config

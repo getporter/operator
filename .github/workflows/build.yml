@@ -27,6 +27,8 @@ jobs:
         run: go run mage.go EnsureMage
       - name: Test
         run: mage -v Test
+        env:
+          PORTER_TEST_WAIT_TIMEOUT: 2m
       - name: Report Unit Test Coverage
         uses: codecov/codecov-action@v1
         with:
