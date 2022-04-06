@@ -191,7 +191,7 @@ func PublishBundle() {
 
 // Generate k8s manifests for the operator.
 func buildManifests() {
-	mg.Deps(EnsureKustomize, EnsureControllerGen)
+	mg.Deps(EnsureKustomize, EnsureControllerGen, EnsureYq)
 
 	// Set the image reference in porter.yaml so that the manager image is packaged with the bundle
 	managerRef := resolveManagerImage()
@@ -452,6 +452,8 @@ func CleanTestdata() {
 // Remove all finalizers from the specified resource
 // name should be in the format: kind/name
 func removeFinalizers(namespace, name string) {
+	mg.Deps(EnsureYq)
+
 	// Get the resource definition
 	resource, _ := kubectl("get", name, "-n", namespace, "-o=yaml").Output()
 
@@ -547,7 +549,7 @@ func EnsureKustomize() {
 		DownloadOptions: downloads.DownloadOptions{
 			UrlTemplate: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F{{.VERSION}}/kustomize_{{.VERSION}}_{{.GOOS}}_{{.GOARCH}}.tar.gz",
 			Name:        "kustomize",
-			Version:     "v3.8.7",
+			Version:     "v4.5.4",
 		},
 		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
 		TargetFileTemplate: "kustomize{{.EXT}}",

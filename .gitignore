@@ -25,6 +25,7 @@ installer/porter.yaml
 
 # editor and IDE paraphernalia
 .env
+.envrc
 .idea
 *.swp
 *.swo
