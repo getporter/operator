@@ -82,6 +82,32 @@ rules:
 - apiGroups:
   - porter.sh
   resources:
+  - credentialsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - credentialsets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
+  - credentialsets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
   - installations
   verbs:
   - create

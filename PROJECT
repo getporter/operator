@@ -1,21 +1,42 @@
 domain: porter.sh
-layout: go.kubebuilder.io/v3
-projectName: porter-operator
-repo: get.porter.sh/operator
-resources:
-- crdVersion: v1
-  kind: Installation
-  version: v1
-- crdVersion: v1
-  kind: AgentConfig
-  version: v1
-- crdVersion: v1
-  kind: PorterConfig
-  version: v1
-- crdVersion: v1
-  kind: AgentAction
-  version: v1
-version: 3-alpha
+layout:
+- go.kubebuilder.io/v3
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
+projectName: porter-operator
+repo: get.porter.sh/operator
+resources:
+- api:
+    crdVersion: v1
+  domain: porter.sh
+  kind: Installation
+  path: get.porter.sh/operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+  domain: porter.sh
+  kind: AgentConfig
+  path: get.porter.sh/operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+  domain: porter.sh
+  kind: PorterConfig
+  path: get.porter.sh/operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+  domain: porter.sh
+  kind: AgentAction
+  path: get.porter.sh/operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: porter.sh
+  kind: CredentialSet
+  path: get.porter.sh/operator/api/v1
+  version: v1
+version: "3"

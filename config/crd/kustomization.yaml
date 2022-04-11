@@ -6,6 +6,7 @@ resources:
   - bases/porter.sh_installations.yaml
   - bases/porter.sh_porterconfigs.yaml
   - bases/porter.sh_agentactions.yaml
+  - bases/porter.sh_credentialsets.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -338,7 +337,7 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 				namespace := action.Namespace
 				if test.createNamespace {
 					namespace = "test-existing"
-					existingNs := &v1.Namespace{
+					existingNs := &corev1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: namespace,
 							Labels: map[string]string{
@@ -461,7 +460,7 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 				namespace := action.Namespace
 				if test.createNamespace {
 					namespace = "test-existing"
-					existingNs := &v1.Namespace{
+					existingNs := &corev1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: namespace,
 							Labels: map[string]string{
@@ -595,7 +594,7 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 				namespace := action.Namespace
 				if test.createNamespace {
 					namespace = "test-existing"
-					existingNs := &v1.Namespace{
+					existingNs := &corev1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{
 							GenerateName: namespace,
 							Labels: map[string]string{
