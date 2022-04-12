@@ -5,9 +5,9 @@ go 1.17
 // Any replace statements should be kept in sync with the ones in Porter's go.mod
 
 require (
-	get.porter.sh/magefiles v0.1.1
+	get.porter.sh/magefiles v0.1.3
 	get.porter.sh/porter v1.0.0-alpha.16
-	github.com/carolynvs/magex v0.7.1
+	github.com/carolynvs/magex v0.7.2
 	github.com/go-logr/logr v1.2.2
 	github.com/magefile/mage v1.13.0
 	github.com/mitchellh/mapstructure v1.4.1
