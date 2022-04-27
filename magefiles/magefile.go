@@ -16,7 +16,7 @@ import (
 	"time"
 
 	. "get.porter.sh/magefiles/docker"
-	. "get.porter.sh/magefiles/porter"
+	"get.porter.sh/magefiles/porter"
 	"get.porter.sh/magefiles/releases"
 	. "get.porter.sh/magefiles/tests"
 	"get.porter.sh/magefiles/tools"
@@ -127,7 +127,7 @@ func BuildBundle() {
 	if mg.Verbose() {
 		verbose = "--verbose"
 	}
-	porter("build", "--version", version, "-f=porter.yaml", verbose).
+	buildPorterCmd("build", "--version", version, "-f=porter.yaml", verbose).
 		CollapseArgs().Env("PORTER_EXPERIMENTAL=build-drivers", "PORTER_BUILD_DRIVER=buildkit").
 		In("installer").Must().RunV()
 }
@@ -182,7 +182,7 @@ func getPlugins() error {
 			} else {
 				source = "--url=" + plugin.url
 			}
-			return porter("plugin", "install", plugin.name, "--version", plugin.version, source).Run()
+			return buildPorterCmd("plugin", "install", plugin.name, "--version", plugin.version, source).Run()
 		})
 	}
 
@@ -222,7 +222,7 @@ func getMixins() error {
 			} else {
 				source = "--url=" + mixin.url
 			}
-			return porter("mixin", "install", mixin.name, "--version", mixin.version, source).Run()
+			return buildPorterCmd("mixin", "install", mixin.name, "--version", mixin.version, source).Run()
 		})
 	}
 
@@ -237,10 +237,10 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	porter("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
 
 	meta := releases.LoadMetadata()
-	porter("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
@@ -363,10 +363,10 @@ func Deploy() {
 	if rebuild {
 		PublishLocalPorterAgent()
 		PublishBundle()
-		porter("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
+		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	}
 	bundleRef := Env.BundlePrefix + meta.Version
-	porter("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
+	buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {
@@ -473,11 +473,11 @@ func OldSetupNamespace(name string) {
 	// It would be neat if Porter could handle this for us
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		porter("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
+		buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 		ps = "-p=dev-build"
 	}
 
-	porter("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
+	buildPorterCmd("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
 		CollapseArgs().Must().RunV()
 	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
 	setClusterNamespace(name)
@@ -490,13 +490,13 @@ func SetupNamespace(name string) {
 	// Only specify the parameter set we have the env vars set
 	// It would be neat if Porter could handle this for us
 	PublishLocalPorterAgent()
-	porter("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
+	buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
 		ps = "-p=dev-build"
 	}
 
-	porter("invoke", "operator", "--action=configureNamespace", ps, "--param", "pullPolicy=Always", "--param", "namespace="+name, "--param", "porterConfig="+porterConfigFile, "-c", "kind", "-n=operator").
+	buildPorterCmd("invoke", "operator", "--action=configureNamespace", ps, "--param", "pullPolicy=Always", "--param", "namespace="+name, "--param", "porterConfig="+porterConfigFile, "-c", "kind", "-n=operator").
 		CollapseArgs().Must().RunV()
 	kubectl("label", "namespace", name, "--overwrite=true", "porter.sh/devenv=true").Must().RunV()
 
@@ -554,7 +554,7 @@ func removeFinalizers(namespace, name string) {
 // Remove any porter data in the cluster
 func CleanAllData() {
 	if useCluster() {
-		porter("invoke", "operator", "--action=removeData", "-c", "kind", "-n=operator").Must().RunV()
+		buildPorterCmd("invoke", "operator", "--action=removeData", "-c", "kind", "-n=operator").Must().RunV()
 	}
 }
 
@@ -655,7 +655,7 @@ func pwd() string {
 
 // Install the specified version of porter
 func NewEnsurePorterAt(version string) {
-	home := GetPorterHome()
+	home := porter.GetPorterHome()
 	runtimesDir := filepath.Join(home, "runtimes")
 	os.MkdirAll(runtimesDir, 0770)
 
@@ -689,54 +689,20 @@ func NewEnsurePorterAt(version string) {
 	}
 }
 
-func EnsureLocalPorter() {
-	mg.SerialDeps(UseBinForPorterHome)
-	NewEnsurePorterAt(porterVersion)
-	getMixins()
-	getPlugins()
-	//porter("plugins", "install", "kubernetes")
-}
-
 // Run porter using the local storage, not the in-cluster storage
-func porter(args ...string) shx.PreparedCommand {
+func buildPorterCmd(args ...string) shx.PreparedCommand {
+	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
+	return must.Command(filepath.Join(pwd(), "bin/porter")).Args(args...).
+		Env("PORTER_DEFAULT_STORAGE=",
+			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
+			fmt.Sprintf("PORTER_HOME=%s", filepath.Join(pwd(), "bin")))
 	//mg.Deps(EnsureLocalPorter)
-	return shx.Command(filepath.Join(GetPorterHome(), "porter")).Args(args...).
-		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
+	// return shx.Command(filepath.Join(GetPorterHome(), "porter")).Args(args...).
+	// 	Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
 }
-
-/*
-func PublishLocalPorterAgent() {
-	// Check if we have a local porter build
-	// TODO: let's move some of these helpers into Porter
-	mg.Deps(EnsureTestCluster, SetupLocalTestEnv)
-	BuildLocalPorterAgent()
-	imageExists := func(img string) (bool, error) {
-		out, err := shx.Output("docker", "image", "inspect", img)
-		if err != nil {
-			if strings.Contains(out, "No such image") {
-				return false, nil
-			}
-			return false, err
-		}
-		return true, nil
-	}
-
-	pushImage := func(img string) error {
-		return shx.Run("docker", "push", img)
-	}
-	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		localAgentImgName = fmt.Sprintf("%s:%s", os.Getenv("PORTER_AGENT_REPOSITORY"), os.Getenv("PORTER_AGENT_VERSION"))
-	}
-
-	if ok, _ := imageExists(localAgentImgName); ok {
-		err := pushImage(localAgentImgName)
-		mgx.Must(err)
-	}
-}
-*/
 
 func BuildLocalPorterAgent() {
-	mg.Deps(EnsureLocalPorter)
+	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {
 		_, err := shx.Output("docker", "build", "-t", img,
