@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -285,13 +286,13 @@ func resolveManagerImage() cnab.OCIReference {
 
 // Run all tests
 func Test() {
-	mg.Deps(TestUnit, TestIntegration)
+	mg.SerialDeps(TestUnit, TestIntegration)
 }
 
 // Run unit tests.
 func TestUnit() {
 	must.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
-	must.Run("sed", "-i", "", "/zz_generated/d", "coverage-unit.out")
+	generatedCodeFilter("coverage-unit.out")
 }
 
 // Update golden test files to match the new test outputs
@@ -720,4 +721,27 @@ func BuildLocalPorterAgent() {
 	}
 	err := buildImage(localAgentImgName)
 	mgx.Must(err)
+}
+
+//generatedCodeFilter remove generated code files from coverage report
+func generatedCodeFilter(filename string) error {
+	fd, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	fs := string(fd)
+	var lines []string
+	sc := bufio.NewScanner(strings.NewReader(fs))
+	for sc.Scan() {
+		if !strings.Contains(sc.Text(), "zz_generated") {
+			lines = append(lines, sc.Text())
+		}
+	}
+
+	fd = []byte(strings.Join(lines, "\n"))
+	err = ioutil.WriteFile(filename, fd, 0o600)
+	if err != nil {
+		return err
+	}
+	return nil
 }
