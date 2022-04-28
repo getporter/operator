@@ -291,6 +291,7 @@ func Test() {
 // Run unit tests.
 func TestUnit() {
 	must.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
+	must.Run("sed", "-i", "", "/zz_generated/d", "coverage-unit.out")
 }
 
 // Update golden test files to match the new test outputs
