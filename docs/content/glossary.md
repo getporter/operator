@@ -11,6 +11,7 @@ See the Porter docs for general Porter terminology.
     * [PorterAgent](#porteragent)
 * [Resources](#resources)
   * [Installation](#installation)
+  * [CredentialSet](#credentialset)
   * [AgentAction](#agentaction)
   * [AgentConfig](#agentconfig)
   * [PorterConfig](#porterconfig)
@@ -38,6 +39,18 @@ The agent is a Docker image with the porter CLI installed, and a custom entry po
 The [Installation] custom resource represents an installation of a bundle in Porter.
 
 [Installation]: /operator/file-formats/#installation
+
+### CredentialSet
+
+The [CredentialSet] custom resource represents a credential set in Porter.
+
+[CredentialSet]: /operator/file-formats/#credentialset
+
+A CredentialSet supports a credential source of `secret` for Porter secrets plugins. Secrets 
+must be configured based on the secret [plugin type](/plugins). 
+
+The operator creates a corresponding AgentAction to create, update or delete Porter credentials.
+Once created the credential set is available to an Installation resource via its spec file.
 
 ### AgentAction
 
