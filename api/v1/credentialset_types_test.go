@@ -1,18 +1,19 @@
 package v1
 
 import (
-	"io/ioutil"
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	portertest "get.porter.sh/porter/pkg/test"
+	portertests "get.porter.sh/porter/tests"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
-	wantGoldenFile, err := ioutil.ReadFile("testdata/credential-set.yaml")
-	require.NoError(t, err)
+	wantGoldenFile := "testdata/credential-set.yaml"
 	type fields struct {
 		AgentConfig   *corev1.LocalObjectReference
 		PorterConfig  *corev1.LocalObjectReference
@@ -22,10 +23,10 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 		Credentials   []Credential
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		want    []byte
-		wantErr bool
+		name       string
+		fields     fields
+		wantFile   string
+		wantErrMsg string
 	}{
 		{
 			name: "golden file test",
@@ -38,8 +39,8 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 				},
 				},
 			},
-			want:    wantGoldenFile,
-			wantErr: false,
+			wantFile:   wantGoldenFile,
+			wantErrMsg: "",
 		},
 	}
 	for _, tt := range tests {
@@ -53,12 +54,11 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 				Credentials:   tt.fields.Credentials,
 			}
 			got, err := cs.ToPorterDocument()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CredentialSetSpec.ToPorterDocument() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CredentialSetSpec.ToPorterDocument() = \n%v, want \n%v", string(got), string(tt.want))
+			if tt.wantErrMsg == "" {
+				require.NoError(t, err)
+				portertest.CompareGoldenFile(t, "testdata/credential-set.yaml", string(got))
+			} else {
+				portertests.RequireErrorContains(t, err, tt.wantErrMsg)
 			}
 		})
 	}
@@ -99,6 +99,7 @@ func TestCredentialSet_SetRetryAnnotation(t *testing.T) {
 				Status:     tt.fields.Status,
 			}
 			cs.SetRetryAnnotation(tt.args.retry)
+			assert.Equal(t, tt.args.retry, cs.Annotations[AnnotationRetry])
 		})
 	}
 }

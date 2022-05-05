@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
-
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -13,15 +11,14 @@ import (
 // * json tags are required for Kubernetes.  Any new fields you add must have json tags for the fields to be serialized.
 // * yaml tags are required for Porter.  Any new fields you add must have yaml tags for the fields to be serialized.
 
-var _ yaml.Marshaler = CredentialSetSpec{}
-
 // Credential defines a element in a CredentialSet
 type Credential struct {
 	//Name is the bundle credential name
 	Name string `json:"name" yaml:"name"`
 
 	//Source is the bundle credential source
-	//TODO (TBD): supported: secret, file path(via configMap). unsupported: specific value, env var, shell cmd
+	//supported: secret
+	//unsupported: file path(via configMap), specific value, env var, shell cmd
 	Source CredentialSource `json:"source" yaml:"source"`
 }
 
@@ -29,9 +26,6 @@ type Credential struct {
 type CredentialSource struct {
 	//Secret is a credential source using a secret plugin
 	Secret string `json:"secret,omitempty" yaml:"secret,omitempty"`
-
-	//FilePath is a credential source using a file path (and configmap)
-	FilePath string `json:"file,omitempty" yaml:"file,omitempty"`
 }
 
 // CredentialSetSpec defines the desired state of CredentialSet
@@ -64,19 +58,6 @@ type CredentialSetSpec struct {
 func (cs CredentialSetSpec) ToPorterDocument() ([]byte, error) {
 	b, err := yaml.Marshal(cs)
 	return b, errors.Wrap(err, "error converting the CredentialSet spec into its Porter resource representation")
-}
-
-// MarshalYAML implements yaml.Marshaler
-func (cs CredentialSetSpec) MarshalYAML() (interface{}, error) {
-	_, err := json.Marshal(cs)
-	if err != nil {
-		return nil, err
-	}
-	type Alias CredentialSetSpec
-	raw := struct {
-		Alias `yaml:",inline"`
-	}{Alias: Alias(cs)}
-	return raw, nil
 }
 
 // CredentialSetStatus defines the observed state of CredentialSet

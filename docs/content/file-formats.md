@@ -10,6 +10,7 @@ although they both use the term namespace, there is no relation between Kubernet
 The same goes for the name and labels fields.
 
 * [Installation](#installation)
+* [CredentialSet](#credentialset)
 * [AgentAction](#agentaction)
 * [AgentConfig](#agentconfig)
 * [PorterConfig](#porterconfig)
@@ -49,22 +50,14 @@ spec:
         secret: test-secret
 ```
 
-| Field        | Required | Default                            | Description                                                 |
-|--------------|----------|------------------------------------|-------------------------------------------------------------|
-| credentials  | true     |                                    | List of credential sources for the set |
-| agentConfig  | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
-| porterConfig | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
-
-### Credential Source
-
-One or more credential sources must be provided for a CredentialSet
-
-| Field          | Required | Default | Description                                                 |
-|----------------|----------|---------|-------------------------------------------------------------|
-| name           | true     |         | The name of the credential for the bundle |
-| source         | true     |         | The credential type. Currently `secret` is the only supported source |
-| source.secret  | true     |         | The name of the secret |
-|
+| Field                     | Required | Default                            | Description                                                 |
+|---------------------------|----------|------------------------------------|-------------------------------------------------------------|
+| agentConfig               | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
+| porterConfig              | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
+| credentials               | true     |                                    | List of credential sources for the set |
+| credentials.name          | true     |                                    | The name of the credential for the bundle |
+| credentials.source        | true     |                                    | The credential type. Currently `secret` is the only supported source |
+| credentials.source.secret | true     |                                    | The name of the secret |
 
 [CredentialSet]: /operator/glossary/#credentialset
 

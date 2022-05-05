@@ -31,12 +31,10 @@ import (
 	"github.com/carolynvs/magex/pkg/downloads"
 	"github.com/carolynvs/magex/pkg/gopath"
 	"github.com/carolynvs/magex/shx"
-	"github.com/carolynvs/magex/xplat"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/target"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
-	// mage:import
 )
 
 const (
@@ -466,25 +464,6 @@ func namespaceExists(name string) bool {
 	return err == nil
 }
 
-// Create a namespace, usage: mage SetupNamespace demo.
-// Configures the namespace for use with the operator.
-func OldSetupNamespace(name string) {
-	mg.Deps(EnsureTestCluster)
-
-	// Only specify the parameter set we have the env vars set
-	// It would be neat if Porter could handle this for us
-	ps := ""
-	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
-		ps = "-p=dev-build"
-	}
-
-	buildPorterCmd("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
-		CollapseArgs().Must().RunV()
-	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
-	setClusterNamespace(name)
-}
-
 func SetupNamespace(name string) {
 	mg.Deps(EnsureTestCluster)
 	porterConfigFile := "./tests/integration/testdata/operator_porter_config.yaml"
@@ -549,7 +528,7 @@ func removeFinalizers(namespace, name string) {
 	mg.Deps(EnsureYq)
 
 	// Get the resource definition
-	kubectl("patch", "-n", namespace, name, "-p", `[{"op": "remove", "path": "/metadata/finalizers"}]`, "--type=json").Must(false).RunV()
+	kubectl("patch", "-n", namespace, name, "-p", `[{"op": "remove", "path": "/metadata/finalizers"}]`, "--type=json").Must(false).RunS()
 	time.Sleep(time.Second * 6)
 }
 
@@ -655,42 +634,6 @@ func pwd() string {
 	return wd
 }
 
-// Install the specified version of porter
-func NewEnsurePorterAt(version string) {
-	home := porter.GetPorterHome()
-	runtimesDir := filepath.Join(home, "runtimes")
-	os.MkdirAll(runtimesDir, 0770)
-
-	clientPath := filepath.Join(home, "porter"+xplat.FileExt())
-	if clientFound, _ := pkg.IsCommandAvailable(clientPath, version, "--version"); !clientFound {
-		log.Println("Porter client not found at", clientPath)
-		log.Println("Installing porter into", home)
-		opts := downloads.DownloadOptions{
-			UrlTemplate: "https://cdn.porter.sh/{{.VERSION}}/porter-{{.GOOS}}-{{.GOARCH}}{{.EXT}}",
-			Name:        "porter",
-			Version:     version,
-			Ext:         xplat.FileExt(),
-		}
-		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-			// we don't yet publish arm64 for porter
-			opts.UrlTemplate = "https://cdn.porter.sh/{{.VERSION}}/porter-darwin-amd64"
-		}
-		mgx.Must(downloads.Download(home, opts))
-	}
-
-	runtimePath := filepath.Join(home, "runtimes", "porter-runtime")
-	//if runtimeFound, _ := pkg.IsCommandAvailable(runtimePath, version, "--version"); !runtimeFound {
-	if _, err := os.Stat(runtimePath); err != nil {
-		log.Println("Porter runtime not found at", runtimePath)
-		opts := downloads.DownloadOptions{
-			UrlTemplate: "https://cdn.porter.sh/{{.VERSION}}/porter-linux-amd64",
-			Name:        "porter-runtime",
-			Version:     version,
-		}
-		mgx.Must(downloads.Download(runtimesDir, opts))
-	}
-}
-
 // Run porter using the local storage, not the in-cluster storage
 func buildPorterCmd(args ...string) shx.PreparedCommand {
 	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
@@ -704,7 +647,7 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 }
 
 func BuildLocalPorterAgent() {
-	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
+	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter, getPlugins, getMixins)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {
 		_, err := shx.Output("docker", "build", "-t", img,
@@ -739,7 +682,7 @@ func generatedCodeFilter(filename string) error {
 	}
 
 	fd = []byte(strings.Join(lines, "\n"))
-	err = ioutil.WriteFile(filename, fd, 0o600)
+	err = ioutil.WriteFile(filename, fd, 0600)
 	if err != nil {
 		return err
 	}
