@@ -10,6 +10,7 @@ although they both use the term namespace, there is no relation between Kubernet
 The same goes for the name and labels fields.
 
 * [Installation](#installation)
+* [CredentialSet](#credentialset)
 * [AgentAction](#agentaction)
 * [AgentConfig](#agentconfig)
 * [PorterConfig](#porterconfig)
@@ -29,6 +30,36 @@ In addition to the normal fields available on a [Porter Installation document](/
 | porterConfig | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
 
 [Installation]: /operator/glossary/#installation
+
+## CredentialSet
+
+See the glossary for more information about the [CredentialSet] resource.
+
+```yaml
+apiVersion: porter.sh/v1
+kind: CredentialSet
+metadata:
+  name: credentialset-sample
+spec:
+  schemaVersion: 1.0.1
+  namespace: operator
+  name: porter-test-me
+  credentials:
+    - name: test-credential
+      source:
+        secret: test-secret
+```
+
+| Field                     | Required | Default                            | Description                                                 |
+|---------------------------|----------|------------------------------------|-------------------------------------------------------------|
+| agentConfig               | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
+| porterConfig              | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
+| credentials               | true     |                                    | List of credential sources for the set |
+| credentials.name          | true     |                                    | The name of the credential for the bundle |
+| credentials.source        | true     |                                    | The credential type. Currently `secret` is the only supported source |
+| credentials.source.secret | true     |                                    | The name of the secret |
+
+[CredentialSet]: /operator/glossary/#credentialset
 
 ## AgentAction
 

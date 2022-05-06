@@ -1,0 +1,15 @@
+{
+  "go.buildFlags": [
+    "-tags=integration",
+  ],
+  "go.testTags": "!integration,!mage",
+  "go.testFlags": [
+    "-count=1",
+    "-v"
+  ],
+  "go.coverOnSave": true,
+    "go.coverageDecorator": {
+        "type": "gutter"
+    },
+    "go.coverOnSingleTest": true
+}

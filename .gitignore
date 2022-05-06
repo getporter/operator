@@ -30,3 +30,4 @@ installer/porter.yaml
 *.swp
 *.swo
 *~
+coverage/coverage.html

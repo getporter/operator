@@ -1,11 +1,11 @@
 //go:build mage
-// +build mage
 
 // This is a magefile, and is a "makefile for go".
 // See https://magefile.org/
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	// mage:import
-	. "get.porter.sh/magefiles/tests"
-
-	"get.porter.sh/magefiles/docker"
+	. "get.porter.sh/magefiles/docker"
+	"get.porter.sh/magefiles/porter"
 	"get.porter.sh/magefiles/releases"
+	. "get.porter.sh/magefiles/tests"
+	"get.porter.sh/magefiles/tools"
 	. "get.porter.sh/operator/mage"
 	"get.porter.sh/operator/mage/docs"
 	"get.porter.sh/porter/pkg/cnab"
@@ -32,6 +32,7 @@ import (
 	"github.com/carolynvs/magex/pkg/gopath"
 	"github.com/carolynvs/magex/shx"
 	"github.com/magefile/mage/mg"
+	"github.com/magefile/mage/target"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -48,16 +49,24 @@ const (
 
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
+
+	// Container name of the local registry
+	registryContainer = "registry"
+
+	// Porter home for running commands
+	porterVersion = "v1.0.0-alpha.19"
 )
+
+var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
+var binDir = "bin"
+
+//TODO: sort out getting k8s plugin into porter-agent
+var localAgentImgRepository = "localhost:5000/porter-agent-kubernetes"
+var localAgentImgVersion = "canary-dev"
+var localAgentImgName = fmt.Sprintf("%s:%s", localAgentImgRepository, localAgentImgVersion)
 
 // Build a command that stops the build on if the command fails
 var must = shx.CommandBuilder{StopOnError: true}
-
-// Ensure mage is installed.
-func EnsureMage() error {
-	addGopathBinOnGithubActions()
-	return pkg.EnsureMage("v1.11.0")
-}
 
 // Add GOPATH/bin to the path on the GitHub Actions agent
 // TODO: Add to magex
@@ -70,6 +79,11 @@ func addGopathBinOnGithubActions() error {
 	log.Println("Adding GOPATH/bin to the PATH for the GitHub Actions Agent")
 	gopathBin := gopath.GetGopathBin()
 	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
+}
+
+// Ensure EnsureMage is installed and on the PATH.
+func EnsureMage() error {
+	return tools.EnsureMage()
 }
 
 func Fmt() {
@@ -102,7 +116,7 @@ func GenerateController() error {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(getMixins, docker.StartDockerRegistry, PublishImages)
+	mg.SerialDeps(getPlugins, getMixins, StartDockerRegistry, PublishImages)
 
 	buildManifests()
 
@@ -112,7 +126,7 @@ func BuildBundle() {
 	if mg.Verbose() {
 		verbose = "--verbose"
 	}
-	porter("build", "--version", version, "-f=porter.yaml", verbose).
+	buildPorterCmd("build", "--version", version, "-f=porter.yaml", verbose).
 		CollapseArgs().Env("PORTER_EXPERIMENTAL=build-drivers", "PORTER_BUILD_DRIVER=buildkit").
 		In("installer").Must().RunV()
 }
@@ -136,6 +150,44 @@ func BuildImages() {
 	mgx.Must(p.SetEnv("MANAGER_IMAGE", img))
 }
 
+func getPlugins() error {
+	// TODO: move this to a shared target in porter
+
+	plugins := []struct {
+		name    string
+		url     string
+		feed    string
+		version string
+	}{
+		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "latest"},
+	}
+	var errG errgroup.Group
+	for _, plugin := range plugins {
+		plugin := plugin
+		pluginDir := filepath.Join("bin/plugins/", plugin.name)
+		if _, err := os.Stat(pluginDir); err == nil {
+			log.Println("Plugin already installed into bin:", plugin.name)
+			continue
+		}
+
+		errG.Go(func() error {
+			log.Println("Installing plugin:", plugin.name)
+			if plugin.version == "" {
+				plugin.version = "latest"
+			}
+			var source string
+			if plugin.feed != "" {
+				source = "--feed-url=" + plugin.feed
+			} else {
+				source = "--url=" + plugin.url
+			}
+			return buildPorterCmd("plugin", "install", plugin.name, "--version", plugin.version, source).Run()
+		})
+	}
+
+	return errG.Wait()
+}
+
 func getMixins() error {
 	// TODO: move this to a shared target in porter
 
@@ -147,6 +199,7 @@ func getMixins() error {
 	}{
 		{name: "helm3", url: "https://github.com/carolynvs/porter-helm3/releases/download", version: "v0.1.15-8-g864f450"},
 		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "latest"},
+		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "latest"},
 	}
 	var errG errgroup.Group
 	for _, mixin := range mixins {
@@ -168,7 +221,7 @@ func getMixins() error {
 			} else {
 				source = "--url=" + mixin.url
 			}
-			return porter("mixin", "install", mixin.name, "--version", mixin.version, source).Run()
+			return buildPorterCmd("mixin", "install", mixin.name, "--version", mixin.version, source).Run()
 		})
 	}
 
@@ -183,10 +236,10 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	porter("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
 
 	meta := releases.LoadMetadata()
-	porter("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
@@ -219,7 +272,7 @@ func resolveManagerImage() cnab.OCIReference {
 	if err != nil {
 		panic("the manager image has not been built yet")
 	}
-	imgWithDigest, err := docker.ExtractRepoDigest(imgDef)
+	imgWithDigest, err := ExtractRepoDigest(imgDef)
 	if err != nil {
 		panic("could not resolve the repository digest of the manager image")
 	}
@@ -231,12 +284,13 @@ func resolveManagerImage() cnab.OCIReference {
 
 // Run all tests
 func Test() {
-	mg.Deps(TestUnit, TestIntegration)
+	mg.SerialDeps(TestUnit, TestIntegration)
 }
 
 // Run unit tests.
 func TestUnit() {
 	must.RunV("go", "test", "./...", "-coverprofile", "coverage-unit.out")
+	generatedCodeFilter("coverage-unit.out")
 }
 
 // Update golden test files to match the new test outputs
@@ -245,9 +299,15 @@ func UpdateTestfiles() {
 	TestUnit()
 }
 
+func TestOutline() {
+	must.Command("ginkgo", "-v", "-dryRun", "-tags=integration", "./tests/integration/...").
+		CollapseArgs().Env("ACK_GINKGO_DEPRECATIONS=1.16.5").RunV()
+}
+
 // Run integration tests against the test cluster.
 func TestIntegration() {
-	mg.Deps(UseTestEnvironment, CleanTestdata, EnsureGinkgo, EnsureDeployed)
+	mg.SerialDeps(UseTestEnvironment, CleanTestdata)
+	mg.Deps(EnsureGinkgo, EnsureDeployed)
 
 	// TODO: we need to run these tests either isolated against EnvTest, or
 	// against a cluster that doesn't have the operator deployed. Otherwise
@@ -257,12 +317,17 @@ func TestIntegration() {
 
 	kubectl("delete", "deployment", "porter-operator-controller-manager", "-n=porter-operator-system").RunV()
 
-	v := ""
-	if mg.Verbose() {
-		v = "-v"
+	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
+		localAgentImgRepository = os.Getenv("PORTER_AGENT_REPOSITORY")
+		localAgentImgVersion = os.Getenv("PORTER_AGENT_VERSION")
 	}
-	must.Command("go", "test", v, "-tags=integration", "./tests/integration/...", "-coverprofile=coverage-integration.out", "-args", "-ginkgo.v").
-		CollapseArgs().RunV()
+	//"-p", "-nodes", "4",
+	must.Command("ginkgo").Args("-v", "-tags=integration", "./tests/integration/...", "-coverprofile=coverage-integration.out").
+		Env(fmt.Sprintf("PORTER_AGENT_REPOSITORY=%s", localAgentImgRepository),
+			fmt.Sprintf("PORTER_AGENT_VERSION=%s", localAgentImgVersion),
+			"ACK_GINKGO_DEPRECATIONS=1.16.5",
+			"ACK_GINKGO_RC=true",
+			fmt.Sprintf("KUBECONFIG=%s/kind.config", pwd())).RunV()
 }
 
 // Check if the operator is deployed to the test cluster.
@@ -290,14 +355,18 @@ func DocsDeployPreview() error {
 // Build the operator and deploy it to the test cluster using
 func Deploy() {
 	mg.Deps(UseTestEnvironment, EnsureTestCluster)
-
+	rebuild, err := target.Dir(binDir, srcDirs...)
+	if err != nil {
+		mgx.Must(fmt.Errorf("error inspecting source dirs %s: %w", srcDirs, err))
+	}
 	meta := releases.LoadMetadata()
-	PublishLocalPorterAgent()
-	PublishBundle()
-
-	porter("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
+	if rebuild {
+		PublishLocalPorterAgent()
+		PublishBundle()
+		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
+	}
 	bundleRef := Env.BundlePrefix + meta.Version
-	porter("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
+	buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {
@@ -334,6 +403,7 @@ func PublishImages() {
 func PublishLocalPorterAgent() {
 	// Check if we have a local porter build
 	// TODO: let's move some of these helpers into Porter
+	mg.SerialDeps(BuildLocalPorterAgent, EnsureTestCluster)
 	imageExists := func(img string) (bool, error) {
 		out, err := shx.Output("docker", "image", "inspect", img)
 		if err != nil {
@@ -348,10 +418,12 @@ func PublishLocalPorterAgent() {
 	pushImage := func(img string) error {
 		return shx.Run("docker", "push", img)
 	}
+	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
+		localAgentImgName = fmt.Sprintf("%s:%s", os.Getenv("PORTER_AGENT_REPOSITORY"), os.Getenv("PORTER_AGENT_VERSION"))
+	}
 
-	agentImg := "localhost:5000/porter-agent:canary-dev"
-	if ok, _ := imageExists(agentImg); ok {
-		err := pushImage(agentImg)
+	if ok, _ := imageExists(localAgentImgName); ok {
+		err := pushImage(localAgentImgName)
 		mgx.Must(err)
 	}
 }
@@ -392,28 +464,29 @@ func namespaceExists(name string) bool {
 	return err == nil
 }
 
-// Create a namespace, usage: mage SetupNamespace demo.
-// Configures the namespace for use with the operator.
 func SetupNamespace(name string) {
 	mg.Deps(EnsureTestCluster)
+	porterConfigFile := "./tests/integration/testdata/operator_porter_config.yaml"
 
 	// Only specify the parameter set we have the env vars set
 	// It would be neat if Porter could handle this for us
+	PublishLocalPorterAgent()
+	buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		porter("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 		ps = "-p=dev-build"
 	}
 
-	porter("invoke", "operator", "--action=configureNamespace", ps, "--param", "namespace="+name, "-c", "kind", "-n=operator").
+	buildPorterCmd("invoke", "operator", "--action=configureNamespace", ps, "--param", "pullPolicy=Always", "--param", "namespace="+name, "--param", "porterConfig="+porterConfigFile, "-c", "kind", "-n=operator").
 		CollapseArgs().Must().RunV()
-	kubectl("label", "namespace", name, "-l", "porter.sh/testdata=true")
+	kubectl("label", "namespace", name, "--overwrite=true", "porter.sh/devenv=true").Must().RunV()
+
 	setClusterNamespace(name)
 }
 
 // Remove the test cluster and registry.
 func Clean() {
-	mg.Deps(DeleteTestCluster, docker.StopDockerRegistry)
+	mg.Deps(DeleteTestCluster, StopDockerRegistry)
 	os.RemoveAll("bin")
 }
 
@@ -432,7 +505,7 @@ func CleanTestdata() {
 				continue
 			}
 
-			output, _ = kubectl("get", "installation,agentaction", "-n", namespace, `--template={{range .items}}{{.kind}}/{{.metadata.name}},{{end}}`).
+			output, _ = kubectl("get", "installation,credentialset,agentaction", "-n", namespace, `--template={{range .items}}{{.kind}}/{{.metadata.name}},{{end}}`).
 				Output()
 			resources := strings.Split(output, ",")
 			for _, resource := range resources {
@@ -455,20 +528,14 @@ func removeFinalizers(namespace, name string) {
 	mg.Deps(EnsureYq)
 
 	// Get the resource definition
-	resource, _ := kubectl("get", name, "-n", namespace, "-o=yaml").Output()
-
-	// Use yq to remove the finalizers
-	resource, _ = must.Command("yq", "eval", ".metadata.finalizers = null").
-		Stdin(strings.NewReader(resource)).Output()
-
-	// Update the resource
-	kubectl("apply", "-f", "-").Stdin(strings.NewReader(resource)).Run()
+	kubectl("patch", "-n", namespace, name, "-p", `[{"op": "remove", "path": "/metadata/finalizers"}]`, "--type=json").Must(false).RunS()
+	time.Sleep(time.Second * 6)
 }
 
 // Remove any porter data in the cluster
 func CleanAllData() {
 	if useCluster() {
-		porter("invoke", "operator", "--action=removeData", "-c", "kind", "-n=operator").Must().RunV()
+		buildPorterCmd("invoke", "operator", "--action=removeData", "-c", "kind", "-n=operator").Must().RunV()
 	}
 }
 
@@ -481,13 +548,13 @@ func Logs() {
 
 // Ensure operator-sdk is installed.
 func EnsureOperatorSDK() {
-	const version = "v1.3.0"
+	const version = "v1.19.0"
 
 	if runtime.GOOS == "windows" {
 		mgx.Must(errors.New("Sorry, OperatorSDK does not support Windows. In order to contribute to this repository, you will need to use WSL."))
 	}
 
-	url := "https://github.com/operator-framework/operator-sdk/releases/{{.VERSION}}/download/operator-sdk_{{.GOOS}}_{{.GOARCH}}"
+	url := "https://github.com/operator-framework/operator-sdk/releases/download/{{.VERSION}}/operator-sdk_{{.GOOS}}_{{.GOARCH}}"
 	mgx.Must(pkg.DownloadToGopathBin(url, "operator-sdk", version))
 }
 
@@ -540,7 +607,7 @@ func EnsureYq() {
 
 // Ensure ginkgo is installed.
 func EnsureGinkgo() {
-	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "", "v1.16.4"))
+	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "1.16.5", "version"))
 }
 
 // Ensure kustomize is installed.
@@ -568,7 +635,56 @@ func pwd() string {
 }
 
 // Run porter using the local storage, not the in-cluster storage
-func porter(args ...string) shx.PreparedCommand {
-	return shx.Command("porter").Args(args...).
-		Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
+func buildPorterCmd(args ...string) shx.PreparedCommand {
+	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
+	return must.Command(filepath.Join(pwd(), "bin/porter")).Args(args...).
+		Env("PORTER_DEFAULT_STORAGE=",
+			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
+			fmt.Sprintf("PORTER_HOME=%s", filepath.Join(pwd(), "bin")))
+	//mg.Deps(EnsureLocalPorter)
+	// return shx.Command(filepath.Join(GetPorterHome(), "porter")).Args(args...).
+	// 	Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
+}
+
+func BuildLocalPorterAgent() {
+	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter, getPlugins, getMixins)
+	porterRegistry := "ghcr.io/getporter"
+	buildImage := func(img string) error {
+		_, err := shx.Output("docker", "build", "-t", img,
+			"--build-arg", fmt.Sprintf("PORTER_VERSION=%s", porterVersion),
+			"--build-arg", fmt.Sprintf("REGISTRY=%s", porterRegistry),
+			"-f", "tests/integration/testdata/Dockerfile.k8s-plugin-agent", ".")
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
+		localAgentImgName = fmt.Sprintf("%s:%s", os.Getenv("PORTER_AGENT_REPOSITORY"), os.Getenv("PORTER_AGENT_VERSION"))
+	}
+	err := buildImage(localAgentImgName)
+	mgx.Must(err)
+}
+
+//generatedCodeFilter remove generated code files from coverage report
+func generatedCodeFilter(filename string) error {
+	fd, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	fs := string(fd)
+	var lines []string
+	sc := bufio.NewScanner(strings.NewReader(fs))
+	for sc.Scan() {
+		if !strings.Contains(sc.Text(), "zz_generated") {
+			lines = append(lines, sc.Text())
+		}
+	}
+
+	fd = []byte(strings.Join(lines, "\n"))
+	err = ioutil.WriteFile(filename, fd, 0600)
+	if err != nil {
+		return err
+	}
+	return nil
 }

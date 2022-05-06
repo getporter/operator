@@ -1,5 +1,4 @@
 //go:build integration
-// +build integration
 
 package integration_test
 
@@ -13,7 +12,6 @@ import (
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -39,7 +37,6 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
-var testNamespace string
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -88,6 +85,12 @@ var _ = BeforeSuite(func(done Done) {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&controllers.CredentialSetReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("CredentialSet"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&controllers.AgentActionReconciler{
 		Client: k8sManager.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("AgentAction"),
@@ -111,21 +114,10 @@ var _ = AfterSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 })
 
-var _ = BeforeEach(func() {
-	testNamespace = createTestNamespace(context.Background())
-}, 5)
-
-var _ = AfterEach(func() {
-	if _, ok := os.LookupEnv("KEEP_TESTS"); ok {
-		return
-	}
-	deleteNamespace(testNamespace)
-}, 5)
-
 func createTestNamespace(ctx context.Context) string {
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "ginkgo-tests",
+			GenerateName: "ginkgo-tests-",
 			Labels: map[string]string{
 				"porter.sh/testdata": "true",
 			},
@@ -188,6 +180,7 @@ func createTestNamespace(ctx context.Context) string {
 			Namespace: ns.Name,
 		},
 		Spec: porterv1.AgentConfigSpec{
+			PullPolicy:                 v1.PullAlways,
 			PorterRepository:           agentRepo,
 			PorterVersion:              agentVersion,
 			ServiceAccount:             svc.Name,
@@ -197,22 +190,4 @@ func createTestNamespace(ctx context.Context) string {
 	Expect(k8sClient.Create(ctx, agentCfg)).To(Succeed())
 
 	return ns.Name
-}
-
-func deleteNamespace(name string) {
-	// Delete the test namespace
-	ns := &v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-	var background = metav1.DeletePropagationBackground
-	err := k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{
-		GracePeriodSeconds: pointer.Int64Ptr(0),
-		PropagationPolicy:  &background,
-	})
-	if apierrors.IsNotFound(err) {
-		return
-	}
-	Expect(err).NotTo(HaveOccurred())
 }

@@ -4,4 +4,5 @@ resources:
 - _v1_porterconfig.yaml
 - _v1_agentconfig.yaml
 - _v1_agentaction.yaml
+- _v1_credentialset.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

@@ -11,6 +11,7 @@ See the Porter docs for general Porter terminology.
     * [PorterAgent](#porteragent)
 * [Resources](#resources)
   * [Installation](#installation)
+  * [CredentialSet](#credentialset)
   * [AgentAction](#agentaction)
   * [AgentConfig](#agentconfig)
   * [PorterConfig](#porterconfig)
@@ -38,6 +39,25 @@ The agent is a Docker image with the porter CLI installed, and a custom entry po
 The [Installation] custom resource represents an installation of a bundle in Porter.
 
 [Installation]: /operator/file-formats/#installation
+
+### CredentialSet
+
+The [CredentialSet] custom resource represents a credential set in Porter.
+
+[CredentialSet]: /operator/file-formats/#credentialset
+
+A CredentialSet supports a credential source of `secret` for Porter secrets 
+plugins. Secrets source keys may vary depending on which [secret plugin](/plugins/)
+you have configured. The [host secrets plugin](/plugins/host/) is not a
+good fit for use with the Porter Operator because environment variables or
+files are not a recommended way to manage secrets on a cluster.
+The [kubernetes.secrets plugin](https://release-v1.porter.sh/plugins/kubernetes/#secrets) 
+can retrieve secrets from native Kubernetes secrets, and otherwise we 
+recommend that an external secret store such as [Azure KeyVault](/plugins/azure/#secrets)
+or [Hashicorp Vault](/plugins/hashicorp/) are configured instead.
+
+The operator creates a corresponding AgentAction to create, update or delete Porter credentials.
+Once created the credential set is available to an Installation resource via its spec file.
 
 ### AgentAction
 
