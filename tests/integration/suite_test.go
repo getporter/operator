@@ -37,7 +37,6 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
-var schemaVersion string
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -114,18 +113,6 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
-
-var _ = BeforeEach(func() {
-	schemaVersion = "1.0.1"
-}, 5)
-
-var _ = AfterEach(func() {
-	if _, ok := os.LookupEnv("KEEP_TESTS"); ok {
-		return
-	}
-	//TODO: don't reuse namespace for all tests move this to suite/magefile cleanup
-	//deleteNamespace(testNamespace)
-}, 5)
 
 func createTestNamespace(ctx context.Context) string {
 	ns := &v1.Namespace{
