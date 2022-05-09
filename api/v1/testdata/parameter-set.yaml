@@ -1,0 +1,7 @@
+schemaVersion: 1.0.1
+name: porter-test-me
+namespace: dev
+parameters:
+    - name: param1
+      source:
+        value: test-param
