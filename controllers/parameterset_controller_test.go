@@ -30,7 +30,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	namespace := "test"
 	name := "mybuns"
 	testdata := []client.Object{
-		&porterv1.CredentialSet{
+		&porterv1.ParameterSet{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 		},
 	}
@@ -54,7 +54,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	}
 	triggerReconcile()
 
-	// Verify the credential set was picked up and the status initialized
+	// Verify the parameter set was picked up and the status initialized
 	assert.Equal(t, porterv1.PhaseUnknown, ps.Status.Phase, "New resources should be initialized to Phase: Unknown")
 
 	triggerReconcile()
@@ -72,7 +72,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify the credential set status was synced with the action
+	// Verify the parameter set status was synced with the action
 	assert.Equal(t, porterv1.PhasePending, ps.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(ps.Status.Conditions, string(porterv1.ConditionScheduled)))
 
@@ -83,7 +83,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify the credential set status was synced with the action
+	// Verify the parameter set status was synced with the action
 	assert.Equal(t, porterv1.PhaseRunning, ps.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(ps.Status.Conditions, string(porterv1.ConditionStarted)))
 
@@ -94,7 +94,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify the credential set status was synced with the action
+	// Verify the parameter set status was synced with the action
 	assert.NotNil(t, ps.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseSucceeded, ps.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(ps.Status.Conditions, string(string(porterv1.ConditionComplete))))
@@ -106,7 +106,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that the credential set status shows the action is failed
+	// Verify that the parameter set status shows the action is failed
 	require.NotNil(t, ps.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseFailed, ps.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue((ps.Status.Conditions), string(porterv1.ConditionFailed)))
@@ -117,7 +117,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that the credential set status was re-initialized
+	// Verify that the parameter set status was re-initialized
 	assert.Equal(t, int64(2), ps.Status.ObservedGeneration)
 	assert.Equal(t, porterv1.PhaseUnknown, ps.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, ps.Status.Conditions, "Conditions should have been reset")
@@ -141,7 +141,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	assert.Equal(t, porterv1.PhaseUnknown, ps.Status.Phase, "New resources should be initialized to Phase Unknown")
 	assert.Empty(t, ps.Status.Conditions, "Conditions should have been reset")
 
-	// Delete the credential set (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
+	// Delete the parameter set (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
 	// The fake client doesn't really follow finalizer logic
 	now := metav1.NewTime(time.Now())
 	ps.Generation = 3
@@ -162,9 +162,9 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that the credential set was removed
+	// Verify that the parameter set was removed
 	err := controller.Get(ctx, client.ObjectKeyFromObject(&ps), &ps)
-	require.True(t, apierrors.IsNotFound(err), "expected the credential set was deleted")
+	require.True(t, apierrors.IsNotFound(err), "expected the parameter set was deleted")
 
 	// Verify that the reconcile doesn't error out after its deleted
 	triggerReconcile()
@@ -177,11 +177,11 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 		delete bool
 	}{
 		{
-			name:   "Credential Set create agent action",
+			name:   "Parameter Set create agent action",
 			delete: false,
 		},
 		{
-			name:   "Credential Set delete agent action",
+			name:   "Parameter Set delete agent action",
 			delete: true,
 		},
 	}
@@ -194,7 +194,7 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace:  "test",
-					Name:       "myCreds",
+					Name:       "myParams",
 					UID:        "random-uid",
 					Generation: 1,
 					Labels: map[string]string{
@@ -206,7 +206,7 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 				},
 				Spec: porterv1.ParameterSetSpec{
 					Namespace:    "dev",
-					Name:         "credset",
+					Name:         "paramset",
 					AgentConfig:  &corev1.LocalObjectReference{Name: "myAgentConfig"},
 					PorterConfig: &corev1.LocalObjectReference{Name: "myPorterConfig"},
 				},
@@ -219,12 +219,12 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 			action, err := controller.createAgentAction(context.Background(), logr.Discard(), cs)
 			require.NoError(t, err)
 			assert.Equal(t, "test", action.Namespace)
-			assert.Contains(t, action.Name, "myCreds-")
+			assert.Contains(t, action.Name, "myParams-")
 			assert.Len(t, action.OwnerReferences, 1, "expected an owner reference")
 			wantOwnerRef := metav1.OwnerReference{
 				APIVersion:         porterv1.GroupVersion.String(),
 				Kind:               "ParameterSet",
-				Name:               "myCreds",
+				Name:               "myParams",
 				UID:                "random-uid",
 				Controller:         pointer.BoolPtr(true),
 				BlockOwnerDeletion: pointer.BoolPtr(true),
@@ -233,7 +233,7 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 			assertContains(t, action.Annotations, porterv1.AnnotationRetry, cs.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
 			assertContains(t, action.Labels, porterv1.LabelManaged, "true", "incorrect label")
 			assertContains(t, action.Labels, porterv1.LabelResourceKind, "ParameterSet", "incorrect label")
-			assertContains(t, action.Labels, porterv1.LabelResourceName, "myCreds", "incorrect label")
+			assertContains(t, action.Labels, porterv1.LabelResourceName, "myParams", "incorrect label")
 			assertContains(t, action.Labels, porterv1.LabelResourceGeneration, "1", "incorrect label")
 			assertContains(t, action.Labels, "testLabel", "abc123", "incorrect label")
 
@@ -241,16 +241,16 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 			assert.Equal(t, cs.Spec.AgentConfig, action.Spec.AgentConfig, "incorrect PorterConfig reference")
 			assert.Nilf(t, action.Spec.Command, "should use the default command for the agent")
 			if test.delete {
-				assert.Equal(t, []string{"credentials", "delete", "-n", cs.Spec.Namespace, cs.Spec.Name}, action.Spec.Args, "incorrect agent arguments")
-				assert.Empty(t, action.Spec.Files["credentials.yaml"], "expected credentials.yaml to be empty")
+				assert.Equal(t, []string{"parameters", "delete", "-n", cs.Spec.Namespace, cs.Spec.Name}, action.Spec.Args, "incorrect agent arguments")
+				assert.Empty(t, action.Spec.Files["parameters.yaml"], "expected parameters.yaml to be empty")
 
 			} else {
-				assert.Equal(t, []string{"credentials", "apply", "credentials.yaml"}, action.Spec.Args, "incorrect agent arguments")
-				assert.Contains(t, action.Spec.Files, "credentials.yaml")
-				assert.NotEmpty(t, action.Spec.Files["credentials.yaml"], "expected credentials.yaml to get set on the action")
-				credSetYaml, err := cs.Spec.ToPorterDocument()
+				assert.Equal(t, []string{"parameters", "apply", "parameters.yaml"}, action.Spec.Args, "incorrect agent arguments")
+				assert.Contains(t, action.Spec.Files, "parameters.yaml")
+				assert.NotEmpty(t, action.Spec.Files["parameters.yaml"], "expected parameters.yaml to get set on the action")
+				paramSetYaml, err := cs.Spec.ToPorterDocument()
 				assert.NoError(t, err)
-				assert.Equal(t, action.Spec.Files["credentials.yaml"], credSetYaml)
+				assert.Equal(t, action.Spec.Files["parameters.yaml"], paramSetYaml)
 			}
 
 		})
