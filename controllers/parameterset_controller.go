@@ -30,6 +30,19 @@ type ParameterSetReconciler struct {
 //+kubebuilder:rbac:groups=porter.sh,resources=parametersets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=porter.sh,resources=parametersets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=porter.sh,resources=parametersets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *ParameterSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&porterv1.ParameterSet{}, builder.WithPredicates(resourceChanged{})).
+		Owns(&porterv1.AgentAction{}).
+		Complete(r)
+}
 
 func (r *ParameterSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
@@ -107,14 +120,6 @@ func (r *ParameterSetReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the parameter set.")
 	return ctrl.Result{}, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *ParameterSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&porterv1.ParameterSet{}, builder.WithPredicates(resourceChanged{})).
-		Owns(&porterv1.AgentAction{}).
-		Complete(r)
 }
 
 // isHandled determines if this generation of the parameter set resource has been processed by Porter
