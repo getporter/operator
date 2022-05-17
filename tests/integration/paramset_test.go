@@ -24,175 +24,104 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-/*
-var _ = Describe("CredentialSet secret does not exist", func() {
-	Context("when an installation is created with a CredentialSet resource that references a secret that does not exist", func() {
-		It("should fail the installation install", func() {
+var _ = Describe("ParameterSet lifecycle", func() {
+	It("should run porter apply", func() {
+		By("creating an agent action", func() {
 			ctx := context.Background()
 			ns := createTestNamespace(ctx)
-			name := "test-cs-" + ns
-			By("successfully creating the credential set", func() {
-				Log(fmt.Sprintf("create credential set '%s' for credset", name))
-				cs := NewTestCredSet(name)
-				cs.ObjectMeta.Namespace = ns
-				cred := porterv1.Credential{
-					Name: "insecureValue",
-					Source: porterv1.CredentialSource{
-						Secret: name,
-					},
-				}
-				cs.Spec.Credentials = append(cs.Spec.Credentials, cred)
-				cs.Spec.Namespace = ns
+			delayValue := "1"
+			resourceName := "ps-lifecycle-" + ns
+			pSetName := "ps-lifecycle-test"
+			createTestSecret(ctx, resourceName, delayValue, ns)
 
-				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
-				Expect(waitForPorterCS(ctx, cs, "waiting for credential set to apply")).Should(Succeed())
-				validateCredSetConditions(cs)
+			Log(fmt.Sprintf("create parameter set '%s'", resourceName))
+			paramName := "delay"
+			ps := NewTestParamSet(resourceName)
+			ps.Spec.Name = pSetName
+			ps.ObjectMeta.Namespace = ns
+			param := porterv1.Parameter{
+				Name: paramName,
+				Source: porterv1.ParameterSource{
+					Secret: resourceName,
+				},
+			}
+			ps.Spec.Parameters = append(ps.Spec.Parameters, param)
+			ps.Spec.Namespace = ns
 
-			})
-			By("failing the installation install", func() {
-				Log("install porter-test-me bundle with new credset")
-				inst := NewTestInstallation("cs-no-secret")
-				inst.ObjectMeta.Namespace = ns
-				inst.Spec.Namespace = ns
-				inst.Spec.CredentialSets = append(inst.Spec.CredentialSets, name)
-				inst.Spec.SchemaVersion = "1.0.0"
-				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
-				err := waitForPorter(ctx, inst, "waiting for porter-test-me to install")
-				Expect(err).Should(HaveOccurred())
-				validateInstallationConditions(inst)
-				Expect(inst.Status.Phase).To(Equal(porterv1.PhaseFailed))
-			})
-		})
-	})
-})
-*/
+			Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
+			Expect(waitForPorterPS(ctx, ps, "waiting for parameter set to apply")).Should(Succeed())
+			validateParamSetConditions(ps)
 
-// TODO: Add failed installation due to missing secret test
-var _ = FDescribe("ParameterSet lifecycle", func() {
-	Context("TBD", func() {
-		It("should run porter apply", func() {
-			By("creating an agent action", func() {
-				ctx := context.Background()
-				ns := createTestNamespace(ctx)
-				testSecret := "param-test"
-				name := "ps-update-" + ns
-				createTestSecret(ctx, name, testSecret, ns)
+			Log("verify it's created")
+			jsonOut := runAgentAction(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			firstName := gjson.Get(jsonOut, "0.name").String()
+			numParamSets := gjson.Get(jsonOut, "#").Int()
+			numParams := gjson.Get(jsonOut, "0.parameters.#").Int()
+			firstParamName := gjson.Get(jsonOut, "0.parameters.0.name").String()
+			Expect(int64(1)).To(Equal(numParamSets))
+			Expect(int64(1)).To(Equal(numParams))
+			Expect(ps.Spec.Name).To(Equal(firstName))
+			Expect(paramName).To(Equal(firstParamName))
 
-				Log(fmt.Sprintf("create parameter set '%s'", name))
-				ps := NewTestParamSet(name)
-				ps.Spec.Name = "ps-lifecyce-test"
-				ps.ObjectMeta.Namespace = ns
-				param := porterv1.Parameter{
-					Name: "test-parameter",
-					Source: porterv1.ParameterSource{
-						Secret: name,
-					},
-				}
-				ps.Spec.Parameters = append(ps.Spec.Parameters, param)
-				ps.Spec.Namespace = ns
+			Log("install porter-test-me bundle with new param set")
+			inst := NewTestInstallation("ps-with-secret")
+			inst.ObjectMeta.Namespace = ns
+			inst.Spec.Namespace = ns
+			inst.Spec.ParameterSets = append(inst.Spec.ParameterSets, pSetName)
+			inst.Spec.SchemaVersion = "1.0.0"
+			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
+			Expect(waitForPorter(ctx, inst, "waiting for porter-test-me to install")).Should(Succeed())
+			validateInstallationConditions(inst)
 
-				Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
-				Expect(waitForPorterPS(ctx, ps, "waiting for parameter set to apply")).Should(Succeed())
-				validateParamSetConditions(ps)
+			// Validate that the correct parameter set was used by the installation
+			instJsonOut := runAgentAction(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
+			outDelayValue := gjson.Get(instJsonOut, `#(name=="outDelay").value`).String()
+			Expect(outDelayValue).To(Equal(delayValue))
 
-				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
-				firstName := gjson.Get(jsonOut, "0.name").String()
-				numParamSets := gjson.Get(jsonOut, "#").Int()
-				numParams := gjson.Get(jsonOut, "0.parameters.#").Int()
-				firstParamName := gjson.Get(jsonOut, "0.parameters.0.name").String()
-				Expect(int64(1)).To(Equal(numParamSets))
-				Expect(int64(1)).To(Equal(numParams))
-				Expect(ps.Spec.Name).To(Equal(firstName))
-				Expect("test-parameter").To(Equal(firstParamName))
+			Log("update a parameter set")
+			updateParamName := "update-paramset"
+			updateParamValue := "update-value"
+			newParam := porterv1.Parameter{
+				Name: updateParamName,
+				Source: porterv1.ParameterSource{
+					Value: updateParamValue,
+				},
+			}
+			ps.Spec.Parameters = append(ps.Spec.Parameters, newParam)
+			patchPS := func(ps *porterv1.ParameterSet) {
+				controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ps, func() client.Object {
+					return &porterv1.ParameterSet{}
+				})
+			}
+			patchPS(ps)
+			Expect(waitForPorterPS(ctx, ps, "waiting for parameters update to apply")).Should(Succeed())
+			Log("verify it's updated")
+			jsonOut = runAgentAction(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			updatedFirstName := gjson.Get(jsonOut, "0.name").String()
+			updatedNumParamSets := gjson.Get(jsonOut, "#").Int()
+			updatedNumParams := gjson.Get(jsonOut, "0.parameters.#").Int()
+			updatedFirstParamName := gjson.Get(jsonOut, "0.parameters.0.name").String()
+			updatedSecondParamName := gjson.Get(jsonOut, "0.parameters.1.name").String()
+			Expect(int64(1)).To(Equal(updatedNumParamSets))
+			Expect(int64(2)).To(Equal(updatedNumParams))
+			Expect(ps.Spec.Name).To(Equal(updatedFirstName))
+			Expect(paramName).To(Equal(updatedFirstParamName))
+			Expect(updateParamName).To(Equal(updatedSecondParamName))
 
-				Log("update a parameter set")
-				newSecret := "update-paramset"
-				newParam := porterv1.Parameter{
-					Name: "new-parameter",
-					Source: porterv1.ParameterSource{
-						Secret: newSecret,
-					},
-				}
-				ps.Spec.Parameters = append(ps.Spec.Parameters, newParam)
-				patchPS := func(ps *porterv1.ParameterSet) {
-					controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ps, func() client.Object {
-						return &porterv1.ParameterSet{}
-					})
-				}
-				patchPS(ps)
-				Expect(waitForPorterPS(ctx, ps, "waiting for parameters update to apply")).Should(Succeed())
-				Log("verify it's updated")
-				jsonOut = runAgentAction(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
-				updatedFirstName := gjson.Get(jsonOut, "0.name").String()
-				updatedNumParamSets := gjson.Get(jsonOut, "#").Int()
-				updatedNumParams := gjson.Get(jsonOut, "0.parameters.#").Int()
-				updatedFirstParamName := gjson.Get(jsonOut, "0.parameters.0.name").String()
-				updatedSecondParamName := gjson.Get(jsonOut, "0.parameters.1.name").String()
-				Expect(int64(1)).To(Equal(updatedNumParamSets))
-				Expect(int64(2)).To(Equal(updatedNumParams))
-				Expect(ps.Spec.Name).To(Equal(updatedFirstName))
-				Expect("test-parameter").To(Equal(updatedFirstParamName))
-				Expect("new-parameter").To(Equal(updatedSecondParamName))
-			})
-		})
-	})
-})
+			Log("delete a parameter set")
+			Expect(k8sClient.Delete(ctx, ps)).Should(Succeed())
+			Expect(waitForParamSetDeleted(ctx, ps)).Should(Succeed())
 
-var _ = Describe("ParameterSet delete", func() {
-	Context("when an existing ParameterSet is delete", func() {
-		It("should run porter parameters delete", func() {
-			By("creating an agent action", func() {
-				ctx := context.Background()
-				ns := createTestNamespace(ctx)
-				name := "ps-delete-" + ns
-				testSecret := "secret-value"
+			Log("verify parameter set is gone from porter data store")
+			delJsonOut := runAgentAction(ctx, "delete-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			delNumParams := gjson.Get(delJsonOut, "#").Int()
+			Expect(int64(0)).To(Equal(delNumParams))
 
-				Log(fmt.Sprintf("create k8s secret '%s' for paramset", name))
-				psSecret := NewTestSecret(name, testSecret)
-				psSecret.ObjectMeta.Namespace = ns
-				Expect(k8sClient.Create(ctx, psSecret)).Should(Succeed())
+			Log("verify parameter set CRD is gone from k8s cluster")
+			nsName := apitypes.NamespacedName{Namespace: ps.Namespace, Name: ps.Name}
+			getPS := &porterv1.ParameterSet{}
+			Expect(k8sClient.Get(ctx, nsName, getPS)).ShouldNot(Succeed())
 
-				Log(fmt.Sprintf("create parameter set '%s'", name))
-				ps := NewTestParamSet(name)
-				ps.Spec.Name = "ps-delete-test"
-				ps.ObjectMeta.Namespace = ns
-				param := porterv1.Parameter{
-					Name: "test-parameter",
-					Source: porterv1.ParameterSource{
-						Secret: name,
-					},
-				}
-				ps.Spec.Parameters = append(ps.Spec.Parameters, param)
-				ps.Spec.Namespace = ns
-
-				Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
-				Expect(waitForPorterPS(ctx, ps, "waiting for parameter set to apply")).Should(Succeed())
-				validateParamSetConditions(ps)
-
-				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
-				firstName := gjson.Get(jsonOut, "0.name").String()
-				numParams := gjson.Get(jsonOut, "#").Int()
-				firstParamName := gjson.Get(jsonOut, "0.parameters.0.name").String()
-				Expect(int64(1)).To(Equal(numParams))
-				Expect(ps.Spec.Name).To(Equal(firstName))
-				Expect("test-parameter").To(Equal(firstParamName))
-
-				Log("delete a parameter set")
-				Expect(k8sClient.Delete(ctx, ps)).Should(Succeed())
-				Expect(waitForParamSetDeleted(ctx, ps)).Should(Succeed())
-
-				Log("verify parameter set is gone from porter data store")
-				delJsonOut := runAgentAction(ctx, "delete-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
-				delNumParams := gjson.Get(delJsonOut, "#").Int()
-				Expect(int64(0)).To(Equal(delNumParams))
-
-				Log("verify parameter set CRD is gone from k8s cluster")
-				nsName := apitypes.NamespacedName{Namespace: ps.Namespace, Name: ps.Name}
-				getPS := &porterv1.ParameterSet{}
-				Expect(k8sClient.Get(ctx, nsName, getPS)).ShouldNot(Succeed())
-			})
 		})
 	})
 })
@@ -208,7 +137,7 @@ func NewTestParamSet(psName string) *porterv1.ParameterSet {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.ParameterSetSpec{
-			//TODO: get schema version from porter version?
+			//TODO: get schema version from porter version
 			// https://github.com/getporter/porter/pull/2052
 			SchemaVersion: "1.0.1",
 			Name:          psName,
@@ -216,99 +145,6 @@ func NewTestParamSet(psName string) *porterv1.ParameterSet {
 	}
 	return ps
 }
-
-/*
-func createTestSecret(ctx context.Context, name, value, namespace string) {
-	Log(fmt.Sprintf("create k8s secret '%s' for credset", name))
-	csSecret := NewTestSecret(name, value)
-	csSecret.ObjectMeta.Namespace = namespace
-	Expect(k8sClient.Create(ctx, csSecret)).Should(Succeed())
-}
-
-func NewTestSecret(name, value string) *corev1.Secret {
-	csSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Type:       corev1.SecretTypeOpaque,
-		StringData: map[string]string{"value": value},
-	}
-	return csSecret
-}
-
-func NewTestInstallation(iName string) *porterv1.Installation {
-	inst := &porterv1.Installation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "porter.sh/v1",
-			Kind:       "Installation",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "porter-test-me-",
-		},
-		Spec: porterv1.InstallationSpec{
-			SchemaVersion: "1.0.1",
-			Name:          iName,
-			Bundle: porterv1.OCIReferenceParts{
-				Repository: "ghcr.io/bdegeeter/porter-test-me",
-				Version:    "0.3.0",
-			},
-		},
-	}
-	return inst
-}
-
-func newAgentAction(namespace string, name string, cmd []string) *porterv1.AgentAction {
-	return &porterv1.AgentAction{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
-		},
-		Spec: porterv1.AgentActionSpec{
-			Args: cmd,
-		},
-	}
-}
-
-func waitForAgentAction(ctx context.Context, aa *porterv1.AgentAction, msg string) error {
-	Log("%s: %s/%s", msg, aa.Namespace, aa.Name)
-	key := client.ObjectKey{Namespace: aa.Namespace, Name: aa.Name}
-	ctx, cancel := context.WithTimeout(ctx, getWaitTimeout())
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			Fail(errors.Wrapf(ctx.Err(), "timeout %s", msg).Error())
-		default:
-			err := k8sClient.Get(ctx, key, aa)
-			if err != nil {
-				// There is lag between creating and being able to retrieve, I don't understand why
-				if apierrors.IsNotFound(err) {
-					time.Sleep(time.Second)
-					continue
-				}
-				return err
-			}
-
-			// Check if the latest change has been processed
-			if aa.Generation == aa.Status.ObservedGeneration {
-				if apimeta.IsStatusConditionTrue(aa.Status.Conditions, string(porterv1.ConditionComplete)) {
-					return nil
-				}
-
-				if apimeta.IsStatusConditionTrue(aa.Status.Conditions, string(porterv1.ConditionFailed)) {
-					// Grab some extra info to help with debugging
-					//debugFailedCSCreate(ctx, aa)
-					return errors.New("porter did not run successfully")
-				}
-			}
-
-			time.Sleep(time.Second)
-			continue
-		}
-	}
-
-}
-*/
 
 func waitForPorterPS(ctx context.Context, ps *porterv1.ParameterSet, msg string) error {
 	Log("%s: %s/%s", msg, ps.Namespace, ps.Name)

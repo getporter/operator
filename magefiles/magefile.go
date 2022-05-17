@@ -505,7 +505,7 @@ func CleanTestdata() {
 				continue
 			}
 
-			output, _ = kubectl("get", "installation,credentialset,agentaction", "-n", namespace, `--template={{range .items}}{{.kind}}/{{.metadata.name}},{{end}}`).
+			output, _ = kubectl("get", "installation,credentialset,parameterset,agentaction", "-n", namespace, `--template={{range .items}}{{.kind}}/{{.metadata.name}},{{end}}`).
 				Output()
 			resources := strings.Split(output, ",")
 			for _, resource := range resources {
