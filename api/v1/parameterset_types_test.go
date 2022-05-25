@@ -33,10 +33,15 @@ func TestParameterSetSpec_ToPorterDocument(t *testing.T) {
 			fields: fields{SchemaVersion: "1.0.1",
 				Name:      "porter-test-me",
 				Namespace: "dev",
-				Parameters: []Parameter{{
-					Name:   "param1",
-					Source: ParameterSource{Value: "test-param"},
-				},
+				Parameters: []Parameter{
+					{
+						Name:   "param1",
+						Source: ParameterSource{Value: "test-param"},
+					},
+					{
+						Name:   "param2",
+						Source: ParameterSource{Secret: "test-secret"},
+					},
 				},
 			},
 			wantFile:   wantGoldenFile,
@@ -56,7 +61,7 @@ func TestParameterSetSpec_ToPorterDocument(t *testing.T) {
 			got, err := cs.ToPorterDocument()
 			if tt.wantErrMsg == "" {
 				require.NoError(t, err)
-				portertest.CompareGoldenFile(t, "testdata/parameter-set.yaml", string(got))
+				portertest.CompareGoldenFile(t, tt.wantFile, string(got))
 			} else {
 				portertests.RequireErrorContains(t, err, tt.wantErrMsg)
 			}
@@ -92,14 +97,14 @@ func TestParameterSet_SetRetryAnnotation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cs := &ParameterSet{
+			ps := &ParameterSet{
 				TypeMeta:   tt.fields.TypeMeta,
 				ObjectMeta: tt.fields.ObjectMeta,
 				Spec:       tt.fields.Spec,
 				Status:     tt.fields.Status,
 			}
-			cs.SetRetryAnnotation(tt.args.retry)
-			assert.Equal(t, tt.args.retry, cs.Annotations[AnnotationRetry])
+			ps.SetRetryAnnotation(tt.args.retry)
+			assert.Equal(t, tt.args.retry, ps.Annotations[AnnotationRetry])
 		})
 	}
 }

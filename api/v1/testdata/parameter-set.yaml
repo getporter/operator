@@ -5,3 +5,6 @@ parameters:
     - name: param1
       source:
         value: test-param
+    - name: param2
+      source:
+        secret: test-secret

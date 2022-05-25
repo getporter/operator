@@ -11,6 +11,7 @@ The same goes for the name and labels fields.
 
 * [Installation](#installation)
 * [CredentialSet](#credentialset)
+* [ParameterSet](#parameterset)
 * [AgentAction](#agentaction)
 * [AgentConfig](#agentconfig)
 * [PorterConfig](#porterconfig)
@@ -34,6 +35,11 @@ In addition to the normal fields available on a [Porter Installation document](/
 ## CredentialSet
 
 See the glossary for more information about the [CredentialSet] resource.
+
+The CredentialSet spec is the same schema as the CredentialSet resource in Porter.
+You can copy/paste the output of the `porter credentials show NAME -o yaml` command into the CredentialSet resource spec (removing the status section).
+
+In addition to the normal fields available on a [Porter Credential Set document](/reference/file-formats/), the following fields are supported:
 
 ```yaml
 apiVersion: porter.sh/v1
@@ -60,6 +66,45 @@ spec:
 | credentials.source.secret | true     |                                    | The name of the secret |
 
 [CredentialSet]: /operator/glossary/#credentialset
+
+## ParameterSet
+
+See the glossary for more information about the [ParameterSet] resource.
+
+The ParameterSet spec is the same schema as the ParameterSet resource in Porter.
+You can copy/paste the output of the `porter parameters show NAME -o yaml` command into the ParameterSet resource spec (removing the status section).
+
+In addition to the normal fields available on a [Porter Parameter Set document](/reference/file-formats/), the following fields are supported:
+
+
+```yaml
+apiVersion: porter.sh/v1
+kind: ParameterSet
+metadata:
+  name: parameterset-sample
+spec:
+  schemaVersion: 1.0.1
+  namespace: operator
+  name: porter-test-me
+  parameters:
+    - name: test-secret
+      source:
+        value: test-value
+    - name: test-secret
+      source:
+        secret: test-secret
+```
+
+| Field                     | Required | Default                            | Description                                                 |
+|---------------------------|----------|------------------------------------|-------------------------------------------------------------|
+| agentConfig               | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
+| porterConfig              | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
+| parameters                | true     |                                    | List of parameter sources for the set |
+| parameters.name           | true     |                                    | The name of the parameter for the bundle |
+| parameters.source         | true     |                                    | The parameters type. Currently `vaule` and `secret` are the only supported sources |
+| **oneof** `parameters.source.secret` `parameters.source.value`   | true     |                                    | The plaintext value to use or the name of the secret that holds the parameter |
+
+[ParameterSet]: /operator/glossary/#parameterset
 
 ## AgentAction
 

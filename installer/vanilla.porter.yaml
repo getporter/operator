@@ -93,7 +93,7 @@ install:
       namespace: porter-operator-system
       name: mongodb
       chart: bitnami/mongodb
-      version: 10.27.2
+      version: 12.1.15
       set:
         auth.enabled: false
   - exec:

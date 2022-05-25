@@ -63,7 +63,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	require.NotNil(t, ps.Status.Action, "expected Action to be set")
 	var action porterv1.AgentAction
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
-	assert.Equal(t, "1", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	assert.Equal(t, "1", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
 
 	// Mark the action as scheduled
 	action.Status.Phase = porterv1.PhasePending
@@ -97,7 +97,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	// Verify the parameter set status was synced with the action
 	assert.NotNil(t, ps.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseSucceeded, ps.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(ps.Status.Conditions, string(string(porterv1.ConditionComplete))))
+	assert.True(t, apimeta.IsStatusConditionTrue(ps.Status.Conditions, string(porterv1.ConditionComplete)))
 
 	// Fail the action
 	action.Status.Phase = porterv1.PhaseFailed
@@ -153,7 +153,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	// Verify that an action was created to delete it
 	require.NotNil(t, ps.Status.Action, "expected Action to be set")
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
-	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
 
 	// Complete the delete action
 	action.Status.Phase = porterv1.PhaseSucceeded

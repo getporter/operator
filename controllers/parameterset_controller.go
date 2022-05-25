@@ -44,6 +44,7 @@ func (r *ParameterSetReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// Reconcile is called when the spec of a parameter set is changed
 func (r *ParameterSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 
 	log := r.Log.WithValues("parameterSet", req.Name, "namespace", req.Namespace)
@@ -163,7 +164,6 @@ func (r *ParameterSetReconciler) runParameterSet(ctx context.Context, log logr.L
 	return r.runPorter(ctx, log, ps)
 }
 
-// This could be the main "runFunction for each controller"
 // Trigger an agent
 func (r *ParameterSetReconciler) runPorter(ctx context.Context, log logr.Logger, ps *porterv1.ParameterSet) error {
 	action, err := r.createAgentAction(ctx, log, ps)
