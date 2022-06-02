@@ -62,6 +62,12 @@ parameters:
     default: ""
     applyTo:
       - configureNamespace
+  - name: mongodbChartVersion
+    description: Version of the mongodb helm chart to install
+    type: string
+    default: "12.1.15"
+    applyTo:
+      - install
 
 credentials:
   - name: kubeconfig
@@ -93,7 +99,7 @@ install:
       namespace: porter-operator-system
       name: mongodb
       chart: bitnami/mongodb
-      version: 12.1.15
+      version: "{{bundle.parameters.mongodbChartVersion}}"
       set:
         auth.enabled: false
   - exec:
