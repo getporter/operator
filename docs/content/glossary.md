@@ -59,6 +59,28 @@ or [Hashicorp Vault](/plugins/hashicorp/) are configured instead.
 The operator creates a corresponding AgentAction to create, update or delete Porter credentials.
 Once created the credential set is available to an Installation resource via its spec file.
 
+### ParameterSet
+
+The [ParameterSet] custom resource represents a parameter set in Porter.
+
+[ParameterSet]: /operator/file-formats/#parameterset
+
+A ParameterSet supports a parameter source of `secret` for Porter secrets 
+plugins and `value` for plaintext values.
+
+Secrets source keys may vary depending on which [secret plugin](/plugins/) you have configured.
+The [host secrets plugin](/plugins/host/) is not a good fit for use with the Porter Operator because environment variables or
+files are not a recommended way to manage secrets on a cluster.
+The [kubernetes.secrets plugin](https://release-v1.porter.sh/plugins/kubernetes/#secrets) 
+can retrieve secrets from native Kubernetes secrets, and otherwise we 
+recommend that an external secret store such as [Azure KeyVault](/plugins/azure/#secrets)
+or [Hashicorp Vault](/plugins/hashicorp/) are configured instead.
+
+Value sources are stored in plaintext in the resource.
+
+The operator creates a corresponding AgentAction to create, update or delete Porter parameters.
+Once created the parameter set is available to an Installation resource via its spec file.
+
 ### AgentAction
 
 The [AgentAction] custom resource represents a Porter command that is run in the [PorterAgent](#porteragent).

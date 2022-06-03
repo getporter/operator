@@ -1,0 +1,15 @@
+apiVersion: porter.sh/v1
+kind: ParameterSet
+metadata:
+  name: parameterset-sample
+spec:
+  schemaVersion: 1.0.1
+  namespace: operator
+  name: porter-test-me
+  parameters:
+    - name: test-secret
+      source:
+        value: test-value
+    - name: test-secret
+      source:
+        secret: test-secret

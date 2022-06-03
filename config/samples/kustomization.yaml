@@ -5,4 +5,5 @@ resources:
 - _v1_agentconfig.yaml
 - _v1_agentaction.yaml
 - _v1_credentialset.yaml
+- _v1_parameterset.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

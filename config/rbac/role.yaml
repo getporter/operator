@@ -135,6 +135,32 @@ rules:
 - apiGroups:
   - porter.sh
   resources:
+  - parametersets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - parametersets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
+  - parametersets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
   - porterconfigs
   verbs:
   - create
