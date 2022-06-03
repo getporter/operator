@@ -23,7 +23,7 @@ See the glossary for more information about the [Installation] resource.
 The Installation spec is the same schema as the Installation resource in Porter.
 You can copy/paste the output of the `porter installation show NAME -o yaml` command into the Installation resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/), the following fields are supported:
+In addition to the normal fields available on a [Porter Installation document](/reference/file-formats/#installation), the following fields are supported:
 
 | Field        | Required | Default                             | Description                                                 |
 |--------------|----------|-------------------------------------|-------------------------------------------------------------|
@@ -39,7 +39,7 @@ See the glossary for more information about the [CredentialSet] resource.
 The CredentialSet spec is the same schema as the CredentialSet resource in Porter.
 You can copy/paste the output of the `porter credentials show NAME -o yaml` command into the CredentialSet resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Credential Set document](/reference/file-formats/), the following fields are supported:
+In addition to the normal fields available on a [Porter Credential Set document](/reference/file-formats/#credential-set), the following fields are supported:
 
 ```yaml
 apiVersion: porter.sh/v1
@@ -74,7 +74,7 @@ See the glossary for more information about the [ParameterSet] resource.
 The ParameterSet spec is the same schema as the ParameterSet resource in Porter.
 You can copy/paste the output of the `porter parameters show NAME -o yaml` command into the ParameterSet resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Parameter Set document](/reference/file-formats/), the following fields are supported:
+In addition to the normal fields available on a [Porter Parameter Set document](/reference/file-formats/#parameter-set), the following fields are supported:
 
 
 ```yaml
