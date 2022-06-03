@@ -33,8 +33,10 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 			name:     "no action",
 			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
 			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 1,
-				Phase:              porterv1.PhaseUnknown,
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 1,
+					Phase:              porterv1.PhaseUnknown,
+				},
 			},
 		},
 		{
@@ -43,17 +45,21 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 			action: &porterv1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
 				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhasePending,
-					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+					PorterStatus: porterv1.PorterStatus{
+						Phase: porterv1.PhasePending,
+						Conditions: []metav1.Condition{
+							{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+						},
 					},
 				}},
 			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 1,
-				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhasePending,
-				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+				Action: &corev1.LocalObjectReference{Name: "myaction"},
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 1,
+					Phase:              porterv1.PhasePending,
+					Conditions: []metav1.Condition{
+						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+					},
 				}},
 		},
 		{name: "action started",
@@ -61,19 +67,23 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 			action: &porterv1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
 				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseRunning,
+					PorterStatus: porterv1.PorterStatus{
+						Phase: porterv1.PhaseRunning,
+						Conditions: []metav1.Condition{
+							{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+						},
+					},
+				}},
+			wantStatus: porterv1.PorterResourceStatus{
+				Action: &corev1.LocalObjectReference{Name: "myaction"},
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 1,
+					Phase:              porterv1.PhaseRunning,
 					Conditions: []metav1.Condition{
 						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
 						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
 					},
-				}},
-			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 1,
-				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseRunning,
-				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "action succeeded",
@@ -81,21 +91,25 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 			action: &porterv1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
 				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseSucceeded,
+					PorterStatus: porterv1.PorterStatus{
+						Phase: porterv1.PhaseSucceeded,
+						Conditions: []metav1.Condition{
+							{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue},
+						},
+					},
+				}},
+			wantStatus: porterv1.PorterResourceStatus{
+				Action: &corev1.LocalObjectReference{Name: "myaction"},
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 1,
+					Phase:              porterv1.PhaseSucceeded,
 					Conditions: []metav1.Condition{
 						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
 						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
 						{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue},
 					},
-				}},
-			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 1,
-				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseSucceeded,
-				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "action failed",
@@ -103,38 +117,46 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 			action: &porterv1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
 				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseFailed,
+					PorterStatus: porterv1.PorterStatus{
+						Phase: porterv1.PhaseFailed,
+						Conditions: []metav1.Condition{
+							{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+						},
+					}}},
+			wantStatus: porterv1.PorterResourceStatus{
+				Action: &corev1.LocalObjectReference{Name: "myaction"},
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 1,
+					Phase:              porterv1.PhaseFailed,
 					Conditions: []metav1.Condition{
 						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
 						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
 						{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
-					}}},
-			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 1,
-				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseFailed,
-				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+					},
 				}},
 		},
 		{name: "update resets status",
 			resource: &porterv1.Installation{
 				ObjectMeta: metav1.ObjectMeta{Generation: 2},
 				Status: porterv1.InstallationStatus{PorterResourceStatus: porterv1.PorterResourceStatus{
-					ObservedGeneration: 1,
-					Action:             nil,
-					Phase:              porterv1.PhaseFailed,
-					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+					Action: nil,
+					PorterStatus: porterv1.PorterStatus{
+						ObservedGeneration: 1,
+						Phase:              porterv1.PhaseFailed,
+						Conditions: []metav1.Condition{
+							{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+							{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+						},
 					}}}},
 			wantStatus: porterv1.PorterResourceStatus{
-				ObservedGeneration: 2,
-				Action:             nil,
-				Phase:              porterv1.PhaseUnknown,
+				Action: nil,
+				PorterStatus: porterv1.PorterStatus{
+					ObservedGeneration: 2,
+					Phase:              porterv1.PhaseUnknown,
+				},
 			},
 		},
 	}

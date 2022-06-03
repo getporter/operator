@@ -71,7 +71,9 @@ func Test_resourceChanged_Update(t *testing.T) {
 					Generation: 2,
 				},
 				Status: porterv1.InstallationStatus{PorterResourceStatus: porterv1.PorterResourceStatus{
-					ObservedGeneration: 1,
+					PorterStatus: porterv1.PorterStatus{
+						ObservedGeneration: 1,
+					},
 				}},
 			},
 			ObjectNew: &porterv1.Installation{
@@ -79,7 +81,9 @@ func Test_resourceChanged_Update(t *testing.T) {
 					Generation: 2,
 				},
 				Status: porterv1.InstallationStatus{PorterResourceStatus: porterv1.PorterResourceStatus{
-					ObservedGeneration: 2,
+					PorterStatus: porterv1.PorterStatus{
+						ObservedGeneration: 2,
+					},
 				}},
 			},
 		}

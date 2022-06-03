@@ -8,13 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type PorterResourceStatus struct {
+type PorterStatus struct {
 	// The last generation observed by the controller.
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// The most recent action executed for the resource
-	Action *corev1.LocalObjectReference `json:"action,omitempty"`
-
 	// The current status of the agent.
 	// Possible values are: Unknown, Pending, Running, Succeeded, and Failed.
 	// +kubebuilder:validation:Type=string
@@ -24,6 +20,24 @@ type PorterResourceStatus struct {
 	// Each condition refers to the status of the ActiveJob
 	// Possible conditions are: Scheduled, Started, Completed, and Failed
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+func (s *PorterStatus) GetConditions() *[]metav1.Condition {
+	return &s.Conditions
+}
+
+func (s *PorterStatus) GetObservedGeneration() int64 {
+	return s.ObservedGeneration
+}
+
+func (s *PorterStatus) GetPhase() AgentPhase {
+	return s.Phase
+}
+
+type PorterResourceStatus struct {
+	PorterStatus `json:",inline"`
+	// The most recent action executed for the resource
+	Action *corev1.LocalObjectReference `json:"action,omitempty"`
 }
 
 // Initialize resets the resource status before Porter is run.
