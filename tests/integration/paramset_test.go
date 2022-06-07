@@ -44,7 +44,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			ps.Spec.Namespace = ns
 
 			Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
-			Expect(waitForPorter(ctx, ps, &ps.Status, ps.Namespace, ps.Name, "waiting for parameter set to apply")).Should(Succeed())
+			Expect(waitForPorter(ctx, ps, "waiting for parameter set to apply")).Should(Succeed())
 			validateResourceConditions(ps.Status.Conditions)
 
 			Log("verify it's created")
@@ -65,7 +65,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			inst.Spec.ParameterSets = append(inst.Spec.ParameterSets, pSetName)
 			inst.Spec.SchemaVersion = "1.0.1"
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
-			Expect(waitForPorter(ctx, inst, &inst.Status, inst.Namespace, inst.Name, "waiting for porter-test-me to install")).Should(Succeed())
+			Expect(waitForPorter(ctx, inst, "waiting for porter-test-me to install")).Should(Succeed())
 			validateResourceConditions(inst.Status.Conditions)
 
 			// Validate that the correct parameter set was used by the installation
@@ -87,9 +87,11 @@ var _ = Describe("ParameterSet lifecycle", func() {
 				controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ps, func() client.Object {
 					return &porterv1.ParameterSet{}
 				})
+				// Wait for the patch to apply, this can cause race conditions
+				time.Sleep(time.Second)
 			}
 			patchPS(ps)
-			Expect(waitForPorter(ctx, ps, &ps.Status, ps.Namespace, ps.Name, "waiting for parameters update to apply")).Should(Succeed())
+			Expect(waitForPorter(ctx, ps, "waiting for parameters update to apply")).Should(Succeed())
 			time.Sleep(time.Second * 10)
 			Log("verify it's updated")
 			jsonOut = runAgentAction(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})

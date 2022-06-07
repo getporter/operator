@@ -13,6 +13,7 @@ import (
 
 	porterv1 "get.porter.sh/operator/api/v1"
 	"github.com/carolynvs/magex/shx"
+	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -22,14 +23,23 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	cl "k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type porterStatus interface {
-	GetConditions() *[]metav1.Condition
-	GetObservedGeneration() int64
+// Used to lookup Resource for CRD based off of Kind
+var resourceTypeMap = map[string]string{
+	"ParameterSet":  "parametersets",
+	"CredentialSet": "credentialsets",
+	"Installation":  "installations",
+	"AgentAction":   "agentactions",
 }
+
+var gvrVersion = "v1"
+var gvrGroup = "porter.sh"
 
 // Get the amount of time that we should wait for a test action to be processed.
 func getWaitTimeout() time.Duration {
@@ -53,7 +63,13 @@ func LogJson(value string) {
 	GinkgoWriter.Write(pretty.Pretty([]byte(value + "\n")))
 }
 
-func waitForPorter(ctx context.Context, resource client.Object, status porterStatus, namespace, name, msg string) error {
+func waitForPorter(ctx context.Context, resource client.Object, msg string) error {
+	namespace := resource.GetNamespace()
+	name := resource.GetName()
+	dynamicClient, err := dynamic.NewForConfig(testEnv.Config)
+	if err != nil {
+		return err
+	}
 	Log("%s: %s/%s", msg, namespace, name)
 	key := client.ObjectKey{Namespace: namespace, Name: name}
 	ctx, cancel := context.WithTimeout(ctx, getWaitTimeout())
@@ -63,6 +79,8 @@ func waitForPorter(ctx context.Context, resource client.Object, status porterSta
 		case <-ctx.Done():
 			Fail(errors.Wrapf(ctx.Err(), "timeout %s", msg).Error())
 		default:
+			// Update the resource to get controller applied values that are needed for
+			// dynamic client
 			err := k8sClient.Get(ctx, key, resource)
 			if err != nil {
 				// There is lag between creating and being able to retrieve, I don't understand why
@@ -72,25 +90,70 @@ func waitForPorter(ctx context.Context, resource client.Object, status porterSta
 				}
 				return err
 			}
-			conditions := status.GetConditions()
-			// Check if the latest change has been processed
-			if resource.GetGeneration() == status.GetObservedGeneration() {
-				if apimeta.IsStatusConditionTrue(*conditions, string(porterv1.ConditionComplete)) {
+			// This is populated by the controller and isn't immediately available on
+			// the resource. If it isn't set then wait and check again
+			rKind := resource.GetObjectKind().GroupVersionKind().Kind
+			if rKind == "" {
+				time.Sleep(time.Second)
+				continue
+			}
+			// Create a GVR for the resource type
+			gvr := schema.GroupVersionResource{
+				Group:    gvrGroup,
+				Version:  gvrVersion,
+				Resource: resourceTypeMap[rKind],
+			}
+			resourceClient := dynamicClient.Resource(gvr).Namespace(namespace)
+			porterResource, err := resourceClient.Get(ctx, name, metav1.GetOptions{})
+			observedGen, err := getObservedGeneration(porterResource)
+			if err != nil {
+				time.Sleep(time.Second)
+				continue
+			}
+			if resource.GetGeneration() == observedGen {
+				conditions, err := getConditions(porterResource)
+				// Conditions may not yet be set, try again
+				if err != nil {
+					time.Sleep(time.Second)
+					continue
+				}
+				if apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionComplete)) {
 					time.Sleep(time.Second)
 					return nil
 				}
-
-				if apimeta.IsStatusConditionTrue(*conditions, string(porterv1.ConditionFailed)) {
-					// Grab some extra info to help with debugging
+				if apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionFailed)) {
 					debugFailedResource(ctx, name, namespace)
 					return errors.New("porter did not run successfully")
 				}
 			}
-
-			time.Sleep(time.Second)
-			continue
 		}
+		time.Sleep(time.Second)
+		continue
 	}
+}
+
+func getObservedGeneration(obj *unstructured.Unstructured) (int64, error) {
+	observedGeneration, found, err := unstructured.NestedInt64(obj.Object, "status", "observedGeneration")
+	if err != nil {
+		return 0, err
+	}
+	if found {
+		return observedGeneration, nil
+	}
+	return 0, errors.New("Unable to find observed generation")
+}
+
+func getConditions(obj *unstructured.Unstructured) ([]metav1.Condition, error) {
+	conditions, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
+	if err != nil {
+		return []metav1.Condition{}, err
+	}
+	if !found {
+		return []metav1.Condition{}, errors.New("Unable to find resource status")
+	}
+	c := []metav1.Condition{}
+	mapstructure.Decode(conditions, &c)
+	return c, nil
 }
 
 func waitForResourceDeleted(ctx context.Context, resource client.Object, namespace, name string) error {
@@ -110,7 +173,6 @@ func waitForResourceDeleted(ctx context.Context, resource client.Object, namespa
 				}
 				return err
 			}
-
 			time.Sleep(time.Second)
 			continue
 		}
@@ -118,7 +180,6 @@ func waitForResourceDeleted(ctx context.Context, resource client.Object, namespa
 }
 
 func debugFailedResource(ctx context.Context, namespace, name string) {
-
 	Log("DEBUG: ----------------------------------------------------")
 	actionKey := client.ObjectKey{Name: name, Namespace: namespace}
 	action := &porterv1.AgentAction{}
@@ -212,7 +273,7 @@ used to run porter commands inside the cluster to validate porter state
 func runAgentAction(ctx context.Context, actionName string, namespace string, cmd []string) string {
 	aa := newAgentAction(namespace, actionName, cmd)
 	Expect(k8sClient.Create(ctx, aa)).Should(Succeed())
-	Expect(waitForPorter(ctx, aa, &aa.Status, aa.Namespace, aa.Name, fmt.Sprintf("waiting for action %s to run", actionName))).Should(Succeed())
+	Expect(waitForPorter(ctx, aa, fmt.Sprintf("waiting for action %s to run", actionName))).Should(Succeed())
 	aaOut, err := getAgentActionJobOutput(ctx, aa.Name, namespace)
 	Expect(err).Error().ShouldNot(HaveOccurred())
 	return getAgentActionCmdOut(aa, aaOut)

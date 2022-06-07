@@ -1731,7 +1731,7 @@ spec:
             properties:
               conditions:
                 description: 'Conditions store a list of states that have been reached.
-                  Each condition refers to the status of the ActiveJob Possible conditions
+                  Each condition refers to the status of the Job Possible conditions
                   are: Scheduled, Started, Completed, and Failed'
                 items:
                   description: "Condition contains details for one aspect of the current

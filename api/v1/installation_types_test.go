@@ -36,14 +36,12 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 func TestInstallationStatus_Initialize(t *testing.T) {
 	s := &InstallationStatus{
 		PorterResourceStatus: PorterResourceStatus{
-			PorterStatus: PorterStatus{
-				ObservedGeneration: 2,
-				Phase:              PhaseSucceeded,
-				Conditions: []metav1.Condition{
-					{Type: string(ConditionComplete), Status: metav1.ConditionTrue},
-				},
+			ObservedGeneration: 2,
+			Action:             &corev1.LocalObjectReference{Name: "something"},
+			Phase:              PhaseSucceeded,
+			Conditions: []metav1.Condition{
+				{Type: string(ConditionComplete), Status: metav1.ConditionTrue},
 			},
-			Action: &corev1.LocalObjectReference{Name: "something"},
 		},
 	}
 
