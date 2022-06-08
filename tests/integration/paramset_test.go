@@ -5,7 +5,6 @@ package integration_test
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"get.porter.sh/operator/controllers"
 	"github.com/go-logr/logr"
@@ -44,7 +43,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			ps.Spec.Namespace = ns
 
 			Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
-			Expect(waitForPorter(ctx, ps, "waiting for parameter set to apply")).Should(Succeed())
+			Expect(waitForPorter(ctx, ps, 1, "waiting for parameter set to apply")).Should(Succeed())
 			validateResourceConditions(ps.Status.Conditions)
 
 			Log("verify it's created")
@@ -65,7 +64,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			inst.Spec.ParameterSets = append(inst.Spec.ParameterSets, pSetName)
 			inst.Spec.SchemaVersion = "1.0.1"
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
-			Expect(waitForPorter(ctx, inst, "waiting for porter-test-me to install")).Should(Succeed())
+			Expect(waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")).Should(Succeed())
 			validateResourceConditions(inst.Status.Conditions)
 
 			// Validate that the correct parameter set was used by the installation
@@ -88,11 +87,9 @@ var _ = Describe("ParameterSet lifecycle", func() {
 					return &porterv1.ParameterSet{}
 				})
 				// Wait for the patch to apply, this can cause race conditions
-				time.Sleep(time.Second)
 			}
 			patchPS(ps)
-			Expect(waitForPorter(ctx, ps, "waiting for parameters update to apply")).Should(Succeed())
-			time.Sleep(time.Second * 10)
+			Expect(waitForPorter(ctx, ps, 2, "waiting for parameters update to apply")).Should(Succeed())
 			Log("verify it's updated")
 			jsonOut = runAgentAction(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
 			updatedFirstName := gjson.Get(jsonOut, "0.name").String()

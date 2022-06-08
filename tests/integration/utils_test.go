@@ -63,9 +63,15 @@ func LogJson(value string) {
 	GinkgoWriter.Write(pretty.Pretty([]byte(value + "\n")))
 }
 
-func waitForPorter(ctx context.Context, resource client.Object, msg string) error {
+// This will wait for the porter action to complete and returns error if the action failed. This will take in any
+// porter resource as well as the expected generation of that resource. It uses dynamic client to inspect resource
+// status because not all porter resources use the same status type. The expected generation is needed from the
+// caller to deal with race conditions when waiting for resources that get updated
+func waitForPorter(ctx context.Context, resource client.Object, expGeneration int64, msg string) error {
 	namespace := resource.GetNamespace()
 	name := resource.GetName()
+	// Use dynamic client so that porter resource and agent actions can all be
+	// handled
 	dynamicClient, err := dynamic.NewForConfig(testEnv.Config)
 	if err != nil {
 		return err
@@ -79,13 +85,15 @@ func waitForPorter(ctx context.Context, resource client.Object, msg string) erro
 		case <-ctx.Done():
 			Fail(errors.Wrapf(ctx.Err(), "timeout %s", msg).Error())
 		default:
+			// There's multiple retry checks that need to wait so just do initial wait
+			time.Sleep(time.Second)
 			// Update the resource to get controller applied values that are needed for
-			// dynamic client
+			// dynamic client. This also serves to update the resource state for the
+			// calling method
 			err := k8sClient.Get(ctx, key, resource)
 			if err != nil {
 				// There is lag between creating and being able to retrieve, I don't understand why
 				if apierrors.IsNotFound(err) {
-					time.Sleep(time.Second)
 					continue
 				}
 				return err
@@ -94,7 +102,6 @@ func waitForPorter(ctx context.Context, resource client.Object, msg string) erro
 			// the resource. If it isn't set then wait and check again
 			rKind := resource.GetObjectKind().GroupVersionKind().Kind
 			if rKind == "" {
-				time.Sleep(time.Second)
 				continue
 			}
 			// Create a GVR for the resource type
@@ -104,21 +111,31 @@ func waitForPorter(ctx context.Context, resource client.Object, msg string) erro
 				Resource: resourceTypeMap[rKind],
 			}
 			resourceClient := dynamicClient.Resource(gvr).Namespace(namespace)
+			// If the resource isn't yet available to fetch then try again
 			porterResource, err := resourceClient.Get(ctx, name, metav1.GetOptions{})
-			observedGen, err := getObservedGeneration(porterResource)
 			if err != nil {
-				time.Sleep(time.Second)
 				continue
 			}
-			if resource.GetGeneration() == observedGen {
+			// The observed generation is set by the controller so might not be
+			// immediately available
+			observedGen, err := getObservedGeneration(porterResource)
+			if err != nil {
+				continue
+			}
+			// When updating an existing porter resource this check can happen before
+			// the controller has incremented the generation so make sure that the
+			// generation is set to the expected generation before continuing
+			generation := resource.GetGeneration()
+			if generation != expGeneration {
+				continue
+			}
+			if generation == observedGen {
 				conditions, err := getConditions(porterResource)
 				// Conditions may not yet be set, try again
 				if err != nil {
-					time.Sleep(time.Second)
 					continue
 				}
 				if apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionComplete)) {
-					time.Sleep(time.Second)
 					return nil
 				}
 				if apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionFailed)) {
@@ -127,7 +144,6 @@ func waitForPorter(ctx context.Context, resource client.Object, msg string) erro
 				}
 			}
 		}
-		time.Sleep(time.Second)
 		continue
 	}
 }
@@ -200,8 +216,8 @@ func debugFailedResource(ctx context.Context, namespace, name string) {
 	Log("DEBUG: ----------------------------------------------------")
 }
 
+// Checks that all expected conditions are set
 func validateResourceConditions(conditions []metav1.Condition) {
-	// Checks that all expected conditions are set
 	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionScheduled)))
 	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionStarted)))
 	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionComplete)))
@@ -273,7 +289,7 @@ used to run porter commands inside the cluster to validate porter state
 func runAgentAction(ctx context.Context, actionName string, namespace string, cmd []string) string {
 	aa := newAgentAction(namespace, actionName, cmd)
 	Expect(k8sClient.Create(ctx, aa)).Should(Succeed())
-	Expect(waitForPorter(ctx, aa, fmt.Sprintf("waiting for action %s to run", actionName))).Should(Succeed())
+	Expect(waitForPorter(ctx, aa, 1, fmt.Sprintf("waiting for action %s to run", actionName))).Should(Succeed())
 	aaOut, err := getAgentActionJobOutput(ctx, aa.Name, namespace)
 	Expect(err).Error().ShouldNot(HaveOccurred())
 	return getAgentActionCmdOut(aa, aaOut)
