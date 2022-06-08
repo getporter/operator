@@ -105,7 +105,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 
 			Log("delete a parameter set")
 			Expect(k8sClient.Delete(ctx, ps)).Should(Succeed())
-			Expect(waitForResourceDeleted(ctx, ps, ps.Namespace, ps.Name)).Should(Succeed())
+			Expect(waitForResourceDeleted(ctx, ps)).Should(Succeed())
 
 			Log("verify parameter set is gone from porter data store")
 			delJsonOut := runAgentAction(ctx, "delete-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})

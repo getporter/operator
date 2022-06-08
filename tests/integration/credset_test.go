@@ -215,7 +215,7 @@ var _ = Describe("CredentialSet delete", func() {
 
 				Log("delete a credential set")
 				Expect(k8sClient.Delete(ctx, cs)).Should(Succeed())
-				Expect(waitForResourceDeleted(ctx, cs, cs.Namespace, cs.Name)).Should(Succeed())
+				Expect(waitForResourceDeleted(ctx, cs)).Should(Succeed())
 
 				Log("verify credential set is gone from porter data store")
 				delJsonOut := runAgentAction(ctx, "delete-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})

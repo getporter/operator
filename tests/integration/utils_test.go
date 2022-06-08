@@ -172,7 +172,9 @@ func getConditions(obj *unstructured.Unstructured) ([]metav1.Condition, error) {
 	return c, nil
 }
 
-func waitForResourceDeleted(ctx context.Context, resource client.Object, namespace, name string) error {
+func waitForResourceDeleted(ctx context.Context, resource client.Object) error {
+	namespace := resource.GetNamespace()
+	name := resource.GetName()
 	Log("Waiting for resource to finish deleting: %s/%s", namespace, name)
 	key := client.ObjectKey{Namespace: namespace, Name: name}
 	waitCtx, cancel := context.WithTimeout(ctx, getWaitTimeout())

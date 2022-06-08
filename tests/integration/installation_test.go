@@ -71,7 +71,7 @@ var _ = Describe("Installation Lifecycle", func() {
 
 			Log("delete the installation")
 			Expect(k8sClient.Delete(ctx, inst)).Should(Succeed())
-			Expect(waitForResourceDeleted(ctx, inst, inst.Namespace, inst.Name)).Should(Succeed())
+			Expect(waitForResourceDeleted(ctx, inst)).Should(Succeed())
 		})
 	})
 })
