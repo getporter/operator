@@ -363,7 +363,6 @@ func Deploy() {
 	}
 	meta := releases.LoadMetadata()
 	if rebuild {
-		//PublishLocalPorterAgent()
 		PublishBundle()
 		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	}
@@ -472,7 +471,6 @@ func SetupNamespace(name string) {
 
 	// Only specify the parameter set we have the env vars set
 	// It would be neat if Porter could handle this for us
-	//PublishLocalPorterAgent()
 	buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
