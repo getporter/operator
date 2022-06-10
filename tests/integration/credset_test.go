@@ -42,7 +42,7 @@ var _ = Describe("CredentialSet create", func() {
 
 				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
 				Expect(waitForPorter(ctx, cs, 1, "waiting for credential set to apply")).Should(Succeed())
-				validateResourceConditions(cs.Status.Conditions)
+				validateResourceConditions(cs)
 
 				Log("install porter-test-me bundle with new credset")
 				inst := NewTestInstallation("cs-with-secret")
@@ -52,7 +52,7 @@ var _ = Describe("CredentialSet create", func() {
 				inst.Spec.SchemaVersion = "1.0.1"
 				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 				Expect(waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")).Should(Succeed())
-				validateResourceConditions(inst.Status.Conditions)
+				validateResourceConditions(inst)
 
 				// Validate that the correct credential set was used by the installation
 				jsonOut := runAgentAction(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
@@ -83,7 +83,7 @@ var _ = Describe("CredentialSet secret does not exist", func() {
 
 				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
 				Expect(waitForPorter(ctx, cs, 1, "waiting for credential set to apply")).Should(Succeed())
-				validateResourceConditions(cs.Status.Conditions)
+				validateResourceConditions(cs)
 
 			})
 			By("failing the installation install", func() {
@@ -96,7 +96,7 @@ var _ = Describe("CredentialSet secret does not exist", func() {
 				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 				err := waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")
 				Expect(err).Should(HaveOccurred())
-				validateResourceConditions(inst.Status.Conditions)
+				validateResourceConditions(inst)
 				Expect(inst.Status.Phase).To(Equal(porterv1.PhaseFailed))
 			})
 		})
@@ -127,7 +127,7 @@ var _ = Describe("CredentialSet update", func() {
 
 				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
 				Expect(waitForPorter(ctx, cs, 1, "waiting for credential set to apply")).Should(Succeed())
-				validateResourceConditions(cs.Status.Conditions)
+				validateResourceConditions(cs)
 
 				Log("verify it's created")
 				jsonOut := runAgentAction(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
@@ -202,7 +202,7 @@ var _ = Describe("CredentialSet delete", func() {
 
 				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
 				Expect(waitForPorter(ctx, cs, 1, "waiting for credential set to apply")).Should(Succeed())
-				validateResourceConditions(cs.Status.Conditions)
+				validateResourceConditions(cs)
 
 				Log("verify it's created")
 				jsonOut := runAgentAction(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})

@@ -44,7 +44,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 
 			Expect(k8sClient.Create(ctx, ps)).Should(Succeed())
 			Expect(waitForPorter(ctx, ps, 1, "waiting for parameter set to apply")).Should(Succeed())
-			validateResourceConditions(ps.Status.Conditions)
+			validateResourceConditions(ps)
 
 			Log("verify it's created")
 			jsonOut := runAgentAction(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
@@ -65,7 +65,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			inst.Spec.SchemaVersion = "1.0.1"
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 			Expect(waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")).Should(Succeed())
-			validateResourceConditions(inst.Status.Conditions)
+			validateResourceConditions(inst)
 
 			// Validate that the correct parameter set was used by the installation
 			instJsonOut := runAgentAction(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})

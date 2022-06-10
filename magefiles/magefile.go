@@ -634,10 +634,13 @@ func pwd() string {
 	return wd
 }
 
+func ensurePorterAt() {
+	porter.EnsurePorterAt(porterVersion)
+}
+
 // Run porter using the local storage, not the in-cluster storage
 func buildPorterCmd(args ...string) shx.PreparedCommand {
-	mg.SerialDeps(porter.UseBinForPorterHome)
-	porter.EnsurePorterAt(porterVersion)
+	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
 	return must.Command(filepath.Join(pwd(), "bin/porter")).Args(args...).
 		Env("PORTER_DEFAULT_STORAGE=",
 			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
@@ -645,8 +648,7 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 }
 
 func BuildLocalPorterAgent() {
-	mg.SerialDeps(porter.UseBinForPorterHome)
-	porter.EnsurePorterAt(porterVersion)
+	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
 	mg.SerialDeps(getPlugins, getMixins)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {

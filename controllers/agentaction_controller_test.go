@@ -26,7 +26,7 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 	tests := []struct {
 		name       string
 		action     *porterv1.AgentAction
-		resource   porterResource
+		resource   PorterResource
 		wantStatus porterv1.PorterResourceStatus
 	}{
 		{

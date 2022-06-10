@@ -48,26 +48,25 @@ var _ = Describe("Installation Lifecycle", func() {
 			}
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 			Expect(waitForPorter(ctx, inst, 1, "waiting for the bundle to install")).Should(Succeed())
-			validateResourceConditions(inst.Status.Conditions)
+			validateResourceConditions(inst)
 
 			patchInstallation := func(inst *porterv1.Installation) {
 				controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, inst, func() client.Object {
 					return &porterv1.Installation{}
 				})
-				// Wait for patch to apply, this can cause race conditions
 			}
 
 			Log("upgrade the installation")
 			inst.Spec.Parameters = runtime.RawExtension{Raw: []byte(`{"name": "operator"}`)}
 			patchInstallation(inst)
 			Expect(waitForPorter(ctx, inst, 2, "waiting for the bundle to upgrade")).Should(Succeed())
-			validateResourceConditions(inst.Status.Conditions)
+			validateResourceConditions(inst)
 
 			Log("uninstall the installation")
 			inst.Spec.Uninstalled = true
 			patchInstallation(inst)
 			Expect(waitForPorter(ctx, inst, 3, "waiting for the bundle to uninstall")).Should(Succeed())
-			validateResourceConditions(inst.Status.Conditions)
+			validateResourceConditions(inst)
 
 			Log("delete the installation")
 			Expect(k8sClient.Delete(ctx, inst)).Should(Succeed())

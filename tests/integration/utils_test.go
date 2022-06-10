@@ -12,6 +12,7 @@ import (
 	"time"
 
 	porterv1 "get.porter.sh/operator/api/v1"
+	"get.porter.sh/operator/controllers"
 	"github.com/carolynvs/magex/shx"
 	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
@@ -202,14 +203,14 @@ func debugFailedResource(ctx context.Context, namespace, name string) {
 	actionKey := client.ObjectKey{Name: name, Namespace: namespace}
 	action := &porterv1.AgentAction{}
 	if err := k8sClient.Get(ctx, actionKey, action); err != nil {
-		Log(errors.Wrap(err, "could not retrieve the Installation's AgentAction to troubleshoot").Error())
+		Log(errors.Wrap(err, "could not retrieve the Resource's AgentAction to troubleshoot").Error())
 		return
 	}
 
 	jobKey := client.ObjectKey{Name: action.Status.Job.Name, Namespace: action.Namespace}
 	job := &batchv1.Job{}
 	if err := k8sClient.Get(ctx, jobKey, job); err != nil {
-		Log(errors.Wrap(err, "could not retrieve the Installation's Job to troubleshoot").Error())
+		Log(errors.Wrap(err, "could not retrieve the Resources's Job to troubleshoot").Error())
 		return
 	}
 
@@ -219,10 +220,11 @@ func debugFailedResource(ctx context.Context, namespace, name string) {
 }
 
 // Checks that all expected conditions are set
-func validateResourceConditions(conditions []metav1.Condition) {
-	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionScheduled)))
-	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionStarted)))
-	Expect(apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionComplete)))
+func validateResourceConditions(resource controllers.PorterResource) {
+	status := resource.GetStatus()
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionScheduled)))
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionStarted)))
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionComplete)))
 }
 
 // Get the pod logs associated to the job created by the agent action
@@ -230,7 +232,7 @@ func getAgentActionJobOutput(ctx context.Context, agentActionName string, namesp
 	actionKey := client.ObjectKey{Name: agentActionName, Namespace: namespace}
 	action := &porterv1.AgentAction{}
 	if err := k8sClient.Get(ctx, actionKey, action); err != nil {
-		Log(errors.Wrap(err, "could not retrieve the CredentialSet's AgentAction to troubleshoot").Error())
+		Log(errors.Wrap(err, "could not retrieve the Resource's AgentAction to troubleshoot").Error())
 		return "", err
 	}
 	// Find the job associated with the agent action
