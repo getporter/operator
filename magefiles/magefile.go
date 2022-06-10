@@ -54,16 +54,18 @@ const (
 	registryContainer = "registry"
 
 	// Porter home for running commands
-	porterVersion = "v1.0.0-alpha.19"
+	porterVersion = "v1.0.0-alpha.20"
 )
 
 var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
 var binDir = "bin"
 
-//TODO: sort out getting k8s plugin into porter-agent
-var localAgentImgRepository = "localhost:5000/porter-agent-kubernetes"
-var localAgentImgVersion = "canary-dev"
-var localAgentImgName = fmt.Sprintf("%s:%s", localAgentImgRepository, localAgentImgVersion)
+// Porter agent that has k8s plugin included
+var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
+var porterAgentImgVersion = "v1.0.0-alpha.20"
+
+// Local porter agent image name to use for local testing
+var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
 
 // Build a command that stops the build on if the command fails
 var must = shx.CommandBuilder{StopOnError: true}
@@ -236,9 +238,9 @@ func Publish() {
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml").In("installer").Must().RunV()
-
 	meta := releases.LoadMetadata()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version).In("installer").Must().RunV()
+
 	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
 }
 
@@ -318,13 +320,13 @@ func TestIntegration() {
 	kubectl("delete", "deployment", "porter-operator-controller-manager", "-n=porter-operator-system").RunV()
 
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		localAgentImgRepository = os.Getenv("PORTER_AGENT_REPOSITORY")
-		localAgentImgVersion = os.Getenv("PORTER_AGENT_VERSION")
+		porterAgentImgRepository = os.Getenv("PORTER_AGENT_REPOSITORY")
+		porterAgentImgVersion = os.Getenv("PORTER_AGENT_VERSION")
 	}
 	//"-p", "-nodes", "4",
 	must.Command("ginkgo").Args("-v", "-tags=integration", "./tests/integration/...", "-coverprofile=coverage-integration.out").
-		Env(fmt.Sprintf("PORTER_AGENT_REPOSITORY=%s", localAgentImgRepository),
-			fmt.Sprintf("PORTER_AGENT_VERSION=%s", localAgentImgVersion),
+		Env(fmt.Sprintf("PORTER_AGENT_REPOSITORY=%s", porterAgentImgRepository),
+			fmt.Sprintf("PORTER_AGENT_VERSION=%s", porterAgentImgVersion),
 			"ACK_GINKGO_DEPRECATIONS=1.16.5",
 			"ACK_GINKGO_RC=true",
 			fmt.Sprintf("KUBECONFIG=%s/kind.config", pwd())).RunV()
@@ -361,7 +363,6 @@ func Deploy() {
 	}
 	meta := releases.LoadMetadata()
 	if rebuild {
-		PublishLocalPorterAgent()
 		PublishBundle()
 		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	}
@@ -470,7 +471,6 @@ func SetupNamespace(name string) {
 
 	// Only specify the parameter set we have the env vars set
 	// It would be neat if Porter could handle this for us
-	PublishLocalPorterAgent()
 	buildPorterCmd("parameters", "apply", "./hack/params.yaml", "-n=operator").RunV()
 	ps := ""
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
@@ -634,20 +634,22 @@ func pwd() string {
 	return wd
 }
 
+func ensurePorterAt() {
+	porter.EnsurePorterAt(porterVersion)
+}
+
 // Run porter using the local storage, not the in-cluster storage
 func buildPorterCmd(args ...string) shx.PreparedCommand {
-	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter)
+	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
 	return must.Command(filepath.Join(pwd(), "bin/porter")).Args(args...).
 		Env("PORTER_DEFAULT_STORAGE=",
 			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
 			fmt.Sprintf("PORTER_HOME=%s", filepath.Join(pwd(), "bin")))
-	//mg.Deps(EnsureLocalPorter)
-	// return shx.Command(filepath.Join(GetPorterHome(), "porter")).Args(args...).
-	// 	Env("PORTER_DEFAULT_STORAGE=", "PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker")
 }
 
 func BuildLocalPorterAgent() {
-	mg.SerialDeps(porter.UseBinForPorterHome, porter.EnsurePorter, getPlugins, getMixins)
+	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
+	mg.SerialDeps(getPlugins, getMixins)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {
 		_, err := shx.Output("docker", "build", "-t", img,

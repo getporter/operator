@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-type porterResource interface {
+type PorterResource interface {
 	client.Object
 	GetStatus() porterv1.PorterResourceStatus
 	SetStatus(value porterv1.PorterResourceStatus)
@@ -57,7 +57,7 @@ func PatchObjectWithRetry(ctx context.Context, log logr.Logger, clnt client.Clie
 	}
 }
 
-func applyAgentAction(log logr.Logger, resource porterResource, action *porterv1.AgentAction) {
+func applyAgentAction(log logr.Logger, resource PorterResource, action *porterv1.AgentAction) {
 	log.V(Log5Trace).Info(fmt.Sprintf("Syncing AgentAction status with %s", resource.GetObjectKind().GroupVersionKind().Kind))
 	status := resource.GetStatus()
 	status.ObservedGeneration = resource.GetGeneration()
@@ -88,18 +88,18 @@ func applyAgentAction(log logr.Logger, resource porterResource, action *porterv1
 }
 
 // this is our kubectl delete check
-func isDeleted(resource porterResource) bool {
+func isDeleted(resource PorterResource) bool {
 	timestamp := resource.GetDeletionTimestamp()
 	return timestamp != nil && !timestamp.IsZero()
 }
 
 // ensure delete action is completed before delete
-func isDeleteProcessed(resource porterResource) bool {
+func isDeleteProcessed(resource PorterResource) bool {
 	status := resource.GetStatus()
 	return isDeleted(resource) && apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionComplete))
 }
 
-func isFinalizerSet(resource porterResource) bool {
+func isFinalizerSet(resource PorterResource) bool {
 	for _, finalizer := range resource.GetFinalizers() {
 		if finalizer == porterv1.FinalizerName {
 			return true
@@ -109,7 +109,7 @@ func isFinalizerSet(resource porterResource) bool {
 }
 
 // ensureFinalizerSet sets a finalizer on the resource and saves it, if necessary.
-func ensureFinalizerSet(ctx context.Context, log logr.Logger, client client.Client, resource porterResource) (updated bool, err error) {
+func ensureFinalizerSet(ctx context.Context, log logr.Logger, client client.Client, resource PorterResource) (updated bool, err error) {
 	// Ensure all resources have a finalizer to we can react when they are deleted
 	if !isDeleted(resource) {
 		// The object is not being deleted, so if it does not have our finalizer,
