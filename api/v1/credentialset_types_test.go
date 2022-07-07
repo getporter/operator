@@ -3,6 +3,7 @@ package v1
 import (
 	"testing"
 
+	"get.porter.sh/porter/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,7 +31,7 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 	}{
 		{
 			name: "golden file test",
-			fields: fields{SchemaVersion: "1.0.1",
+			fields: fields{SchemaVersion: string(storage.CredentialSetSchemaVersion),
 				Name:      "porter-test-me",
 				Namespace: "dev",
 				Credentials: []Credential{{
