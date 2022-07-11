@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"get.porter.sh/operator/controllers"
+	"get.porter.sh/porter/pkg/storage"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	"github.com/tidwall/gjson"
@@ -62,7 +63,6 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			inst.ObjectMeta.Namespace = ns
 			inst.Spec.Namespace = ns
 			inst.Spec.ParameterSets = append(inst.Spec.ParameterSets, pSetName)
-			inst.Spec.SchemaVersion = "1.0.1"
 			Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 			Expect(waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")).Should(Succeed())
 			validateResourceConditions(inst)
@@ -132,9 +132,7 @@ func NewTestParamSet(psName string) *porterv1.ParameterSet {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.ParameterSetSpec{
-			//TODO: get schema version from porter version
-			// https://github.com/getporter/porter/pull/2052
-			SchemaVersion: "1.0.1",
+			SchemaVersion: string(storage.ParameterSetSchemaVersion),
 			Name:          psName,
 		},
 	}

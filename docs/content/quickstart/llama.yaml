@@ -4,7 +4,7 @@ metadata:
   name: hello-llama
   namespace: quickstart
 spec:
-  schemaVersion: 1.0.0
+  schemaVersion: 1.0.2
   namespace: quickstart
   name: mellama
   bundle:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"get.porter.sh/operator/controllers"
+	"get.porter.sh/porter/pkg/storage"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	"github.com/tidwall/gjson"
@@ -49,7 +50,6 @@ var _ = Describe("CredentialSet create", func() {
 				inst.ObjectMeta.Namespace = ns
 				inst.Spec.Namespace = ns
 				inst.Spec.CredentialSets = append(inst.Spec.CredentialSets, name)
-				inst.Spec.SchemaVersion = "1.0.1"
 				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 				Expect(waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")).Should(Succeed())
 				validateResourceConditions(inst)
@@ -92,7 +92,7 @@ var _ = Describe("CredentialSet secret does not exist", func() {
 				inst.ObjectMeta.Namespace = ns
 				inst.Spec.Namespace = ns
 				inst.Spec.CredentialSets = append(inst.Spec.CredentialSets, name)
-				inst.Spec.SchemaVersion = "1.0.1"
+
 				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 				err := waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")
 				Expect(err).Should(HaveOccurred())
@@ -244,7 +244,7 @@ func NewTestCredSet(csName string) *porterv1.CredentialSet {
 		Spec: porterv1.CredentialSetSpec{
 			//TODO: get schema version from porter version?
 			// https://github.com/getporter/porter/pull/2052
-			SchemaVersion: "1.0.1",
+			SchemaVersion: string(storage.CredentialSetSchemaVersion),
 			Name:          csName,
 		},
 	}
@@ -279,7 +279,7 @@ func NewTestInstallation(iName string) *porterv1.Installation {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.InstallationSpec{
-			SchemaVersion: "1.0.1",
+			SchemaVersion: string(storage.InstallationSchemaVersion),
 			Name:          iName,
 			Bundle: porterv1.OCIReferenceParts{
 				Repository: "ghcr.io/bdegeeter/porter-test-me",

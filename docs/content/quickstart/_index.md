@@ -20,17 +20,17 @@ In this QuickStart you will learn how to install and use the [Porter Operator] o
 The Porter Operator is installed using Porter, and requires an existing Kubernetes cluster.
 First, generate a credential set that points to the location of your kubeconfig file, for example using the path $HOME/.kube/config.
 
-The commands below use the v0.5.2 release, but there may be a more recent release of the Operator.
+The commands below use the v0.6.0 release, but there may be a more recent release of the Operator.
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
 
 ```
-porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.5.2
+porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.6.0
 ```
 
 Now that Porter knows which cluster to target, install the Operator with the following command:
 
 ```
-porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.5.2
+porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.6.0
 ```
 
 Before you use the operator, you need to configure a Kubernetes namespace with the necessary configuration.
@@ -95,7 +95,7 @@ Let's create an installation resource that specifies that we want to have the ge
       name: hello-llama
       namespace: quickstart
     spec:
-      schemaVersion: 1.0.0
+      schemaVersion: 1.0.2
       namespace: quickstart
       name: mellama
       bundle:
@@ -146,7 +146,7 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
       name: hello-llama
       namespace: quickstart
     spec:
-      schemaVersion: 1.0.0
+      schemaVersion: 1.0.2
       namespace: quickstart
       name: mellama
       bundle:
@@ -231,7 +231,7 @@ Let's walk through the second method in detail.
       namespace: quickstart
     spec:
       uninstalled: true
-      schemaVersion: 1.0.0
+      schemaVersion: 1.0.2
       namespace: quickstart
       name: mellama
       # Contents truncated because they aren't relevant to uninstall
