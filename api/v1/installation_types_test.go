@@ -3,6 +3,7 @@ package v1
 import (
 	"testing"
 
+	"get.porter.sh/porter/pkg/storage"
 	"get.porter.sh/porter/pkg/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 	// Validate the special handling for the arbitrary parameters
 	// which the CRD can't directly represent as map[string]interface{}
 	spec := InstallationSpec{
-		SchemaVersion: "1.0.0",
+		SchemaVersion: string(storage.InstallationSchemaVersion),
 		Name:          "mybuns",
 		Namespace:     "dev",
 		Bundle: OCIReferenceParts{

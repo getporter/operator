@@ -5,7 +5,7 @@ metadata:
   labels:
     porter.sh/testdata: "true"
 spec:
-  schemaVersion: 1.0.0
+  schemaVersion: 1.0.2
   namespace: operator
   name: kubeflow
   bundle:

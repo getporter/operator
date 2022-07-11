@@ -8,6 +8,7 @@ import (
 
 	porterv1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
+	"get.porter.sh/porter/pkg/storage"
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -37,7 +38,7 @@ var _ = Describe("Installation Lifecycle", func() {
 					Namespace: ns,
 				},
 				Spec: porterv1.InstallationSpec{
-					SchemaVersion: "1.0.1",
+					SchemaVersion: string(storage.InstallationSchemaVersion),
 					Name:          "hello",
 					Namespace:     "operator-tests",
 					Bundle: porterv1.OCIReferenceParts{
