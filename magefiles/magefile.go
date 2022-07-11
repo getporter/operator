@@ -115,7 +115,7 @@ func GenerateController() error {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(getPlugins, getMixins, StartDockerRegistry, PublishImages)
+	mg.SerialDeps(getMixins, StartDockerRegistry, PublishImages)
 
 	buildManifests()
 
@@ -642,7 +642,7 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 
 func BuildLocalPorterAgent() {
 	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
-	mg.SerialDeps(getPlugins, getMixins)
+	mg.SerialDeps(getMixins)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {
 		_, err := shx.Output("docker", "build", "-t", img,

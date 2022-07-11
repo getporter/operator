@@ -102,6 +102,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
+			Plugins:                    PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}},
 		}
 
 		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
@@ -112,5 +113,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
+		assert.Equal(t, PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}}, config.Plugins)
 	})
 }

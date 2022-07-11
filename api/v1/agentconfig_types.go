@@ -45,6 +45,8 @@ type AgentConfigSpec struct {
 	// The default is to run without a service account.
 	// This can be useful for a bundle which is targeting the kubernetes cluster that the operator is installed in.
 	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
+
+	Plugins PluginList `json:"plugins,omitempty" mapstructure:"plugins,omitempty"`
 }
 
 // GetPorterImage returns the fully qualified image name of the Porter Agent
@@ -116,6 +118,11 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 	return final, nil
 }
 
+// AgentConfigStatus defines the observed state of AgentConfig
+type AgentConfigStatus struct {
+	PorterResourceStatus `json:",inline"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
@@ -124,7 +131,31 @@ type AgentConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec AgentConfigSpec `json:"spec,omitempty"`
+	Spec   AgentConfigSpec   `json:"spec,omitempty"`
+	Status AgentConfigStatus `json:"status,omitempty"`
+}
+
+func (ac *AgentConfig) GetStatus() PorterResourceStatus {
+	return ac.Status.PorterResourceStatus
+}
+
+func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
+	ac.Status.PorterResourceStatus = value
+}
+
+// GetRetryLabelValue returns a value that is safe to use
+// as a label value and represents the retry annotation used
+// to trigger reconciliation.
+func (ac *AgentConfig) GetRetryLabelValue() string {
+	return getRetryLabelValue(ac.Annotations)
+}
+
+// SetRetryAnnotation flags the resource to retry its last operation.
+func (ac *AgentConfig) SetRetryAnnotation(retry string) {
+	if ac.Annotations == nil {
+		ac.Annotations = make(map[string]string, 1)
+	}
+	ac.Annotations[AnnotationRetry] = retry
 }
 
 // +kubebuilder:object:root=true
@@ -138,4 +169,11 @@ type AgentConfigList struct {
 
 func init() {
 	SchemeBuilder.Register(&AgentConfig{}, &AgentConfigList{})
+}
+
+type PluginList []Plugin
+type Plugin struct {
+	Name    string `json:"name" yaml:"name" mapstructure:"name"`
+	FeedURL string `json:"feedUrl" yaml:"feedUrl" mapstructure:"name"`
+	Version string `json:"version" yaml:"version" mapstructure:"version"`
 }
