@@ -16,8 +16,7 @@ You can watch the https://github.com/getporter/operator repository to know when 
 
 ## Current State
 
-The operator is still under active development, but it is ready for you to try out and provide feedback!
-We don't yet have custom resources for Credential and Parameter sets, so you will need to [use the Porter cli to define those before using the operator][connect].
+The operator is still under development, but it is ready for you to try out and provide feedback!
 
 [connect]: https://github.com/getporter/operator/blob/main/CONTRIBUTING.md#connect-to-the-in-cluster-mongo-database
 
