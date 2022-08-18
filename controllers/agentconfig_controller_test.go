@@ -126,22 +126,15 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &actionList))
 	assert.Equal(t, "1", actionList.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
 	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
-	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "incorrect Phase")
+	assert.Equal(t, porterv1.PhaseSucceeded, agentCfg.Status.Phase, "incorrect Phase")
 
-	// Mark the action as scheduled
-	actionList.Status.Phase = porterv1.PhasePending
-	actionList.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &actionList))
+	require.NotEmpty(t, actionList.Spec.Volumes)
 
-	triggerReconcile()
-
-	assert.Equal(t, porterv1.PhasePending, agentCfg.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionScheduled)), agentCfg.Status.Conditions)
-
-	// Complete the action
-	actionList.Status.Phase = porterv1.PhaseSucceeded
-	actionList.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &actionList))
+	// the renamed pvc should be bounded to the existing pv once it's ready
+	renamedPVC := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: getPluginHash(&agentCfg)}, renamedPVC))
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Update(ctx, renamedPVC))
 
 	triggerReconcile()
 
@@ -149,7 +142,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	tmpPVCName, ok := agentCfg.Annotations["tmpPVC"]
 	require.True(t, ok)
 	tmpPVC := &corev1.PersistentVolumeClaim{}
-	require.Error(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: tmpPVCName}, tmpPVC), tmpPVCName)
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: tmpPVCName}, tmpPVC)))
 
 	// Fail the action
 	action.Status.Phase = porterv1.PhaseFailed
@@ -202,17 +195,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that an action was created to uninstall it
-	require.NotNil(t, agentCfg.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &action))
-	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
-
-	// Complete the uninstall action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
+	// Verify that pvc and pv is deleted
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: renamedPVC.Name}, renamedPVC)))
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pv)))
 
 	// Verify that the agent config was removed
 	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg), &agentCfg)
