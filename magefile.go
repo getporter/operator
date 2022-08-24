@@ -45,7 +45,7 @@ const (
 	testNamespace = "test"
 
 	// Relative location of the KUBECONFIG for the test cluster
-	kubeconfig = "kind.config"
+	kubeconfig = "kind.config.yaml"
 
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
@@ -62,7 +62,7 @@ var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
 var porterAgentImgVersion = porterVersion
 
 // Local porter agent image name to use for local testing
-var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
+var localAgentImgName = "localhost:5000/porter-agent:test"
 
 // Build a command that stops the build on if the command fails
 var must = shx.CommandBuilder{StopOnError: true}

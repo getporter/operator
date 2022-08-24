@@ -174,6 +174,6 @@ func init() {
 type PluginList []Plugin
 type Plugin struct {
 	Name    string `json:"name" yaml:"name" mapstructure:"name"`
-	FeedURL string `json:"feedUrl" yaml:"feedUrl" mapstructure:"name"`
+	FeedURL string `json:"feedUrl" yaml:"feedUrl" mapstructure:"feedURL"`
 	Version string `json:"version" yaml:"version" mapstructure:"version"`
 }

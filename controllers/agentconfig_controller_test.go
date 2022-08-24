@@ -199,9 +199,11 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: renamedPVC.Name}, renamedPVC)))
 	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pv)))
 
+	triggerReconcile()
+
 	// Verify that the agent config was removed
 	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg), &agentCfg)
-	require.True(t, apierrors.IsNotFound(err), "expected the installation was deleted")
+	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
 
 	// Verify that reconcile doesn't error out after it's deleted
 	triggerReconcile()

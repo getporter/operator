@@ -32,10 +32,13 @@ type AgentConfigReconciler struct {
 
 type runPorter func(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error
 
-// +kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AgentConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -100,8 +103,10 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err == nil {
 		if newPVC.Status.Phase != corev1.ClaimBound {
 			// wait for the pvc to be bounded
+			log.V(Log4Debug).Info("Plugin persistent volume claim waiting to be bounded.", "persistentvolumeclaim", newPVC.Name, "namespace", newPVC.Namespace)
 			return ctrl.Result{}, nil
 		}
+		log.V(Log4Debug).Info("Plugin persistent volume claim already exists.", "persistentvolumeclaim", newPVC.Name, "namespace", newPVC.Namespace)
 		pvcExists = true
 	}
 
@@ -118,11 +123,11 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		// if the volume is not ready, there's nothing we can do
 		if len(action.Spec.Volumes) < 1 {
-			log.V(Log4Debug).Info("Volumn is not ready yet.")
+			log.V(Log4Debug).Info("Volumn is not ready yet.", "persistentvolumeclaim", newPVC.Name, "namespace", newPVC.Namespace)
 			return ctrl.Result{}, nil
 		}
 		// check if we can find the hash pvc that's bounded, if so, we can delete the tmp pvc
-		var tmpPVC string
+		var tmpPVCName string
 		var shouldDeleteTmpPVC bool
 		if pvcExists {
 			oldPVC, ok := agentCfg.Annotations["tmpPVC"]
@@ -132,56 +137,65 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			}
 
 			shouldDeleteTmpPVC = true
-			tmpPVC = oldPVC
+			tmpPVCName = oldPVC
 		} else {
 			// the temporary pvc is created
-			// ToDo: i assume this means the porter plugin install is finished by now
-			tmpPVC = action.Spec.Volumes[0].PersistentVolumeClaim.ClaimName
+			if action.Status.Phase == porterv1.PhaseSucceeded {
+				// ToDo: i assume this means the porter plugin install is finished by now
+				tmpPVCName = action.Spec.Volumes[0].PersistentVolumeClaim.ClaimName
+			}
 		}
 
+		log.V(Log4Debug).Info("Temporary persistent volume claim found", "persistentvolumeclaim", tmpPVCName, "namespace", action.Namespace)
 		// rename the pvc to the hash of plugins metadata
-		key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: tmpPVC}
-		tmpVolume := &corev1.PersistentVolumeClaim{}
-		err = r.Get(ctx, key, tmpVolume)
+		key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: tmpPVCName}
+		tmpPVC := &corev1.PersistentVolumeClaim{}
+		err = r.Get(ctx, key, tmpPVC)
 		if err != nil {
 			// Todo: awkward that it's not found anymore. Should we mark the action to be finished here?
 			if apierrors.IsNotFound(err) {
+				log.V(Log4Debug).Info("Temporary persistent volume claim already deleted", "persistentvolumeclaim", tmpPVCName, "namespace", action.Namespace)
 				return ctrl.Result{}, nil
 			}
 			return ctrl.Result{}, err
 		}
 
-		if tmpVolume.Status.Phase != corev1.ClaimBound {
+		if tmpPVC.Status.Phase != corev1.ClaimBound && !pvcExists {
 			// wait for it to be bounded
+			log.V(Log4Debug).Info("Temporary persistent volume claim waiting to be bounded.", "persistentvolumeclaim", tmpPVC.Name, "namespace", tmpPVC.Namespace)
 			return ctrl.Result{}, nil
 		}
 
 		if shouldDeleteTmpPVC {
-			if err := r.Delete(ctx, tmpVolume); err != nil {
+			log.V(Log4Debug).Info("Deleting temporary persistent volume claim.", "persistentvolumeclaim", tmpPVC.Name, "namespace", tmpPVC.Namespace)
+			if err := r.Delete(ctx, tmpPVC); err != nil {
 				return ctrl.Result{}, err
 			}
+			log.V(Log4Debug).Info("Deleted temporary persistent volume claim.", "persistentvolumeclaim", tmpPVC.Name, "namespace", tmpPVC.Namespace)
 			return ctrl.Result{}, nil
 		}
 
-		_, err = r.renamePVC(ctx, tmpVolume, hashPVC)
+		_, err = r.renamePVC(ctx, log, tmpPVC, hashPVC)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
+		log.V(Log4Debug).Info("Renamed temporary persistent volume claim.", "old persistentvolumeclaim", tmpPVC.Name, "new persistentvolumeclaim", hashPVC, "namespace", tmpPVC.Namespace)
 		if agentCfg.Annotations == nil {
 			agentCfg.Annotations = make(map[string]string)
 		}
-		agentCfg.Annotations["tmpPVC"] = tmpVolume.Name
+		agentCfg.Annotations["tmpPVC"] = tmpPVC.Name
 		if err := r.Update(ctx, agentCfg); err != nil {
 			return ctrl.Result{}, err
 		}
+		log.V(Log4Debug).Info("Renamed temporary persistent volume claim.", "old persistentvolumeclaim", tmpPVC.Name, "new persistentvolumeclaim", hashPVC, "namespace", tmpPVC.Namespace)
 
 		return ctrl.Result{}, nil
 	}
 
 	if r.shouldDelete(agentCfg) {
 		// delete the pvc and pc created by this agent config
-		err = r.cleanup(ctx, agentCfg)
+		err = r.cleanup(ctx, log, agentCfg)
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to delete the credential set")
 		return ctrl.Result{}, err
 	} else if isDeleted(agentCfg) {
@@ -288,7 +302,20 @@ func (r *AgentConfigReconciler) createAgentVolumeWithPlugins(ctx context.Context
 
 // Trigger an agent
 func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
-	action, err := r.createAgentAction(ctx, log, pvc, agentCfg, []string{"plugins", "install"})
+	if len(agentCfg.Spec.Plugins) == 0 {
+		return nil
+	}
+	installCmd := []string{"plugins", "install"}
+	for _, p := range agentCfg.Spec.Plugins {
+		installCmd = append(installCmd, p.Name)
+		if p.FeedURL != "" {
+			installCmd = append(installCmd, "--feed-url", p.FeedURL)
+		}
+		if p.Version != "" {
+			installCmd = append(installCmd, "--version", p.Version)
+		}
+	}
+	action, err := r.createAgentAction(ctx, log, pvc, agentCfg, installCmd)
 	if err != nil {
 		return err
 	}
@@ -366,7 +393,11 @@ func (r *AgentConfigReconciler) saveStatus(ctx context.Context, log logr.Logger,
 // Sync the retry annotation from the agent config to the agent action to trigger another run.
 func (r *AgentConfigReconciler) retry(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig, action *porterv1.AgentAction) error {
 	log.V(Log5Trace).Info("Initializing agent config status")
-
+	agentCfg.Status.Initialize()
+	agentCfg.Status.Action = &corev1.LocalObjectReference{Name: action.Name}
+	if err := r.saveStatus(ctx, log, agentCfg); err != nil {
+		return err
+	}
 	log.V(Log5Trace).Info("Retrying associated porter agent action")
 	retry := agentCfg.GetRetryLabelValue()
 	action.SetRetryAnnotation(retry)
@@ -409,9 +440,11 @@ func getPluginVolumn(pvc *corev1.PersistentVolumeClaim) (corev1.Volume, corev1.V
 // rename the oldPvc to newName
 func (r *AgentConfigReconciler) renamePVC(
 	ctx context.Context,
+	log logr.Logger,
 	oldPvc *corev1.PersistentVolumeClaim,
 	new string,
 ) (*corev1.PersistentVolumeClaim, error) {
+	log.V(Log4Debug).Info("Renaming temporary persistent volume claim.", "old persistentvolumeclaim", oldPvc.Name, "new persistentvolumeclaim", new, "namespace", oldPvc.Namespace)
 	// get new pvc with old PVC inputs
 	newPvc := oldPvc.DeepCopy()
 	newPvc.Status = corev1.PersistentVolumeClaimStatus{}
@@ -447,7 +480,7 @@ func (r *AgentConfigReconciler) renamePVC(
 }
 
 func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, agentCfg *porterv1.AgentConfig) bool {
-	if !isDeleteProcessed(agentCfg) {
+	if !isDeleted(agentCfg) {
 		return false
 	}
 
@@ -481,8 +514,9 @@ func (r *AgentConfigReconciler) shouldDelete(agentCfg *porterv1.AgentConfig) boo
 	return isDeleted(agentCfg) && isFinalizerSet(agentCfg)
 }
 
-func (r *AgentConfigReconciler) cleanup(ctx context.Context, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) error {
 	hashPVC := getPluginHash(agentCfg)
+	log.V(Log4Debug).Info("Start cleaning up persistent volume claim.", "persistentvolumeclaim", hashPVC, "namespace", agentCfg.Namespace)
 	key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: hashPVC}
 	newPVC := &corev1.PersistentVolumeClaim{}
 	err := r.Get(ctx, key, newPVC)
@@ -493,8 +527,10 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, agentCfg *porterv1.
 		if err := r.Delete(ctx, newPVC); err != nil {
 			return err
 		}
+		log.V(Log4Debug).Info("Cleaned up persistent volume claim.", "persistentvolumeclaim", hashPVC, "namespace", agentCfg.Namespace)
 	}
 
+	log.V(Log4Debug).Info("Start cleaning up persistent volume.", "persistentvolume", newPVC.Spec.VolumeName, "namespace", agentCfg.Namespace)
 	pv := &corev1.PersistentVolume{}
 	pvKey := client.ObjectKey{Namespace: newPVC.Namespace, Name: newPVC.Spec.VolumeName}
 	err = r.Get(ctx, pvKey, pv)
@@ -505,6 +541,7 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, agentCfg *porterv1.
 		if err := r.Delete(ctx, pv); err != nil {
 			return err
 		}
+		log.V(Log4Debug).Info("Cleaned up persistent volume.", "persistentvolume", pvKey.Name, "namespace", agentCfg.Namespace)
 	}
 
 	return nil
