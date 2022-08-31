@@ -278,6 +278,28 @@ Let's walk through the second method in detail.
      Digest: sha256:22cdfad0756c9ce1a8f4694b0411440dfab99fa2e07125ff78efe555dd63d73e
     ```
 
+## Environment Configuration
+The kubernetes job environment variables can be provided by setting the `porter-env` secret in the namespace that the Agent Action jobs are executed. Any values set in the `porter-env` secret will be added to the jobs environment using `EnvFrom` on the Agent Action job.
+
+An example use case for `porter-env` would be to provide the credentials to use with any configured plugins.
+### Azure Secrets Plugin Porter Env
+Create the `azure_credentials.yaml` with the following content:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: porter-env
+  namespace: quickstart
+type: Opaque
+data:
+  AZURE_CLIENT_ID: <Base64 encoded secret value>
+  AZURE_CLIENT_SECRET: <Base64 encoded secret value>
+  AZURE_TENANT_ID: <Base64 encoded secret value>
+```
+Create the `porter-env` secret by running `kubectl apply -f azure_credentials.yaml`
+
+These environment variables will now be available in the Agent Action job that's created for any Installation created in the `quickstart` namespace
+
 ## Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
