@@ -5,8 +5,7 @@ metadata:
   labels:
     porter.sh/testdata: "true"
 spec:
-  debug: true
-  debugPlugins: false
+  verbosity: debug
   defaultSecretsPlugin: kubernetes.secrets
   defaultStorage: in-cluster-mongodb
   storage:

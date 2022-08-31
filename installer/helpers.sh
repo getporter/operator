@@ -19,7 +19,6 @@ configureNamespace() {
     echo "Using the default porter configuration"
     cp defaults/porter-config-spec.yaml $spec
   fi
-  sed -i 's/debug-plugins/debugPlugins/g' $spec
   sed -i 's/default-storage-plugin/defaultStoragePlugin/g' $spec
   sed -i 's/default-storage/defaultStorage/g' $spec
   sed -i 's/default-secrets-plugin/defaultSecretsPlugin/g' $spec
