@@ -12,28 +12,28 @@ import (
 func TestPorterConfigSpec_MergeConfig(t *testing.T) {
 	t.Run("empty is ignored", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Debug: pointer.BoolPtr(true),
+			Verbosity: pointer.StringPtr("info"),
 		}
 
 		instConfig := PorterConfigSpec{}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.BoolPtr(true), config.Debug)
+		assert.Equal(t, pointer.StringPtr("info"), config.Verbosity)
 	})
 
 	t.Run("override", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Debug: pointer.BoolPtr(true),
+			Verbosity: pointer.StringPtr("info"),
 		}
 
 		instConfig := PorterConfigSpec{
-			Debug: pointer.BoolPtr(false),
+			Verbosity: pointer.StringPtr("debug"),
 		}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.BoolPtr(false), config.Debug)
+		assert.Equal(t, pointer.StringPtr("debug"), config.Verbosity)
 	})
 }
 
@@ -47,8 +47,7 @@ func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 		{
 			name: "All fields set",
 			cfg: PorterConfigSpec{
-				Debug:                pointer.BoolPtr(true),
-				DebugPlugins:         pointer.BoolPtr(true),
+				Verbosity:            pointer.StringPtr("debug"),
 				Namespace:            pointer.StringPtr("test"),
 				Experimental:         []string{"build-drivers"},
 				BuildDriver:          pointer.StringPtr("buildkit"),
@@ -71,8 +70,7 @@ func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 					}},
 				},
 			},
-			expDocument: []byte(`debug: true
-debug-plugins: true
+			expDocument: []byte(`verbosity: debug
 namespace: test
 experimental:
     - build-drivers

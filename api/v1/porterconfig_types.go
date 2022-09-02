@@ -17,11 +17,9 @@ import (
 //  Use yaml to convert to Porter's representation of the resource.
 //  The mapstructure tags are used internally for PorterConfigSpec.MergeConfig.
 type PorterConfigSpec struct {
-	// Debug specifies if Porter should output debug logs.
-	Debug *bool `json:"debug,omitempty" yaml:"debug,omitempty" mapstructure:"debug,omitempty"`
-
-	// DebugPlugins specifies if Porter should output debug logs for the plugins.
-	DebugPlugins *bool `json:"debugPlugins,omitempty" yaml:"debug-plugins,omitempty" mapstructure:"debug-plugins,omitempty"`
+	// Threshold for printing messages to the console
+	// Allowed values are: debug, info, warn, error
+	Verbosity *string `json:"verbosity,omitempty" yaml:"verbosity,omitempty" mapstructure:"verbosity,omitempty"`
 
 	// Namespace is the default Porter namespace.
 	Namespace *string `json:"namespace,omitempty" yaml:"namespace,omitempty" mapstructure:"namespace,omitempty"`

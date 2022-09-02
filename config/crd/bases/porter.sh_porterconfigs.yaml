@@ -42,13 +42,6 @@ spec:
                 description: BuildDriver specifies the name of the current build driver.
                   Requires that the build-drivers experimental feature is enabled.
                 type: string
-              debug:
-                description: Debug specifies if Porter should output debug logs.
-                type: boolean
-              debugPlugins:
-                description: DebugPlugins specifies if Porter should output debug
-                  logs for the plugins.
-                type: boolean
               defaultSecrets:
                 description: DefaultSecrets is the name of the secrets configuration
                   to use.
@@ -108,6 +101,8 @@ spec:
                   - plugin
                   type: object
                 type: array
+              verbosity:
+                type: string
             type: object
         type: object
     served: true

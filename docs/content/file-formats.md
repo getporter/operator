@@ -181,8 +181,7 @@ kind: PorterConfig
 metadata:
   name: customPorterConfig
 spec:
-  debug: true
-  debugPlugins: false
+  verbosity: debug
   defaultSecretsPlugin: kubernetes.secrets
   defaultStorage: in-cluster-mongodb
   storage:
@@ -195,8 +194,7 @@ spec:
 
 | Field        | Required    | Default | Description |
 | -----------  | ----------- | ------- | ----------- |
-| debug        | false       | false   | Specifies if Porter should output debug logs. |
-| debugPlugins | false       | false   | Specifies if Porter should output debug logs for the plugins. |
+| verbosity    | false       | info | Threshold for printing messages to the console. Available values are: debug, info, warning, error. (default "info") |
 | namespace    | false       | (empty) | The default Porter namespace. Used when a resource is defined without the namespace set in the spec. |
 | experimental | false       | (empty) | Specifies which experimental features are enabled. See Porter Feature Flags for more information. |
 | defaultStorage | false     | in-cluster-mongodb | The name of the storage configuration to use. |
