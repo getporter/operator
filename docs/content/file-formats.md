@@ -194,7 +194,7 @@ spec:
 
 | Field        | Required    | Default | Description |
 | -----------  | ----------- | ------- | ----------- |
-| verbosity    | false       | (empty) | Threshold for printing messages to the console. Available values are: debug, info, warning, error. (default "info") |
+| verbosity    | false       | info | Threshold for printing messages to the console. Available values are: debug, info, warning, error. (default "info") |
 | namespace    | false       | (empty) | The default Porter namespace. Used when a resource is defined without the namespace set in the spec. |
 | experimental | false       | (empty) | Specifies which experimental features are enabled. See Porter Feature Flags for more information. |
 | defaultStorage | false     | in-cluster-mongodb | The name of the storage configuration to use. |
