@@ -17,6 +17,8 @@ import (
 //  Use yaml to convert to Porter's representation of the resource.
 //  The mapstructure tags are used internally for PorterConfigSpec.MergeConfig.
 type PorterConfigSpec struct {
+	// Threshold for printing messages to the console
+	// Allowed values are: debug, info, warn, error
 	Verbosity *string `json:"verbosity,omitempty" yaml:"verbosity,omitempty" mapstructure:"verbosity,omitempty"`
 
 	// Namespace is the default Porter namespace.
