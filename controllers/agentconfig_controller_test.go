@@ -30,16 +30,21 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
+	testAgentCfg := &porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
+		Spec: porterv1.AgentConfigSpec{
+			Plugins: porterv1.PluginList{porterv1.Plugin{Name: "test-plugins", FeedURL: "https://feed-url", Version: "v1.0.0"}},
+		},
+	}
 	testdata := []client.Object{
-		&porterv1.AgentConfig{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}},
+		testAgentCfg,
 	}
 	controller := setupAgentConfigController(testdata...)
 
 	var agentCfg porterv1.AgentConfig
 	triggerReconcile := func() {
-		fullname := types.NamespacedName{Namespace: namespace, Name: name}
-		key := client.ObjectKey{Namespace: namespace, Name: name}
+		fullname := types.NamespacedName{Namespace: namespace, Name: testAgentCfg.Name}
+		key := client.ObjectKey{Namespace: namespace, Name: testAgentCfg.Name}
 
 		request := controllerruntime.Request{
 			NamespacedName: fullname,
@@ -130,9 +135,11 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	require.NotEmpty(t, actionList.Spec.Volumes)
 
+	triggerReconcile()
+
 	// the renamed pvc should be bounded to the existing pv once it's ready
 	renamedPVC := &corev1.PersistentVolumeClaim{}
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: getPluginHash(&agentCfg)}, renamedPVC))
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Spec.GetPluginsHash()}, renamedPVC))
 	renamedPVC.Status.Phase = corev1.ClaimBound
 	require.NoError(t, controller.Update(ctx, renamedPVC))
 
@@ -158,6 +165,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Edit the agent config spec
 	agentCfg.Generation = 2
+	agentCfg.Spec.Plugins[0].Name = "test-plugin-2"
 	require.NoError(t, controller.Update(ctx, &agentCfg))
 
 	triggerReconcile()
@@ -166,6 +174,8 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, int64(2), agentCfg.Status.ObservedGeneration)
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
+
+	triggerReconcile()
 
 	// Retry the last action
 	lastAction := agentCfg.Status.Action.Name
@@ -196,8 +206,10 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	triggerReconcile()
 
 	// Verify that pvc and pv is deleted
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: renamedPVC.Name}, renamedPVC)))
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pv)))
+	pvcWithPlugin2 := &corev1.PersistentVolumeClaim{}
+	pvWithPlugin2 := &corev1.PersistentVolume{}
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Spec.GetPluginsHash()}, pvcWithPlugin2)))
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvcWithPlugin2.Spec.VolumeName}, pv)))
 
 	triggerReconcile()
 

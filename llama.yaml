@@ -1,14 +1,12 @@
 apiVersion: porter.sh/v1
 kind: Installation
 metadata:
-  name: hello-llama
-  namespace: default
+  name: hello-3
+  namespace: quickstart
 spec:
-  schemaVersion: 1.0.0
-  namespace: default
-  name: mellama
+  schemaVersion: 1.0.2
+  namespace: quickstart
+  name: porter-hello-5
   bundle:
-    repository: getporter/hello-llama
-    version: 0.1.1
-  parameters:
-    name: default
+    repository: ghcr.io/getporter/examples/porter-hello
+    version: 0.2.0

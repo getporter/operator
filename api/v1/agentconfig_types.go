@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/mitchellh/mapstructure"
@@ -93,6 +95,19 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 	return q
 }
 
+func (c AgentConfigSpec) GetPluginsHash() string {
+	if len(c.Plugins) == 0 {
+		return ""
+	}
+	var input []byte
+
+	for _, p := range c.Plugins {
+		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
+	}
+	pluginHash := md5.Sum(input)
+	return hex.EncodeToString(pluginHash[:])
+}
+
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
 // only when they are not empty.
 func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigSpec, error) {
@@ -141,6 +156,20 @@ func (ac *AgentConfig) GetStatus() PorterResourceStatus {
 
 func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
+}
+
+func (ac *AgentConfig) GetPVCName() string {
+	if len(ac.Spec.Plugins) == 0 {
+		return ""
+	}
+	var input []byte
+
+	for _, p := range ac.Spec.Plugins {
+		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
+	}
+	input = append(input, []byte(ac.Name)...)
+	pluginHash := md5.Sum(input)
+	return hex.EncodeToString(pluginHash[:])
 }
 
 // GetRetryLabelValue returns a value that is safe to use

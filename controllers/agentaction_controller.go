@@ -399,7 +399,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 
 	labels := r.getAgentJobLabels(action)
 	env, envFrom := r.getAgentEnv(action, agentCfg, pvc)
-	volumes, volumeMounts := r.getAgentVolumes(action, pvc, configSecret, workdirSecret, imgPullSecret)
+	volumes, volumeMounts := r.getAgentVolumes(ctx, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
 
 	porterJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -476,7 +476,8 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 		log.V(Log4Debug).Info("Found porter agent configuration",
 			"level", level,
 			"namespace", config.Namespace,
-			"name", config.Name)
+			"name", config.Name,
+			"plugin", config.Spec.Plugins)
 	}
 
 	// Read agent configuration defined at the system level
@@ -628,9 +629,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 	}
 
-	for _, e := range action.Spec.Env {
-		env = append(env, e)
-	}
+	env = append(env, action.Spec.Env...)
 
 	envFrom := []corev1.EnvFromSource{
 		// Environment variables for the plugins
@@ -644,14 +643,12 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 	}
 
-	for _, e := range action.Spec.EnvFrom {
-		envFrom = append(envFrom, e)
-	}
+	envFrom = append(envFrom, action.Spec.EnvFrom...)
 
 	return env, envFrom
 }
 
-func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{
 		{
 			Name: porterv1.VolumePorterSharedName,
@@ -712,6 +709,30 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 			ReadOnly:  true,
 		},
 		)
+	}
+	if len(agentCfg.Plugins) > 0 && !action.IsPluginInstall() {
+		// no need to rename the pvc, we can just update the pv with a unique lable that we will use to query it in agent action
+		// create a new pvc and bound the pv to this new pvc
+		// then in the agentConfig controller, we can detect if a claim is in lost phase which then we can delete
+		// once the agent action is finished, we can delete the pvc for plugin so that the pv is available again
+		results := corev1.PersistentVolumeClaimList{}
+		err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(map[string]string{agentCfg.GetPluginsHash(): ""}))
+		if err != nil {
+			return nil, nil
+		}
+
+		if len(results.Items) == 0 {
+			return nil, nil
+		}
+		pvc := results.Items[0]
+		volumes = append(volumes, corev1.Volume{
+			Name: porterv1.VolumePorterPluginsName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvc.Name,
+				},
+			},
+		})
 	}
 
 	for _, volume := range action.Spec.Volumes {

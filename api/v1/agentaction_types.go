@@ -78,6 +78,16 @@ func (a *AgentAction) GetRetryLabelValue() string {
 	return getRetryLabelValue(a.Annotations)
 }
 
+func (a *AgentAction) IsPluginInstall() bool {
+	for k, v := range a.GetLabels() {
+		if k == LabelResourceKind && v == "AgentConfig" {
+			return true
+		}
+	}
+
+	return false
+}
+
 // SetRetryAnnotation flags the resource to retry its last operation.
 func (a *AgentAction) SetRetryAnnotation(retry string) {
 	if a.Annotations == nil {
