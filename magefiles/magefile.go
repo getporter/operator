@@ -54,7 +54,7 @@ const (
 	registryContainer = "registry"
 
 	// Porter home for running commands
-	porterVersion = "v1.0.0-beta.1"
+	porterVersion = "v1.0.0-rc.1"
 )
 
 var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
@@ -62,7 +62,7 @@ var binDir = "bin"
 
 // Porter agent that has k8s plugin included
 var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
-var porterAgentImgVersion = "v1.0.0-beta.1"
+var porterAgentImgVersion = "v1.0.0-rc.1"
 
 // Local porter agent image name to use for local testing
 var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
@@ -124,11 +124,7 @@ func BuildBundle() {
 
 	meta := releases.LoadMetadata()
 	version := strings.TrimPrefix(meta.Version, "v")
-	verbose := ""
-	if mg.Verbose() {
-		verbose = "--verbose"
-	}
-	buildPorterCmd("build", "--version", version, "-f=porter.yaml", verbose).
+	buildPorterCmd("build", "--version", version, "-f=porter.yaml").
 		CollapseArgs().Env("PORTER_EXPERIMENTAL=build-drivers", "PORTER_BUILD_DRIVER=buildkit").
 		In("installer").Must().RunV()
 }
@@ -161,7 +157,7 @@ func getPlugins() error {
 		feed    string
 		version string
 	}{
-		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "latest"},
+		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "v1.0.0-rc.1"},
 	}
 	var errG errgroup.Group
 	for _, plugin := range plugins {
@@ -668,7 +664,7 @@ func BuildLocalPorterAgent() {
 	mgx.Must(err)
 }
 
-//generatedCodeFilter remove generated code files from coverage report
+// generatedCodeFilter remove generated code files from coverage report
 func generatedCodeFilter(filename string) error {
 	fd, err := ioutil.ReadFile(filename)
 	if err != nil {

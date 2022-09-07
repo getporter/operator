@@ -15,12 +15,12 @@ porter credentials generate mycluster --reference ghcr.io/getporter/olm:v0.1.0
 
 ## Install the latest version of OLM
 ```
-porter install olm --reference ghcr.io/getporter/olm:v0.1.0 --cred mycluster
+porter install olm --reference ghcr.io/getporter/olm:v0.1.0 -c mycluster
 ```
 
 ## Install a specific version of OLM
 ```
-porter install olm --reference ghcr.io/getporter/olm:v0.1.0 --cred mycluster --param version=v0.16.0
+porter install olm --reference ghcr.io/getporter/olm:v0.1.0 -c mycluster --param version=v0.16.0
 ```
 
 [olm]: https://github.com/operator-framework/operator-lifecycle-manager
