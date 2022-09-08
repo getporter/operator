@@ -18,9 +18,9 @@ replace (
 )
 
 require (
-	get.porter.sh/magefiles v0.3.0
-	get.porter.sh/porter v1.0.0-beta.1
-	github.com/carolynvs/magex v0.8.1
+	get.porter.sh/magefiles v0.3.2
+	get.porter.sh/porter v1.0.0-rc.1
+	github.com/carolynvs/magex v0.9.0
 	github.com/go-logr/logr v1.2.3
 	github.com/magefile/mage v1.13.0
 	github.com/mitchellh/mapstructure v1.4.2
@@ -59,8 +59,8 @@ require (
 	github.com/cbroglie/mustache v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cnabio/cnab-go v0.23.4 // indirect
-	github.com/cnabio/cnab-to-oci v0.3.4 // indirect
+	github.com/cnabio/cnab-go v0.24.0 // indirect
+	github.com/cnabio/cnab-to-oci v0.3.7 // indirect
 	github.com/containerd/containerd v1.6.6 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.11.2 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20220216171627-b6721b06b4ef // indirect
@@ -175,7 +175,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
 	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0 // indirect
-	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect

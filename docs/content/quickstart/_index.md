@@ -20,17 +20,17 @@ In this QuickStart you will learn how to install and use the [Porter Operator] o
 The Porter Operator is installed using Porter, and requires an existing Kubernetes cluster.
 First, generate a credential set that points to the location of your kubeconfig file, for example using the path $HOME/.kube/config.
 
-The commands below use the v0.6.0 release, but there may be a more recent release of the Operator.
+The commands below use the v0.7.0 release, but there may be a more recent release of the Operator.
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
 
 ```
-porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.6.0
+porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.7.0
 ```
 
 Now that Porter knows which cluster to target, install the Operator with the following command:
 
 ```
-porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.6.0
+porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.7.0
 ```
 
 Before you use the operator, you need to configure a Kubernetes namespace with the necessary configuration.
