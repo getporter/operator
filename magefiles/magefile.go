@@ -237,7 +237,7 @@ func PublishBundle() {
 	meta := releases.LoadMetadata()
 	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version).In("installer").Must().RunV()
 
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink).In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink, "--force").In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
