@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -96,7 +97,10 @@ var _ = Describe("CredentialSet secret does not exist", func() {
 				Expect(k8sClient.Create(ctx, inst)).Should(Succeed())
 				err := waitForPorter(ctx, inst, 1, "waiting for porter-test-me to install")
 				Expect(err).Should(HaveOccurred())
-				validateResourceConditions(inst)
+				status := inst.GetStatus()
+				Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionScheduled))).Should(BeTrue())
+				Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionStarted))).Should(BeTrue())
+				Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionFailed))).Should(BeTrue())
 				Expect(inst.Status.Phase).To(Equal(porterv1.PhaseFailed))
 			})
 		})
@@ -231,7 +235,7 @@ var _ = Describe("CredentialSet delete", func() {
 	})
 })
 
-//NewTestCredSet minimal CredentialSet CRD for tests
+// NewTestCredSet minimal CredentialSet CRD for tests
 func NewTestCredSet(csName string) *porterv1.CredentialSet {
 	cs := &porterv1.CredentialSet{
 		TypeMeta: metav1.TypeMeta{
