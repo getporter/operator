@@ -300,6 +300,18 @@ Create the `porter-env` secret by running `kubectl apply -f azure_credentials.ya
 
 These environment variables will now be available in the Agent Action job that's created for any Installation created in the `quickstart` namespace
 
+## Private Bundle Registries
+
+Porter relies on .docker/config.json for authentication to private registries. The process is a bit
+different when running via the Operator. In order to access bundles in a private registry you'll need to add
+an imagePullSecret to the service account in the namespace of the `AgentConfig`. If the imagePullSecret
+is not added to the default service account `installationServiceAccount` must be added to the `AgentConfig`
+with the correct account.
+
+Currently the Operator only supports the first imagePullSecret in a service account(additional will be ignored).
+A single secret with authentication for multiple registries can achieved by 
+[creating a secret from a file](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#registry-secret-existing-credentials).
+
 ## Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!

@@ -166,6 +166,13 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	testdata := []client.Object{
 		&porterv1.AgentAction{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}},
+		&corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
+			ImagePullSecrets: []corev1.LocalObjectReference{{
+				Name: "my-img-pull-secret",
+			},
+			},
+		},
 	}
 	controller := setupAgentActionController(testdata...)
 
@@ -654,37 +661,13 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	controller := setupAgentActionController()
 
-	action := &porterv1.AgentAction{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
-			Kind:       "AgentAction",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       "test",
-			Name:            "porter-hello",
-			Generation:      1,
-			ResourceVersion: "123",
-			UID:             "random-uid",
-			Labels: map[string]string{
-				"testLabel": "abc123",
-			},
-		},
-		Spec: porterv1.AgentActionSpec{
-			Args: []string{"installation", "apply", "installation.yaml"},
-		},
-	}
-	agentCfg := porterv1.AgentConfigSpec{
-		VolumeSize:                 "128Mi",
-		PorterRepository:           "getporter/custom-agent",
-		PorterVersion:              "v1.0.0",
-		PullPolicy:                 "Always",
-		ServiceAccount:             "porteraccount",
-		InstallationServiceAccount: "installeraccount",
-	}
+	action := testAgentAction()
+	agentCfg := testAgentCfgSpec()
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "mypvc"}}
 	configSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "mysecret"}}
 	workDirSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "mysecret"}}
-	job, err := controller.createAgentJob(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret)
+	var imgPullSecret *corev1.Secret
+	job, err := controller.createAgentJob(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, imgPullSecret)
 	require.NoError(t, err)
 
 	// Verify the job properties
@@ -743,6 +726,112 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+
+}
+func testAgentAction() *porterv1.AgentAction {
+	return &porterv1.AgentAction{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: porterv1.GroupVersion.String(),
+			Kind:       "AgentAction",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       "test",
+			Name:            "porter-hello",
+			Generation:      1,
+			ResourceVersion: "123",
+			UID:             "random-uid",
+			Labels: map[string]string{
+				"testLabel": "abc123",
+			},
+		},
+		Spec: porterv1.AgentActionSpec{
+			Args: []string{"installation", "apply", "installation.yaml"},
+		},
+	}
+}
+func testAgentCfgSpec() porterv1.AgentConfigSpec {
+	return porterv1.AgentConfigSpec{
+		VolumeSize:                 "128Mi",
+		PorterRepository:           "getporter/custom-agent",
+		PorterVersion:              "v1.0.0",
+		PullPolicy:                 "Always",
+		ServiceAccount:             "porteraccount",
+		InstallationServiceAccount: "installeraccount",
+	}
+}
+
+func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T) {
+	namespace := "test"
+	testSA := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "installeraccount"},
+		ImagePullSecrets: []corev1.LocalObjectReference{
+			{
+				Name: "my-img-pull-secret",
+			},
+			{
+				Name: "another-img-pull-secret",
+			},
+		},
+	}
+	testdata := []client.Object{
+		testSA,
+	}
+	controller := setupAgentActionController(testdata...)
+
+	action := testAgentAction()
+	agentCfg := testAgentCfgSpec()
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "mypvc"}}
+	configSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "mysecret"}}
+	workDirSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "mysecret"}}
+	imgPullSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-img-pull-secret"}}
+	job, err := controller.createAgentJob(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, imgPullSecret)
+	require.NoError(t, err)
+
+	// Verify the job properties
+	wantName := "porter-hello-"
+	assert.Equal(t, wantName, job.GenerateName, "incorrect job name")
+	assert.Equal(t, action.Namespace, job.Namespace, "incorrect job namespace")
+	assert.Len(t, job.OwnerReferences, 1, "expected the job to have an owner reference")
+
+	// Verify the job pod template
+	podTemplate := job.Spec.Template
+	assert.Equal(t, wantName, podTemplate.GenerateName, "incorrect pod generate name")
+	assert.Equal(t, "test", podTemplate.Namespace, "incorrect pod namespace")
+	assertSharedAgentLabels(t, podTemplate.Labels)
+	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
+	assert.Len(t, podTemplate.Spec.Volumes, 4, "incorrect pod volumes")
+	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, porterv1.VolumeImgPullSecretName, podTemplate.Spec.Volumes[3].Name, "expected the img-pull-secret volume")
+	assert.Equal(t, testSA.ImagePullSecrets[0].Name, podTemplate.Spec.Volumes[3].Secret.SecretName, "expected the service account image pull secret name")
+	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
+	assert.Equal(t, pointer.Int64Ptr(65532), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
+	assert.Equal(t, pointer.Int64Ptr(0), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
+	assert.Equal(t, pointer.Int64Ptr(0), podTemplate.Spec.SecurityContext.FSGroup, "incorrect FSGroup")
+
+	// Verify the agent container
+	agentContainer := podTemplate.Spec.Containers[0]
+	assert.Equal(t, "porter-agent", agentContainer.Name, "incorrect agent container name")
+	assert.Equal(t, "getporter/custom-agent:v1.0.0", agentContainer.Image, "incorrect agent image")
+	assert.Equal(t, corev1.PullPolicy("Always"), agentContainer.ImagePullPolicy, "incorrect agent pull policy")
+	assert.Equal(t, []string{"installation", "apply", "installation.yaml"}, agentContainer.Args, "incorrect agent command arguments")
+	assertEnvVar(t, agentContainer.Env, "PORTER_RUNTIME_DRIVER", "kubernetes")
+	assertEnvVar(t, agentContainer.Env, "KUBE_NAMESPACE", "test")
+	assertEnvVar(t, agentContainer.Env, "IN_CLUSTER", "true")
+	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_NAME", pvc.Name)
+	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", porterv1.VolumePorterSharedPath)
+	assertEnvVar(t, agentContainer.Env, "CLEANUP_JOBS", "false") // this will be configurable in the future
+	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
+	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/retry= testLabel=abc123")
+	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/resourceGeneration=1 porter.sh/retry=")
+	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.BoolPtr(true))
+	assert.Len(t, agentContainer.VolumeMounts, 4)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumeImgPullSecretName, porterv1.VolumeImgPullSecretPath)
+
 }
 
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {
