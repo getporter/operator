@@ -140,7 +140,7 @@ func waitForPorter(ctx context.Context, resource client.Object, expGeneration in
 					return nil
 				}
 				if apimeta.IsStatusConditionTrue(conditions, string(porterv1.ConditionFailed)) {
-					debugFailedResource(ctx, name, namespace)
+					debugFailedResource(ctx, namespace, name)
 					return errors.New("porter did not run successfully")
 				}
 			}
@@ -222,9 +222,9 @@ func debugFailedResource(ctx context.Context, namespace, name string) {
 // Checks that all expected conditions are set
 func validateResourceConditions(resource controllers.PorterResource) {
 	status := resource.GetStatus()
-	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionScheduled)))
-	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionStarted)))
-	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionComplete)))
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionScheduled))).Should(BeTrue())
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionStarted))).Should(BeTrue())
+	Expect(apimeta.IsStatusConditionTrue(status.Conditions, string(porterv1.ConditionComplete))).Should(BeTrue())
 }
 
 // Get the pod logs associated to the job created by the agent action
