@@ -139,17 +139,15 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// the renamed pvc should be bounded to the existing pv once it's ready
 	renamedPVC := &corev1.PersistentVolumeClaim{}
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Spec.GetPluginsHash()}, renamedPVC))
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
 	renamedPVC.Status.Phase = corev1.ClaimBound
 	require.NoError(t, controller.Update(ctx, renamedPVC))
 
 	triggerReconcile()
 
 	// verify that pvc is renamed to the actual name and the tmp pvc is deleted
-	tmpPVCName, ok := agentCfg.Annotations["tmpPVC"]
-	require.True(t, ok)
 	tmpPVC := &corev1.PersistentVolumeClaim{}
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: tmpPVCName}, tmpPVC)))
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
 
 	// Fail the action
 	action.Status.Phase = porterv1.PhaseFailed
@@ -205,17 +203,15 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
-	// Verify that pvc and pv is deleted
-	pvcWithPlugin2 := &corev1.PersistentVolumeClaim{}
-	pvWithPlugin2 := &corev1.PersistentVolume{}
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Spec.GetPluginsHash()}, pvcWithPlugin2)))
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvcWithPlugin2.Spec.VolumeName}, pv)))
-
-	triggerReconcile()
-
 	// Verify that the agent config was removed
 	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg), &agentCfg)
 	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
+
+	// Verify that pvc and pv is deleted
+	pvcWithPlugin2 := &corev1.PersistentVolumeClaim{}
+	pvWithPlugin2 := &corev1.PersistentVolume{}
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, pvcWithPlugin2)))
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvcWithPlugin2.Spec.VolumeName}, pvWithPlugin2)))
 
 	// Verify that reconcile doesn't error out after it's deleted
 	triggerReconcile()

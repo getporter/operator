@@ -711,25 +711,12 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, action *por
 		)
 	}
 	if len(agentCfg.Plugins) > 0 && !action.IsPluginInstall() {
-		// no need to rename the pvc, we can just update the pv with a unique lable that we will use to query it in agent action
-		// create a new pvc and bound the pv to this new pvc
-		// then in the agentConfig controller, we can detect if a claim is in lost phase which then we can delete
-		// once the agent action is finished, we can delete the pvc for plugin so that the pv is available again
-		results := corev1.PersistentVolumeClaimList{}
-		err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(map[string]string{agentCfg.GetPluginsHash(): ""}))
-		if err != nil {
-			return nil, nil
-		}
-
-		if len(results.Items) == 0 {
-			return nil, nil
-		}
-		pvc := results.Items[0]
+		pvcName := agentCfg.GetPVCName(action.Namespace, action.Spec.AgentConfig.Name)
 		volumes = append(volumes, corev1.Volume{
 			Name: porterv1.VolumePorterPluginsName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvc.Name,
+					ClaimName: pvcName,
 				},
 			},
 		})

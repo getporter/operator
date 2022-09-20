@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/go-digest"
@@ -95,7 +96,7 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 	return q
 }
 
-func (c AgentConfigSpec) GetPluginsHash() string {
+func (c *AgentConfigSpec) GetPVCName(namespace string, name string) string {
 	if len(c.Plugins) == 0 {
 		return ""
 	}
@@ -104,8 +105,26 @@ func (c AgentConfigSpec) GetPluginsHash() string {
 	for _, p := range c.Plugins {
 		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
 	}
+	input = append(input, []byte(namespace+name)...)
 	pluginHash := md5.Sum(input)
+
 	return hex.EncodeToString(pluginHash[:])
+}
+func (c AgentConfigSpec) GetPluginsLabels(agentCfgName string) map[string]string {
+	if len(c.Plugins) == 0 {
+		return nil
+	}
+
+	var plugins []string
+	for _, p := range c.Plugins {
+		plugins = append(plugins, fmt.Sprintf("%s/%s", p.Name, p.Version))
+	}
+
+	return map[string]string{
+		LabelManaged:      "true",
+		LabelResourceName: agentCfgName,
+		LablePlugins:      strings.Join(plugins, " "),
+	}
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
@@ -158,18 +177,9 @@ func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
 }
 
+// GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
 func (ac *AgentConfig) GetPVCName() string {
-	if len(ac.Spec.Plugins) == 0 {
-		return ""
-	}
-	var input []byte
-
-	for _, p := range ac.Spec.Plugins {
-		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
-	}
-	input = append(input, []byte(ac.Name)...)
-	pluginHash := md5.Sum(input)
-	return hex.EncodeToString(pluginHash[:])
+	return ac.Spec.GetPVCName(ac.Namespace, ac.Name)
 }
 
 // GetRetryLabelValue returns a value that is safe to use

@@ -40,6 +40,8 @@ const (
 	// Operator.
 	LabelManaged = Prefix + "managed"
 
+	LablePlugins = Prefix + "plugins"
+
 	// LabelResourceKind is a label applied to resources created by the Porter
 	// Operator, representing the kind of owning resource. It is used to help the
 	// operator determine if a resource has already been created.
