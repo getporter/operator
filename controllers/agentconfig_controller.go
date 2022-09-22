@@ -442,16 +442,14 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 	key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: hashPVC}
 	newPVC := &corev1.PersistentVolumeClaim{}
 	err := r.Get(ctx, key, newPVC)
-	if err != nil && !apierrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 
-	var pvcHasFinalizer bool
-	if err == nil {
-		pvcHasFinalizer = len(newPVC.GetFinalizers()) > 0
-	}
-
-	if pvcHasFinalizer {
+	if controllerutil.ContainsFinalizer(newPVC, "kubernetes.io/pvc-protection") {
 		log.V(Log4Debug).Info("Start cleaning up persistent volume.", "persistentvolume", newPVC.Spec.VolumeName, "namespace", agentCfg.Namespace)
 		pv := &corev1.PersistentVolume{}
 		pvKey := client.ObjectKey{Namespace: newPVC.Namespace, Name: newPVC.Spec.VolumeName}
@@ -460,22 +458,21 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 			return err
 		}
 		if err == nil {
-			finalizers := pv.GetFinalizers()
-			if len(finalizers) > 0 {
-				pv.SetFinalizers([]string{})
+			if controllerutil.ContainsFinalizer(pv, "kubernetes.io/pvc-protection") {
+				controllerutil.RemoveFinalizer(pv, "kubernetes.io/pvc-protection")
 				if err := r.Client.Update(ctx, pv); err != nil {
 					return err
 				}
 				return nil
 			}
 		}
-
-		newPVC.SetFinalizers([]string{})
-		if err := r.Client.Update(ctx, newPVC); err != nil {
-			return err
+		if controllerutil.ContainsFinalizer(newPVC, "kubernetes.io/pvc-protection") {
+			controllerutil.RemoveFinalizer(newPVC, "kubernetes.io/pvc-protection")
+			if err := r.Client.Update(ctx, newPVC); err != nil {
+				return err
+			}
+			return nil
 		}
-
-		return nil
 	}
 
 	return nil
@@ -510,17 +507,18 @@ func (r *AgentConfigReconciler) GetPersistentVolume(ctx context.Context, namespa
 }
 
 func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC, newPVC *corev1.PersistentVolumeClaim) error {
-	finalizers := tempPVC.GetFinalizers()
-	if tempPVC.Status.Phase == corev1.ClaimLost && len(finalizers) > 0 {
-		tempPVC.SetFinalizers([]string{})
+	hasFinalizer := controllerutil.ContainsFinalizer(tempPVC, "kubernetes.io/pvc-protection")
+	if tempPVC.Status.Phase == corev1.ClaimLost && hasFinalizer {
+		controllerutil.RemoveFinalizer(tempPVC, "kubernetes.io/pvc-protection")
 		if err := r.Client.Update(ctx, tempPVC); err != nil {
 			return err
 		}
 		log.V(Log4Debug).Info("Removed finalizers from temporary pvc.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace)
+
 		return nil
 	}
 	// release old pvc from agentCfg
-	if len(finalizers) > 0 {
+	if hasFinalizer {
 		//update the pv with the new pvc
 		pv, err := r.GetPersistentVolume(ctx, tempPVC.Namespace, tempPVC.Spec.VolumeName)
 		if err != nil {
