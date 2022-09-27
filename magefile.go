@@ -362,7 +362,7 @@ func Deploy() {
 	bundleRef := Env.BundlePrefix + meta.Version
 	//buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 
-	buildPorterCmd("install", "operator", "-r", bundleRef, "--param", "porterRepository=localhost:5000/porter-agent", "--param", "porterVersion=v1.0.0-beta.3-4-g8647f3d2", "-c=kind", "--force", "-n=operator").Must().RunV()
+	buildPorterCmd("install", "operator", "-r", bundleRef, "--param", "porterRepository=localhost:5000/porter-agent", "--param", "porterVersion=canary-v1", "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {

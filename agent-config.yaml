@@ -1,20 +1,16 @@
 apiVersion: porter.sh/v1
 kind: AgentConfig
 metadata:
-  name: default
-  namespace: quickstart
+  name: default-try-w
+  namespace: test
 spec:
   porterRepository: ghcr.io/vinozzz/porter-agent
-  porterVersion: v1.0.0-beta.3-4-g8647f3d2
+  porterVersion: dev
   serviceAccount: porter-agent
   volumeSize: 64Mi
   pullPolicy: Always
   plugins:
     - name: kubernetes
       feedUrl: https://cdn.porter.sh/plugins/atom.xml
-      version: v1.0.0-beta.3
-    - name: azure-cli
-      fee....
-      // what happen when two pods are trying to mount the same vlume
-      // add agentConfig name into a hash
+      version: v1.0.0-beta.1
 

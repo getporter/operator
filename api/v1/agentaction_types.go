@@ -79,8 +79,8 @@ func (a *AgentAction) GetRetryLabelValue() string {
 }
 
 func (a *AgentAction) IsPluginInstall() bool {
-	for k, v := range a.GetLabels() {
-		if k == LabelResourceKind && v == "AgentConfig" {
+	for _, ref := range a.GetOwnerReferences() {
+		if ref.Kind == "AgentConfig" {
 			return true
 		}
 	}

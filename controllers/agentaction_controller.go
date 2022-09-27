@@ -399,7 +399,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 
 	labels := r.getAgentJobLabels(action)
 	env, envFrom := r.getAgentEnv(action, agentCfg, pvc)
-	volumes, volumeMounts := r.getAgentVolumes(ctx, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
+	volumes, volumeMounts := r.getAgentVolumes(ctx, log, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
 
 	porterJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -648,7 +648,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 	return env, envFrom
 }
 
-func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{
 		{
 			Name: porterv1.VolumePorterSharedName,
@@ -711,12 +711,12 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, action *por
 		)
 	}
 	if len(agentCfg.Plugins) > 0 && !action.IsPluginInstall() {
-		pvcName := agentCfg.GetPVCName(action.Namespace, action.Spec.AgentConfig.Name)
+		log.V(Log4Debug).Info("mounting porter plugin volum", "condition", action.IsPluginInstall())
 		volumes = append(volumes, corev1.Volume{
 			Name: porterv1.VolumePorterPluginsName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: pvcName,
+					ClaimName: agentCfg.GetPVCName(action.Namespace),
 				},
 			},
 		})

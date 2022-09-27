@@ -1,0 +1,14 @@
+apiVersion: porter.sh/v1
+kind: CredentialSet
+metadata:
+  name: cred-test
+  namespace: quickstart
+spec:
+  schemaVersion: 1.0.1
+  namespace: quickstart
+  name: kubernetes-plugin-test-2
+  credentials:
+  - name: test-cred
+    source:
+      secret: password
+

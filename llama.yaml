@@ -1,12 +1,14 @@
 apiVersion: porter.sh/v1
 kind: Installation
 metadata:
-  name: hello-3
-  namespace: quickstart
+  name: hello-2
+  namespace: test
 spec:
   schemaVersion: 1.0.2
-  namespace: quickstart
-  name: porter-hello-5
+  namespace: test
+  name: kubernetes
   bundle:
-    repository: ghcr.io/getporter/examples/porter-hello
+    repository: ghcr.io/getporter/examples/kubernetes
     version: 0.2.0
+  credentialSets:
+    - porter-test-me

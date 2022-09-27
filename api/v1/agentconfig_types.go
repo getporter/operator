@@ -13,6 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const AnnotationAgentCfgPluginsHash = "agent-config-plugins-hash"
+
 // AgentConfigSpec defines the configuration for the Porter agent.
 //
 // SERIALIZATION NOTE:
@@ -96,7 +98,7 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 	return q
 }
 
-func (c *AgentConfigSpec) GetPVCName(namespace string, name string) string {
+func (c *AgentConfigSpec) GetPVCName(namespace string) string {
 	if len(c.Plugins) == 0 {
 		return ""
 	}
@@ -105,25 +107,24 @@ func (c *AgentConfigSpec) GetPVCName(namespace string, name string) string {
 	for _, p := range c.Plugins {
 		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
 	}
-	input = append(input, []byte(namespace+name)...)
+	input = append(input, []byte(namespace)...)
 	pluginHash := md5.Sum(input)
 
 	return hex.EncodeToString(pluginHash[:])
 }
-func (c AgentConfigSpec) GetPluginsLabels(agentCfgName string) map[string]string {
+func (c AgentConfigSpec) GetPluginsLabels() map[string]string {
 	if len(c.Plugins) == 0 {
 		return nil
 	}
 
 	var plugins []string
 	for _, p := range c.Plugins {
-		plugins = append(plugins, fmt.Sprintf("%s/%s", p.Name, p.Version))
+		plugins = append(plugins, fmt.Sprintf("%s_%s", p.Name, p.Version))
 	}
 
 	return map[string]string{
-		LabelManaged:      "true",
-		LabelResourceName: agentCfgName,
-		LablePlugins:      strings.Join(plugins, " "),
+		LabelManaged: "true",
+		LablePlugins: strings.Join(plugins, ""),
 	}
 }
 
@@ -179,7 +180,12 @@ func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 
 // GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
 func (ac *AgentConfig) GetPVCName() string {
-	return ac.Spec.GetPVCName(ac.Namespace, ac.Name)
+	return ac.Spec.GetPVCName(ac.Namespace)
+}
+
+// GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
+func (ac *AgentConfig) GetPVCNameAnnotation() map[string]string {
+	return map[string]string{AnnotationAgentCfgPluginsHash: ac.Spec.GetPVCName(ac.Namespace)}
 }
 
 // GetRetryLabelValue returns a value that is safe to use
