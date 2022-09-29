@@ -137,6 +137,12 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
+	// verify that the tmp pvc is deleted
+	tmpPVC := &corev1.PersistentVolumeClaim{}
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
+
+	triggerReconcile()
+
 	// the renamed pvc should be bounded to the existing pv once it's ready
 	renamedPVC := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
@@ -144,22 +150,6 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Update(ctx, renamedPVC))
 
 	triggerReconcile()
-
-	// verify that pvc is renamed to the actual name and the tmp pvc is deleted
-	tmpPVC := &corev1.PersistentVolumeClaim{}
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
-
-	// Fail the action
-	action.Status.Phase = porterv1.PhaseFailed
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the agent config status shows the action is failed
-	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
-	assert.Equal(t, porterv1.PhaseFailed, agentCfg.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionFailed)))
 
 	// Edit the agent config spec
 	agentCfg.Generation = 2
@@ -174,6 +164,18 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
 
 	triggerReconcile()
+
+	// Fail the action
+	action.Status.Phase = porterv1.PhaseFailed
+	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action))
+
+	triggerReconcile()
+
+	// Verify that the agent config status shows the action is failed
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
+	assert.Equal(t, porterv1.PhaseFailed, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionFailed)))
 
 	// Retry the last action
 	lastAction := agentCfg.Status.Action.Name

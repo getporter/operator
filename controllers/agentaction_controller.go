@@ -720,6 +720,11 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 				},
 			},
 		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      porterv1.VolumePorterPluginsName,
+			MountPath: porterv1.VolumePorterPluginsPath,
+			SubPath:   "plugins",
+		})
 	}
 
 	for _, volume := range action.Spec.Volumes {

@@ -101,9 +101,9 @@ const (
 	VolumeImgPullSecretPath = "/home/nonroot"
 	// VolumePorterSharedName is the name of the volume shared between the porter
 	// agent and the invocation image.
-	VolumePorterPluginsName = "porter-plugins"
+	VolumePorterPluginsName = "plugins"
 
 	// VolumePorterConfigPath is the mount path of the volume containing Porter's
 	// config file.
-	VolumePorterPluginsPath = "/porter-plugins"
+	VolumePorterPluginsPath = "/app/.porter/plugins"
 )

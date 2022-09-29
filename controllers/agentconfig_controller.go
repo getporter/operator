@@ -91,7 +91,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// Check if we have finished removing the finalizers from the pvc and pv created by this agentCfg resource
+	// Check if we have finished removing the agentCfg from the pvc and pv's owner reference
 	processed, err := r.isDeleteProcessed(ctx, agentCfg)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -107,12 +107,12 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 	if readyPVC != nil && tempPVC == nil {
-		if readyPVC.Status.Phase != corev1.ClaimBound {
+		if readyPVC.Status.Phase != corev1.ClaimBound || agentCfg.Status.Phase == porterv1.PhaseSucceeded {
 			return ctrl.Result{}, nil
 		}
-		log.V(Log4Debug).Info("Plugin persistent volume claim already exits", "persistentvolumeclaim", readyPVC.Name, "namespace", readyPVC.Namespace, "status", readyPVC.Status.Phase)
-		// update readyPVC to include this agentCfg in its ownerRference
-		if _, exist := containOwner(readyPVC.OwnerReferences, agentCfg); exist {
+		log.V(Log4Debug).Info("Plugin persistent volume claim already exits", "persistentvolumeclaim", readyPVC.Name, "status", readyPVC.Status.Phase)
+		// update readyPVC to include this agentCfg in its ownerRference so when a delete happens, we know other agentCfg is still using this pvc
+		if _, exist := containOwner(readyPVC.OwnerReferences, agentCfg); !exist {
 			err := controllerutil.SetOwnerReference(agentCfg, readyPVC, r.Scheme)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to set owner reference: %w", err)
@@ -125,13 +125,13 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		}
 
-		// update the agentCfg status to be ready
-		agentCfg.Status.Phase = porterv1.PhaseSucceeded
-		if err := r.saveStatus(ctx, log, agentCfg); err != nil {
-			return ctrl.Result{}, err
+		if agentCfg.Status.Phase == porterv1.PhasePending {
+			// update the agentCfg status to be ready
+			agentCfg.Status.Phase = porterv1.PhaseSucceeded
+			if err := r.saveStatus(ctx, log, agentCfg); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
-
-		return ctrl.Result{}, nil
 	}
 
 	// Check if we have already handled any spec changes
@@ -145,13 +145,21 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		// if the plugin install action is not finished, we need to wait for it before acting further
 		if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
-			log.V(Log4Debug).Info("Volumn is not ready yet.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace, "action status", action.Status)
+			log.V(Log4Debug).Info("Plugins is not ready yet.", "persistentvolumeclaim", tempPVC.Name, "action status", action.Status)
 			return ctrl.Result{}, nil
 		}
-		// check if we can find the hash pvc that's bounded, if so, we can delete the tmp pvc
-		shouldDeleteTmpPVC := readyPVC != nil && tempPVC != nil
+
+		// delete the temporary pvc first once the plugin install action has been completed
+		shouldDeleteTmpPVC := tempPVC != nil && readyPVC == nil
 		if shouldDeleteTmpPVC {
-			err := r.DeleteTemporaryPVC(ctx, log, tempPVC, readyPVC)
+			updated, err := r.bindPVWithHashPVC(ctx, log, tempPVC, agentCfg)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if updated {
+				return ctrl.Result{}, nil
+			}
+			err := r.DeleteTemporaryPVC(ctx, log, tempPVC, agentCfg)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -159,20 +167,23 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, nil
 		}
 
-		// rename the pvc to the hash of plugins metadata
-		_, err = r.createHashPVC(ctx, log, tempPVC, agentCfg.GetPVCName())
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		if tempPVC == nil {
+			hashedPVCName := agentCfg.GetPVCName()
+			// create the pvc with the hash of plugins metadata
+			_, err = r.createHashPVC(ctx, log, agentCfg)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 
-		log.V(Log4Debug).Info("Renamed temporary persistent volume claim.", "old persistentvolumeclaim", tempPVC.Name, "new persistentvolumeclaim", readyPVC, "namespace", tempPVC.Namespace)
+			log.V(Log4Debug).Info("Created the new PVC with plugins hash as its name.", "new persistentvolumeclaim", hashedPVCName)
+		}
 
 		return ctrl.Result{}, nil
 	}
 
 	if r.shouldDelete(agentCfg) {
+		log.V(Log4Debug).Info("Reconciliation complete: cleaning up pvc and pv created by this agent config", "agentCfg", agentCfg.Name)
 		err = r.cleanup(ctx, log, agentCfg)
-		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to delete the credential set")
 		return ctrl.Result{}, err
 	} else if isDeleted(agentCfg) {
 		log.V(Log4Debug).Info("Reconciliation complete: AgentConfig CRD is ready for deletion.")
@@ -180,7 +191,6 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	}
 
-	// ensure non-deleted credential sets have finalizers
 	updated, err := ensureFinalizerSet(ctx, log, r.Client, agentCfg)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -196,7 +206,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 	if created {
-		log.V(Log4Debug).Info("Created new persistent volume claim.", "name", pvc.Name)
+		log.V(Log4Debug).Info("Created new temporary persistent volume claim.", "name", pvc.Name)
 	}
 
 	// Use porter to finish reconciling the agent config
@@ -223,7 +233,7 @@ func (r *AgentConfigReconciler) isHandled(ctx context.Context, log logr.Logger, 
 		return nil, false, nil
 	}
 	action := results.Items[0]
-	log.V(Log4Debug).Info("Found existing agent action", "agentaction", action.Name, "namespace", action.Namespace)
+	log.V(Log4Debug).Info("Found existing agent action", "agentaction", action.Name)
 	return &action, true, nil
 }
 
@@ -291,6 +301,8 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 		return nil
 	}
 	installCmd := []string{"plugins", "install"}
+	// TODO: figure out the command to install multiple plugins with a single command
+	// currently this is only works with a single plugin
 	for _, p := range agentCfg.Spec.Plugins {
 		installCmd = append(installCmd, p.Name)
 		if p.FeedURL != "" {
@@ -407,43 +419,59 @@ func getPluginVolumn(pvc *corev1.PersistentVolumeClaim) (corev1.Volume, corev1.V
 	volumeMount := corev1.VolumeMount{
 		Name:      porterv1.VolumePorterPluginsName,
 		MountPath: porterv1.VolumePorterPluginsPath,
+		SubPath:   "plugins",
 	}
 
 	return volume, volumeMount
 }
 
-// rename the oldPvc to newName
+// createHashPVC creates a new pvc using the hash of all plugins metadata.
+// It uses the lable selector to make sure we will select the volum that has plugins installed.
 func (r *AgentConfigReconciler) createHashPVC(
 	ctx context.Context,
 	log logr.Logger,
-	oldPvc *corev1.PersistentVolumeClaim,
-	new string,
+	agentCfg *porterv1.AgentConfig,
 ) (*corev1.PersistentVolumeClaim, error) {
-	log.V(Log4Debug).Info("Renaming temporary persistent volume claim.", "old persistentvolumeclaim", oldPvc.Name, "new persistentvolumeclaim", new, "namespace", oldPvc.Namespace)
-	// get new pvc with old PVC inputs
-	newPvc := oldPvc.DeepCopy()
-	newPvc.Status = corev1.PersistentVolumeClaimStatus{}
-	newPvc.Name = new
-	newPvc.UID = ""
-	newPvc.CreationTimestamp = metav1.Now()
-	newPvc.SelfLink = "" // nolint: staticcheck // to keep compatibility with older versions
-	newPvc.ResourceVersion = ""
-	newPvc.Annotations = nil
+	log.V(Log4Debug).Info("Renaming temporary persistent volume claim.", "new persistentvolumeclaim", agentCfg.GetPVCName())
+	lables := agentCfg.Spec.GetPluginsLabels()
+	lables[porterv1.LabelResourceName] = agentCfg.Name
 
-	// get the persistent volumn created with the temporary pvc
-	pv := &corev1.PersistentVolume{}
-	key := client.ObjectKey{Namespace: oldPvc.Namespace, Name: oldPvc.Spec.VolumeName}
-	err := r.Get(ctx, key, pv)
-	if err != nil {
-		return nil, err
+	selector := &metav1.LabelSelector{
+		MatchLabels: lables,
 	}
 
-	err = r.Create(ctx, newPvc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to rename pvc: %w", err)
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      agentCfg.GetPVCName(),
+			Namespace: agentCfg.Namespace,
+			Labels:    agentCfg.Spec.GetPluginsLabels(),
+			OwnerReferences: []metav1.OwnerReference{
+				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
+					APIVersion:         agentCfg.APIVersion,
+					Kind:               agentCfg.Kind,
+					Name:               agentCfg.Name,
+					UID:                agentCfg.UID,
+					Controller:         pointer.BoolPtr(true),
+					BlockOwnerDeletion: pointer.BoolPtr(true),
+				},
+			},
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
+			Selector:    selector,
+			Resources: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceStorage: agentCfg.Spec.GetVolumeSize(),
+				},
+			},
+		},
 	}
 
-	return newPvc, nil
+	if err := r.Create(ctx, pvc); err != nil {
+		return nil, errors.Wrap(err, "error creating the agent volume (pvc)")
+	}
+
+	return pvc, nil
 
 }
 
@@ -459,8 +487,7 @@ func (r *AgentConfigReconciler) shouldDelete(agentCfg *porterv1.AgentConfig) boo
 	return isDeleted(agentCfg) && isFinalizerSet(agentCfg)
 }
 
-// cleanup remove the finalizers on both pvc and pv so the GC can clean them up after the agentCfg has been deleted
-// it first removes the finalizer from the pv and then pvc to make sure the pv is deleted first
+// cleanup remove the owner references on both pvc and pv so the when no resource is referencing them, GC can clean them up after the agentCfg has been deleted
 func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) error {
 	hashPVC := agentCfg.GetPVCName()
 	log.V(Log4Debug).Info("Start cleaning up persistent volume claim.", "persistentvolumeclaim", hashPVC, "namespace", agentCfg.Namespace)
@@ -474,7 +501,7 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return err
 	}
 
-	// remove owner reference first
+	// remove owner reference
 	if idx, exist := containOwner(newPVC.GetOwnerReferences(), agentCfg); exist {
 		newPVC.OwnerReferences = removeOwnerByIdx(newPVC.GetOwnerReferences(), idx)
 		err := r.Update(ctx, newPVC)
@@ -484,30 +511,23 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return nil
 	}
 
-	if controllerutil.ContainsFinalizer(newPVC, "kubernetes.io/pvc-protection") {
-		log.V(Log4Debug).Info("Start cleaning up persistent volume.", "persistentvolume", newPVC.Spec.VolumeName, "namespace", agentCfg.Namespace)
-		pv := &corev1.PersistentVolume{}
-		pvKey := client.ObjectKey{Namespace: newPVC.Namespace, Name: newPVC.Spec.VolumeName}
-		err = r.Get(ctx, pvKey, pv)
-		if err != nil && !apierrors.IsNotFound(err) {
+	pv := &corev1.PersistentVolume{}
+	pvKey := client.ObjectKey{Namespace: newPVC.Namespace, Name: newPVC.Spec.VolumeName}
+	err = r.Get(ctx, pvKey, pv)
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	if idx, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
+		newPVC.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
+		err := r.Update(ctx, pv)
+		if err != nil {
 			return err
 		}
-		if err == nil {
-			if controllerutil.RemoveFinalizer(pv, "kubernetes.io/pvc-protection") {
-
-				if err := r.Client.Update(ctx, pv); err != nil {
-					return err
-				}
-				return nil
-			}
-		}
-		if controllerutil.RemoveFinalizer(newPVC, "kubernetes.io/pvc-protection") {
-
-			if err := r.Client.Update(ctx, newPVC); err != nil {
-				return err
-			}
-			return nil
-		}
+		return nil
 	}
 
 	return nil
@@ -541,9 +561,36 @@ func (r *AgentConfigReconciler) GetPersistentVolume(ctx context.Context, namespa
 
 }
 
-func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC, newPVC *corev1.PersistentVolumeClaim) error {
+func (r *AgentConfigReconciler) bindPVWithHashPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) (bool, error) {
+	pv, err := r.GetPersistentVolume(ctx, tempPVC.Namespace, tempPVC.Spec.VolumeName)
+	if err != nil {
+		return false, err
+	}
+
+	if _, exist := pv.Labels[porterv1.LablePlugins]; !exist {
+		labels := agentCfg.Spec.GetPluginsLabels()
+		labels[porterv1.LabelResourceName] = agentCfg.Name
+		pv.Labels = labels
+		pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+		pv.Spec.ClaimRef = &corev1.ObjectReference{
+			Kind:       tempPVC.Kind,
+			Namespace:  tempPVC.Namespace,
+			Name:       agentCfg.GetPVCName(),
+			APIVersion: tempPVC.APIVersion,
+		}
+		if err := r.Update(ctx, pv); err != nil {
+			return false, err
+		}
+
+	}
+
+	return true, nil
+}
+
+func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
 	hasFinalizer := controllerutil.ContainsFinalizer(tempPVC, "kubernetes.io/pvc-protection")
-	if tempPVC.Status.Phase == corev1.ClaimLost && hasFinalizer {
+	if hasFinalizer {
+		log.V(Log4Debug).Info("Starting to remove finalizers from temporary pvc.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace)
 		controllerutil.RemoveFinalizer(tempPVC, "kubernetes.io/pvc-protection")
 		if err := r.Client.Update(ctx, tempPVC); err != nil {
 			return err
@@ -553,27 +600,7 @@ func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr
 		return nil
 	}
 	// release old pvc from agentCfg
-	if hasFinalizer {
-		//update the pv with the new pvc
-		pv, err := r.GetPersistentVolume(ctx, tempPVC.Namespace, tempPVC.Spec.VolumeName)
-		if err != nil {
-			return err
-		}
-		pv.Spec.ClaimRef = &corev1.ObjectReference{
-			Kind:            newPVC.Kind,
-			Namespace:       newPVC.Namespace,
-			Name:            newPVC.Name,
-			UID:             newPVC.UID,
-			APIVersion:      newPVC.APIVersion,
-			ResourceVersion: newPVC.ResourceVersion,
-		}
-
-		if err := r.Update(ctx, pv); err != nil {
-			return err
-		}
-
-		return nil
-	}
+	//update the pv with the new pvc
 
 	log.V(Log4Debug).Info("Deleting temporary persistent volume claim.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace)
 	if err := r.Delete(ctx, tempPVC); err != nil {
@@ -598,20 +625,14 @@ func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, agentCfg 
 			return false, nil
 		}
 
-		if len(pvc.GetFinalizers()) == 0 {
-			return true, nil
-		}
-
 		pv, err := r.GetPersistentVolume(ctx, agentCfg.Namespace, pvc.Spec.VolumeName)
 		if err != nil && !apierrors.IsNotFound(err) {
 			return false, err
 		}
 		if pv != nil {
-			if len(pv.GetFinalizers()) == 0 {
-				return true, nil
+			if _, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
+				return false, nil
 			}
-
-			return false, nil
 		}
 	}
 
@@ -627,6 +648,7 @@ func (r *AgentConfigReconciler) GetPersistentVolumeClaims(ctx context.Context, l
 
 	hashedName := agentCfg.GetPVCName()
 	for _, item := range results.Items {
+		item := item
 		if item.Name == hashedName {
 			readyPVC = &item
 			log.V(Log4Debug).Info("Plugin persistent volume claims found", "persistentvolumeclaim", readyPVC.Name, "namespace", readyPVC.Namespace, "status", readyPVC.Status.Phase)
