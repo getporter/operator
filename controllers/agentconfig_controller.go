@@ -106,7 +106,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if readyPVC != nil && tempPVC == nil {
+	if readyPVC != nil && tempPVC == nil && !isDeleted(agentCfg) {
 		if readyPVC.Status.Phase != corev1.ClaimBound || agentCfg.Status.Phase == porterv1.PhaseSucceeded {
 			return ctrl.Result{}, nil
 		}
@@ -501,16 +501,6 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return err
 	}
 
-	// remove owner reference
-	if idx, exist := containOwner(newPVC.GetOwnerReferences(), agentCfg); exist {
-		newPVC.OwnerReferences = removeOwnerByIdx(newPVC.GetOwnerReferences(), idx)
-		err := r.Update(ctx, newPVC)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
 	pv := &corev1.PersistentVolume{}
 	pvKey := client.ObjectKey{Namespace: newPVC.Namespace, Name: newPVC.Spec.VolumeName}
 	err = r.Get(ctx, pvKey, pv)
@@ -524,6 +514,16 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 	if idx, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
 		newPVC.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
 		err := r.Update(ctx, pv)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// remove owner reference
+	if idx, exist := containOwner(newPVC.GetOwnerReferences(), agentCfg); exist {
+		newPVC.OwnerReferences = removeOwnerByIdx(newPVC.GetOwnerReferences(), idx)
+		err := r.Update(ctx, newPVC)
 		if err != nil {
 			return err
 		}
@@ -610,6 +610,7 @@ func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr
 }
 
 func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, agentCfg *porterv1.AgentConfig) (bool, error) {
+
 	if !isDeleted(agentCfg) {
 		return false, nil
 	}

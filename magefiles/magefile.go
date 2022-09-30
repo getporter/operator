@@ -19,6 +19,8 @@ import (
 	. "get.porter.sh/magefiles/docker"
 	"get.porter.sh/magefiles/porter"
 	"get.porter.sh/magefiles/releases"
+
+	//mage:import
 	. "get.porter.sh/magefiles/tests"
 	"get.porter.sh/magefiles/tools"
 	. "get.porter.sh/operator/mage"
@@ -45,7 +47,7 @@ const (
 	testNamespace = "test"
 
 	// Relative location of the KUBECONFIG for the test cluster
-	kubeconfig = "kind.config.yaml"
+	kubeconfig = "kind.config"
 
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
@@ -54,15 +56,18 @@ const (
 	porterVersion = "v1.0.1"
 )
 
-var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
-var binDir = "bin"
+var (
+	srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
+	binDir  = "bin"
+)
 
-// Porter agent that has k8s plugin included
-var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
-var porterAgentImgVersion = porterVersion
+var (
+	porterAgentImgRepository = "ghcr.io/getporter/porter-agent"
+	porterAgentImgVersion    = "v1.0.2"
+)
 
 // Local porter agent image name to use for local testing
-var localAgentImgName = "localhost:5000/porter-agent:test"
+var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
 
 // Build a command that stops the build on if the command fails
 var must = shx.CommandBuilder{StopOnError: true}
@@ -360,9 +365,7 @@ func Deploy() {
 		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	}
 	bundleRef := Env.BundlePrefix + meta.Version
-	//buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
-
-	buildPorterCmd("install", "operator", "-r", bundleRef, "--param", "porterRepository=localhost:5000/porter-agent", "--param", "porterVersion=canary-v1", "-c=kind", "--force", "-n=operator").Must().RunV()
+	buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must().RunV()
 }
 
 func isDeployed() bool {
