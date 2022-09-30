@@ -159,7 +159,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			if updated {
 				return ctrl.Result{}, nil
 			}
-			err := r.DeleteTemporaryPVC(ctx, log, tempPVC, agentCfg)
+			err = r.DeleteTemporaryPVC(ctx, log, tempPVC, agentCfg)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
@@ -582,9 +582,10 @@ func (r *AgentConfigReconciler) bindPVWithHashPVC(ctx context.Context, log logr.
 			return false, err
 		}
 
+		return true, nil
 	}
 
-	return true, nil
+	return false, nil
 }
 
 func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
@@ -599,8 +600,6 @@ func (r *AgentConfigReconciler) DeleteTemporaryPVC(ctx context.Context, log logr
 
 		return nil
 	}
-	// release old pvc from agentCfg
-	//update the pv with the new pvc
 
 	log.V(Log4Debug).Info("Deleting temporary persistent volume claim.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace)
 	if err := r.Delete(ctx, tempPVC); err != nil {

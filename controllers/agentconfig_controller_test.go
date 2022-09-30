@@ -122,6 +122,8 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Create(ctx, pv))
 	pvc.Spec.VolumeName = pv.Name
 	pvc.Status.Phase = corev1.ClaimBound
+	// the pvc controller should have updated the pvc with the pvc-protection finalizer
+	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
 	require.NoError(t, controller.Update(ctx, pvc))
 
 	triggerReconcile()
@@ -135,33 +137,39 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	require.NotEmpty(t, actionList.Spec.Volumes)
 
+	// verify that the pv that has plugins installed has been updated with the expected lables and claim reference
+	pluginsPV := &corev1.PersistentVolume{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pluginsPV))
+	pluginLabels, exists := pluginsPV.Labels[porterv1.LablePlugins]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Spec.GetPluginsLabels()[porterv1.LablePlugins], pluginLabels)
+	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Name, rn)
+	require.Equal(t, agentCfg.GetPVCName(), pluginsPV.Spec.ClaimRef.Name)
+
 	triggerReconcile()
 
-	// verify that the tmp pvc is deleted
+	// verify that the tmp pvc's finalizer is deleted
 	tmpPVC := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC))
+	require.Empty(t, tmpPVC.GetFinalizers())
+
+	triggerReconcile()
+
+	tmpPVC = &corev1.PersistentVolumeClaim{}
 	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
 
 	triggerReconcile()
 
-	// the renamed pvc should be bounded to the existing pv once it's ready
+	// the renamed pvc should be created with label selector set and correct access mode
 	renamedPVC := &corev1.PersistentVolumeClaim{}
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
-	renamedPVC.Status.Phase = corev1.ClaimBound
-	require.NoError(t, controller.Update(ctx, renamedPVC))
-
-	triggerReconcile()
-
-	// Edit the agent config spec
-	agentCfg.Generation = 2
-	agentCfg.Spec.Plugins[0].Name = "test-plugin-2"
-	require.NoError(t, controller.Update(ctx, &agentCfg))
-
-	triggerReconcile()
-
-	// Verify that the agent config status was re-initialized
-	assert.Equal(t, int64(2), agentCfg.Status.ObservedGeneration)
-	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
-	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
+	readonlyMany := []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
+	matchLables := agentCfg.Spec.GetPluginsLabels()
+	matchLables[porterv1.LabelResourceName] = agentCfg.Name
+	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
 
 	triggerReconcile()
 
@@ -176,6 +184,20 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseFailed, agentCfg.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionFailed)))
+
+	// Edit the agent config spec
+	agentCfg.Generation = 2
+	agentCfg.Spec.Plugins[0].Name = "test-plugin-2"
+	require.NoError(t, controller.Update(ctx, &agentCfg))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was re-initialized
+	assert.Equal(t, int64(2), agentCfg.Status.ObservedGeneration)
+	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
+
+	triggerReconcile()
 
 	// Retry the last action
 	lastAction := agentCfg.Status.Action.Name
