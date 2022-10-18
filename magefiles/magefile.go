@@ -235,9 +235,9 @@ func Publish() {
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
 	meta := releases.LoadMetadata()
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version).In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version, "--force").In("installer").Must().RunV()
 
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink, "--force").In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink, "--force", "--force").In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.

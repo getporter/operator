@@ -1,4 +1,4 @@
-schemaVersion: 1.0.0-alpha.1
+schemaVersion: 1.0.0
 name: porter-operator
 version: 0.0.0
 description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
@@ -88,7 +88,7 @@ install:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - "{{bundle.images.manager.repository}}@{{bundle.images.manager.digest}}"
+        - ${bundle.images.manager.repository}@${bundle.images.manager.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -99,7 +99,8 @@ install:
       namespace: porter-operator-system
       name: mongodb
       chart: bitnami/mongodb
-      version: "{{bundle.parameters.mongodbChartVersion}}"
+      version: ${bundle.parameters.mongodbChartVersion}
+      atomic: false
       set:
         auth.enabled: false
   - exec:
@@ -114,7 +115,7 @@ upgrade:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - "{{bundle.images.manager.repository}}@{{bundle.images.manager.digest}}"
+        - ${bundle.images.manager.repository}@{bundle.images.manager.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
