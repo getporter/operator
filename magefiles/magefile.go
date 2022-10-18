@@ -50,11 +50,8 @@ const (
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
 
-	// Container name of the local registry
-	registryContainer = "registry"
-
-	// Porter home for running commands
-	porterVersion = "v1.0.0-rc.1"
+	// Porter cli version for running commands
+	porterVersion = "v1.0.1"
 )
 
 var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
@@ -62,7 +59,7 @@ var binDir = "bin"
 
 // Porter agent that has k8s plugin included
 var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
-var porterAgentImgVersion = "v1.0.0-rc.1"
+var porterAgentImgVersion = porterVersion
 
 // Local porter agent image name to use for local testing
 var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
