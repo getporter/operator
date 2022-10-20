@@ -141,7 +141,7 @@ func (r *ParameterSetReconciler) isHandled(ctx context.Context, log logr.Logger,
 	return &action, true, nil
 }
 
-//Check the status of the porter-agent job and use that to update the AgentAction status
+// Check the status of the porter-agent job and use that to update the AgentAction status
 func (r *ParameterSetReconciler) syncStatus(ctx context.Context, log logr.Logger, ps *porterv1.ParameterSet, action *porterv1.AgentAction) error {
 	origStatus := ps.Status
 

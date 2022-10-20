@@ -50,11 +50,8 @@ const (
 	// Namespace of the porter operator
 	operatorNamespace = "porter-operator-system"
 
-	// Container name of the local registry
-	registryContainer = "registry"
-
-	// Porter home for running commands
-	porterVersion = "v1.0.0-rc.1"
+	// Porter cli version for running commands
+	porterVersion = "v1.0.1"
 )
 
 var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
@@ -62,7 +59,7 @@ var binDir = "bin"
 
 // Porter agent that has k8s plugin included
 var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
-var porterAgentImgVersion = "v1.0.0-rc.1"
+var porterAgentImgVersion = porterVersion
 
 // Local porter agent image name to use for local testing
 var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
@@ -195,9 +192,9 @@ func getMixins() error {
 		feed    string
 		version string
 	}{
-		{name: "helm3", url: "https://github.com/carolynvs/porter-helm3/releases/download", version: "v0.1.15-8-g864f450"},
-		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "latest"},
-		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "latest"},
+		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v1.0.0-rc.1"},
+		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0-rc.1"},
+		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0-rc.1"},
 	}
 	var errG errgroup.Group
 	for _, mixin := range mixins {
@@ -235,9 +232,9 @@ func Publish() {
 func PublishBundle() {
 	mg.SerialDeps(PublishImages, BuildBundle)
 	meta := releases.LoadMetadata()
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version).In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Version, "--force").In("installer").Must().RunV()
 
-	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink, "--force").In("installer").Must().RunV()
+	buildPorterCmd("publish", "--registry", Env.Registry, "-f=porter.yaml", "--tag", meta.Permalink, "--force", "--force").In("installer").Must().RunV()
 }
 
 // Generate k8s manifests for the operator.
