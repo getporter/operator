@@ -34,7 +34,7 @@ spec:
             type: object
           spec:
             description: "PorterConfigSpec defines the desired state of PorterConfig
-              \n SERIALIZATION NOTE: Use json to persist this resource to Kubernetes.
+              \n SERIALIZATION NOTE: \n Use json to persist this resource to Kubernetes.
               Use yaml to convert to Porter's representation of the resource. The
               mapstructure tags are used internally for PorterConfigSpec.MergeConfig."
             properties:

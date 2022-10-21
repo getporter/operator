@@ -34,7 +34,7 @@ spec:
             type: object
           spec:
             description: "AgentConfigSpec defines the configuration for the Porter
-              agent. \n SERIALIZATION NOTE: The json serialization is for persisting
+              agent. \n SERIALIZATION NOTE: \n The json serialization is for persisting
               this to Kubernetes. The mapstructure tags is used internally for AgentConfigSpec.MergeConfig."
             properties:
               installationServiceAccount:

@@ -13,8 +13,9 @@ import (
 // AgentConfigSpec defines the configuration for the Porter agent.
 //
 // SERIALIZATION NOTE:
-//	The json serialization is for persisting this to Kubernetes.
-//  The mapstructure tags is used internally for AgentConfigSpec.MergeConfig.
+//
+//		The json serialization is for persisting this to Kubernetes.
+//	 The mapstructure tags is used internally for AgentConfigSpec.MergeConfig.
 type AgentConfigSpec struct {
 	// PorterRepository is the repository for the Porter Agent image.
 	// Defaults to ghcr.io/getporter/porter-agent
