@@ -30,6 +30,7 @@ import (
 // +kubebuilder:rbac:groups=porter.sh,resources=agentactions/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=porter.sh,resources=agentactions/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
@@ -206,8 +207,12 @@ func (r *AgentActionReconciler) runPorter(ctx context.Context, log logr.Logger, 
 	if err != nil {
 		return err
 	}
+	imgPullSecret, err := r.getImagePullSecret(ctx, log, action, agentCfg)
+	if err != nil {
+		return err
+	}
 
-	_, err = r.createAgentJob(ctx, log, action, agentCfg, pvc, configSecret, workdirSecret)
+	_, err = r.createAgentJob(ctx, log, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
 	if err != nil {
 		return err
 	}
@@ -345,6 +350,41 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 	return secret, nil
 }
 
+// creates a secret for the porter configuration directory
+func (r *AgentActionReconciler) getImagePullSecret(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec) (*corev1.Secret, error) {
+
+	installationSvcAccountName := "default"
+	if agentCfg.InstallationServiceAccount != "" {
+		installationSvcAccountName = agentCfg.InstallationServiceAccount
+	}
+
+	log.V(Log4Debug).Info("checking service accounts for image pull secrets", "installation_service_account", installationSvcAccountName, "action_name", action.Name, "action_namespace", action.Namespace)
+
+	var instSvcAccount corev1.ServiceAccount
+	if err := r.Get(ctx, types.NamespacedName{Namespace: action.Namespace, Name: installationSvcAccountName}, &instSvcAccount); err != nil {
+		return nil, errors.Wrap(err, "error checking for a service account")
+	}
+	log.V(Log4Debug).Info("found service account for image pull secrets", "name", instSvcAccount.Name, "number_image_pull_secrets", len(instSvcAccount.ImagePullSecrets))
+	var err error
+	var imgPullSec corev1.Secret
+	for _, secObjRef := range instSvcAccount.ImagePullSecrets {
+		log.V(Log4Debug).Info("looking for service account image pull secrets", "sa_namespace", instSvcAccount.Namespace, "sa_name", instSvcAccount.Name, "secret_name", secObjRef.Name)
+		if err := r.Get(ctx, types.NamespacedName{Namespace: action.Namespace, Name: secObjRef.Name}, &imgPullSec); err != nil {
+			log.V(Log4Debug).Info("no image pull secret found for service account", "sa_namespace", instSvcAccount.Namespace, "sa_name", imgPullSec.Name, "secret_name", imgPullSec.Name)
+		}
+		log.V(Log4Debug).Info("found image pull secret found for service account", "sa_namespace", instSvcAccount.Namespace, "sa_name", imgPullSec.Name, "secret_name", imgPullSec.Name)
+		//TODO:(bdegeeter) grab the first dockerconfig json for now. Need to address multiple image pull secrets in a single service account
+		if imgPullSec.Type == "kubernetes.io/dockerconfigjson" {
+			if len(instSvcAccount.ImagePullSecrets) > 1 {
+				log.V(Log4Debug).Info("more that one image pull secret found using first secret", "sa_name", instSvcAccount.Name, "secret_namespace", imgPullSec.Namespace, "secret_name", imgPullSec.Name)
+			}
+			return &imgPullSec, nil
+		}
+	}
+	log.V(Log4Debug).Info("no image pull secret for service account", "sa_name", instSvcAccount.Name, "sa_namespace", instSvcAccount.Namespace, "img_pull_secret_name", imgPullSec.Name, "img_pull_secret_namespace", imgPullSec.Namespace)
+	return nil, errors.Wrap(err, "could not get image pull secret")
+}
+
 func (r *AgentActionReconciler) getAgentJobLabels(action *porterv1.AgentAction) map[string]string {
 	labels := r.getSharedAgentLabels(action)
 	labels[porterv1.LabelJobType] = porterv1.JobTypeAgent
@@ -353,13 +393,13 @@ func (r *AgentActionReconciler) getAgentJobLabels(action *porterv1.AgentAction) 
 
 func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Logger,
 	action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec,
-	pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret) (batchv1.Job, error) {
+	pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) (batchv1.Job, error) {
 
 	// not checking for an existing job because that happens earlier during reconcile
 
 	labels := r.getAgentJobLabels(action)
 	env, envFrom := r.getAgentEnv(action, agentCfg, pvc)
-	volumes, volumeMounts := r.getAgentVolumes(action, pvc, configSecret, workdirSecret)
+	volumes, volumeMounts := r.getAgentVolumes(action, pvc, configSecret, workdirSecret, imgPullSecret)
 
 	porterJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -611,7 +651,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 	return env, envFrom
 }
 
-func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{
 		{
 			Name: porterv1.VolumePorterSharedName,
@@ -640,10 +680,6 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 			},
 		},
 	}
-	for _, volume := range action.Spec.Volumes {
-		volumes = append(volumes, volume)
-	}
-
 	volumeMounts := []corev1.VolumeMount{
 		{
 			Name:      porterv1.VolumePorterSharedName,
@@ -658,6 +694,30 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 			MountPath: porterv1.VolumePorterWorkDirPath,
 		},
 	}
+	// Add the image pull secret for bundles in private registries if found
+	if imgPullSecret != nil {
+		volumes = append(volumes, corev1.Volume{
+			Name: porterv1.VolumeImgPullSecretName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					Items:      []corev1.KeyToPath{{Key: ".dockerconfigjson", Path: ".docker/config.json"}},
+					SecretName: imgPullSecret.Name,
+					Optional:   pointer.BoolPtr(false),
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      porterv1.VolumeImgPullSecretName,
+			MountPath: porterv1.VolumeImgPullSecretPath,
+			ReadOnly:  true,
+		},
+		)
+	}
+
+	for _, volume := range action.Spec.Volumes {
+		volumes = append(volumes, volume)
+	}
+
 	for _, mount := range action.Spec.VolumeMounts {
 		volumeMounts = append(volumeMounts, mount)
 	}

@@ -89,4 +89,12 @@ const (
 	// VolumePorterWorkDirPath is the mount path of the volume that is used as the
 	// Porter's working directory.
 	VolumePorterWorkDirPath = "/porter-workdir"
+
+	// VolumeImgPullSecretName is the name of the volume that contains
+	// .docker/config.json file.
+	VolumeImgPullSecretName = "img-pull-secret"
+
+	// VolumeImagePullSecretPath is the mount path of the volume containing for docker
+	// auth for image pull secrets.
+	VolumeImgPullSecretPath = "/home/nonroot"
 )
