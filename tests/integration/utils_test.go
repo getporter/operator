@@ -14,7 +14,6 @@ import (
 	porterv1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
 	"github.com/carolynvs/magex/shx"
-	"github.com/mitchellh/mapstructure"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -131,7 +130,7 @@ func waitForPorter(ctx context.Context, resource client.Object, expGeneration in
 				continue
 			}
 			if generation == observedGen {
-				conditions, err := getConditions(porterResource)
+				conditions, err := getConditions(resource)
 				// Conditions may not yet be set, try again
 				if err != nil {
 					continue
@@ -160,17 +159,14 @@ func getObservedGeneration(obj *unstructured.Unstructured) (int64, error) {
 	return 0, errors.New("Unable to find observed generation")
 }
 
-func getConditions(obj *unstructured.Unstructured) ([]metav1.Condition, error) {
-	conditions, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
-	if err != nil {
-		return []metav1.Condition{}, err
+func getConditions(resource client.Object) ([]metav1.Condition, error) {
+	if r, ok := resource.(controllers.PorterResource); ok {
+		return r.GetStatus().Conditions, nil
 	}
-	if !found {
-		return []metav1.Condition{}, errors.New("Unable to find resource status")
+	if r, ok := resource.(*porterv1.AgentAction); ok {
+		return *r.GetConditions(), nil
 	}
-	c := []metav1.Condition{}
-	mapstructure.Decode(conditions, &c)
-	return c, nil
+	return []metav1.Condition{}, errors.New("Unable to find resource status")
 }
 
 func waitForResourceDeleted(ctx context.Context, resource client.Object) error {
