@@ -154,7 +154,7 @@ func getPlugins() error {
 		feed    string
 		version string
 	}{
-		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "v1.0.0-rc.1"},
+		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "v1.0.1"},
 	}
 	var errG errgroup.Group
 	for _, plugin := range plugins {
@@ -192,9 +192,9 @@ func getMixins() error {
 		feed    string
 		version string
 	}{
-		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v1.0.0-rc.1"},
-		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0-rc.1"},
-		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0-rc.1"},
+		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v1.0.0"},
+		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0"},
+		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.2"},
 	}
 	var errG errgroup.Group
 	for _, mixin := range mixins {
