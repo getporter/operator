@@ -148,7 +148,7 @@ metadata:
   name: customAgent
 spec:
   porterRepository: ghcr.io/getporter/porter-agent
-  porterVersion: v1.0.0-rc.1
+  porterVersion: v1.0.0
   serviceAccount: porter-agent
   volumeSize: 64Mi
   pullPolicy: Always
