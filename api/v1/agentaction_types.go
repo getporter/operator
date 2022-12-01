@@ -78,7 +78,7 @@ func (a *AgentAction) GetRetryLabelValue() string {
 	return getRetryLabelValue(a.Annotations)
 }
 
-func (a *AgentAction) IsPluginInstall() bool {
+func (a *AgentAction) IsAgentConfig() bool {
 	for _, ref := range a.GetOwnerReferences() {
 		if ref.Kind == "AgentConfig" {
 			return true

@@ -710,8 +710,8 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 		},
 		)
 	}
-	if len(agentCfg.Plugins) > 0 && !action.IsPluginInstall() {
-		log.V(Log4Debug).Info("mounting porter plugin volum", "condition", action.IsPluginInstall())
+	if len(agentCfg.Plugins) > 0 && !action.IsAgentConfig() {
+		log.V(Log4Debug).Info("mounting porter plugin volum", "condition", action.IsAgentConfig())
 		volumes = append(volumes, corev1.Volume{
 			Name: porterv1.VolumePorterPluginsName,
 			VolumeSource: corev1.VolumeSource{
