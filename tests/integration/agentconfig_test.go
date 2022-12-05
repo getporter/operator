@@ -28,13 +28,14 @@ var _ = Describe("AgentConfig delete", func() {
 				Expect(k8sClient.Create(ctx, agentCfg)).Should(Succeed())
 				Expect(waitForPorter(ctx, agentCfg, 1, "waiting for plugins to be installed")).Should(Succeed())
 				validateResourceConditions(agentCfg)
+				Expect(len(agentCfg.Spec.Plugins)).To(Equal(1))
 
 				Log("verify it's created")
 				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, []string{"plugins", "list", "-o", "json"})
 				firstName := gjson.Get(jsonOut, "0.name").String()
 				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
 				Expect(int64(1)).To(Equal(numPluginsInstalled))
-				Expect(agentCfg.Spec.Plugin.Name).To(Equal(firstName))
+				Expect(agentCfg.Spec.Plugins[0].Name).To(Equal(firstName))
 
 				Log("delete a agent config")
 				Expect(k8sClient.Delete(ctx, agentCfg)).Should(Succeed())
@@ -76,8 +77,8 @@ func NewTestAgentCfg() *porterv1.AgentConfig {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.AgentConfigSpec{
-			Plugin: porterv1.Plugin{
-				Name: "kubernetes",
+			Plugins: []porterv1.Plugin{
+				{Name: "kubernetes"},
 			},
 		},
 	}

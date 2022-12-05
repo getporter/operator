@@ -53,10 +53,6 @@ spec:
                       type: string
                     version:
                       type: string
-                  required:
-                  - feedUrl
-                  - name
-                  - version
                   type: object
                 type: array
               porterRepository:

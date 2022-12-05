@@ -93,6 +93,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
+			Plugins:                    PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}},
 		}
 
 		instConfig := AgentConfigSpec{
@@ -102,7 +103,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
-			Plugins:                    PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}},
 		}
 
 		config, err := systemConfig.MergeConfig(nsConfig, instConfig)

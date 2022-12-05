@@ -139,9 +139,6 @@ func (c AgentConfigSpec) GetPluginsLabels() map[string]string {
 		if p.Version != "" {
 			plugins = append(plugins, fmt.Sprintf("_%s", p.Version))
 		}
-		if p.FeedURL != "" {
-			plugins = append(plugins, fmt.Sprintf("_%s", p.FeedURL))
-		}
 	}
 
 	return map[string]string{
