@@ -105,8 +105,20 @@ func (c *AgentConfigSpec) GetPVCName(namespace string) string {
 	var input []byte
 
 	for _, p := range c.Plugins {
-		input = append(input, []byte(p.Name+p.FeedURL+p.Version)...)
+		if p.Name == "" {
+			continue
+		}
+		input = append(input, []byte(p.Name)...)
+		if p.FeedURL != "" {
+			input = append(input, []byte(p.FeedURL)...)
+
+		}
+		if p.Version != "" {
+			input = append(input, []byte(p.Version)...)
+
+		}
 	}
+
 	input = append(input, []byte(namespace)...)
 	pluginHash := md5.Sum(input)
 
@@ -119,7 +131,17 @@ func (c AgentConfigSpec) GetPluginsLabels() map[string]string {
 
 	var plugins []string
 	for _, p := range c.Plugins {
-		plugins = append(plugins, fmt.Sprintf("%s_%s", p.Name, p.Version))
+		if p.Name == "" {
+			continue
+		}
+		plugins = append(plugins, p.Name)
+
+		if p.Version != "" {
+			plugins = append(plugins, fmt.Sprintf("_%s", p.Version))
+		}
+		if p.FeedURL != "" {
+			plugins = append(plugins, fmt.Sprintf("_%s", p.FeedURL))
+		}
 	}
 
 	return map[string]string{
@@ -218,7 +240,7 @@ func init() {
 
 type PluginList []Plugin
 type Plugin struct {
-	Name    string `json:"name" yaml:"name" mapstructure:"name"`
-	FeedURL string `json:"feedUrl" yaml:"feedUrl" mapstructure:"feedURL"`
-	Version string `json:"version" yaml:"version" mapstructure:"version"`
+	Name    string `json:"name,omitempty" mapstructure:"name,omitempty"`
+	FeedURL string `json:"feedUrl,omitempty" mapstructure:"feedURL,omitempty"`
+	Version string `json:"version,omitempty" mapstructure:"version,omitempty"`
 }
