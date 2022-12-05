@@ -32,9 +32,6 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	name := "mybuns"
 	testAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
-		Spec: porterv1.AgentConfigSpec{
-			Plugins: porterv1.PluginList{porterv1.Plugin{Name: "test-plugins", FeedURL: "https://feed-url", Version: "v1.0.0"}},
-		},
 	}
 	testdata := []client.Object{
 		testAgentCfg,
@@ -63,6 +60,14 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Verify the agent config was picked up and the status initialized
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
+
+	triggerReconcile()
+	var foundDefaultPlugin bool
+	for _, p := range agentCfg.Spec.Plugins {
+		foundDefaultPlugin = p.Name == "kubernetes"
+	}
+	// Verify the agent config has the default plugin set
+	require.True(t, foundDefaultPlugin)
 
 	triggerReconcile()
 
@@ -105,8 +110,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Get(ctx, key, pvc))
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-pv-agent-config",
-			Namespace: agentCfg.Namespace,
+			Name:            "test-pv-agent-config",
+			Namespace:       agentCfg.Namespace,
+			OwnerReferences: pvc.OwnerReferences,
 		},
 		Spec: corev1.PersistentVolumeSpec{
 			ClaimRef: &corev1.ObjectReference{
@@ -171,6 +177,11 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	matchLables[porterv1.LabelResourceName] = agentCfg.Name
 	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
 
+	// the renamed pvc should eventually be bounded the to pv
+	renamedPVC.Spec.VolumeName = pv.Name
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Update(ctx, renamedPVC))
+
 	triggerReconcile()
 
 	// Fail the action
@@ -187,7 +198,6 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Edit the agent config spec
 	agentCfg.Generation = 2
-	agentCfg.Spec.Plugins[0].Name = "test-plugin-2"
 	require.NoError(t, controller.Update(ctx, &agentCfg))
 
 	triggerReconcile()
@@ -225,17 +235,26 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	agentCfg.DeletionTimestamp = &now
 	require.NoError(t, controller.Update(ctx, &agentCfg))
 
+	// first trigger will remove the agent config from the pv's owner reference list
 	triggerReconcile()
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pv))
+	for _, owner := range pv.OwnerReferences {
+		require.NotEqual(t, "AgentConfig", owner.Kind, "failed to remove agent config from pv's owner reference list after deletion")
+	}
 
+	// second trigger will remove the agent config from the pvc's owner reference list
+	triggerReconcile()
+	// Verify that pvc and pv no longer has the agent config in their owner reference list
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
+	for _, owner := range renamedPVC.OwnerReferences {
+		require.NotEqual(t, "AgentConfig", owner.Kind, "failed to remove agent config from pv's owner reference list after deletion")
+	}
+
+	// this trigger will then remove the agent config's finalizer
+	triggerReconcile()
 	// Verify that the agent config was removed
 	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg), &agentCfg)
 	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
-
-	// Verify that pvc and pv is deleted
-	pvcWithPlugin2 := &corev1.PersistentVolumeClaim{}
-	pvWithPlugin2 := &corev1.PersistentVolume{}
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, pvcWithPlugin2)))
-	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvcWithPlugin2.Spec.VolumeName}, pvWithPlugin2)))
 
 	// Verify that reconcile doesn't error out after it's deleted
 	triggerReconcile()

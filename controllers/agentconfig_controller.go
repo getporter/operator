@@ -67,15 +67,6 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration)
 	log.V(Log5Trace).Info("Reconciling agent config")
 
-	if len(agentCfg.Spec.Plugins) == 0 {
-		log.V(Log5Trace).Info("No plugins need to be installed")
-		agentCfg.Status.Phase = porterv1.PhaseSucceeded
-		if err := r.saveStatus(ctx, log, agentCfg); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}
-
 	// Check if we have requested an agent run yet
 	action, handled, err := r.isHandled(ctx, log, agentCfg)
 	if err != nil {
@@ -100,6 +91,16 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		err = removeAgentCfgFinalizer(ctx, log, r.Client, agentCfg)
 		log.V(Log4Debug).Info("Reconciliation complete: Finalizer has been removed from the AgentConfig.")
 		return ctrl.Result{}, err
+	}
+
+	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
+	// to install plugins other than the default one
+	isSet, err := r.setDefaultPlugins(ctx, agentCfg)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if isSet {
+		return ctrl.Result{}, nil
 	}
 
 	readyPVC, tempPVC, err := r.GetPersistentVolumeClaims(ctx, log, agentCfg)
@@ -145,7 +146,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		// if the plugin install action is not finished, we need to wait for it before acting further
 		if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
-			log.V(Log4Debug).Info("Plugins is not ready yet.", "persistentvolumeclaim", tempPVC.Name, "action status", action.Status)
+			log.V(Log4Debug).Info("Plugins is not ready yet.", "action status", action.Status)
 			return ctrl.Result{}, nil
 		}
 
@@ -301,8 +302,6 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 		return nil
 	}
 	installCmd := []string{"plugins", "install"}
-	// TODO: figure out the command to install multiple plugins with a single command
-	// currently this is only works with a single plugin
 	for _, p := range agentCfg.Spec.Plugins {
 		installCmd = append(installCmd, p.Name)
 		if p.FeedURL != "" {
@@ -512,7 +511,7 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 	}
 
 	if idx, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
-		newPVC.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
+		pv.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
 		err := r.Update(ctx, pv)
 		if err != nil {
 			return err
@@ -671,6 +670,33 @@ func (r *AgentConfigReconciler) GetPersistentVolumeClaims(ctx context.Context, l
 	return readyPVC, tempPVC, nil
 }
 
+func (r *AgentConfigReconciler) setDefaultPlugins(ctx context.Context, agentCfg *porterv1.AgentConfig) (bool, error) {
+	var shouldUpdate bool
+	plugins := defaultPlugins()
+	numOfPlugins := len(agentCfg.Spec.Plugins)
+	if numOfPlugins == 0 {
+		agentCfg.Spec.Plugins = plugins
+		shouldUpdate = true
+	}
+	if len(agentCfg.Spec.Plugins) > 1 {
+		agentCfg.Spec.Plugins = agentCfg.Spec.Plugins[:1]
+		shouldUpdate = true
+	}
+	if agentCfg.Spec.Plugins[0].Name != plugins[0].Name {
+		agentCfg.Spec.Plugins = plugins
+		shouldUpdate = true
+	}
+	if shouldUpdate {
+		err := r.Update(ctx, agentCfg)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+
+	}
+	return false, nil
+}
+
 func containOwner(owners []metav1.OwnerReference, agentCfg *porterv1.AgentConfig) (int, bool) {
 	for i, owner := range owners {
 		if owner.APIVersion == agentCfg.APIVersion && owner.Kind == agentCfg.Kind && owner.Name == agentCfg.Name {
@@ -685,4 +711,10 @@ func removeOwnerByIdx(s []metav1.OwnerReference, index int) []metav1.OwnerRefere
 	ret := make([]metav1.OwnerReference, 0)
 	ret = append(ret, s[:index]...)
 	return append(ret, s[index+1:]...)
+}
+
+func defaultPlugins() []porterv1.Plugin {
+	return []porterv1.Plugin{
+		{Name: "kubernetes"},
+	}
 }
