@@ -519,6 +519,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 		"serviceAccount", cfg.ServiceAccount,
 		"volumeSize", cfg.GetVolumeSize(),
 		"installationServiceAccount", cfg.InstallationServiceAccount,
+		"plugin", cfg.Plugins,
 	)
 	return cfg, nil
 }
@@ -710,13 +711,14 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 		},
 		)
 	}
-	if len(agentCfg.Plugins) > 0 && !action.IsAgentConfig() {
-		log.V(Log4Debug).Info("mounting porter plugin volum", "condition", action.IsAgentConfig())
+	if !action.IsAgentConfig() {
+		claimName := agentCfg.GetPVCName(action.Namespace)
+		log.V(Log4Debug).Info("mounting porter plugin volume", "claim name", claimName)
 		volumes = append(volumes, corev1.Volume{
 			Name: porterv1.VolumePorterPluginsName,
 			VolumeSource: corev1.VolumeSource{
 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: agentCfg.GetPVCName(action.Namespace),
+					ClaimName: claimName,
 				},
 			},
 		})
@@ -727,13 +729,9 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 		})
 	}
 
-	for _, volume := range action.Spec.Volumes {
-		volumes = append(volumes, volume)
-	}
+	volumes = append(volumes, action.Spec.Volumes...)
 
-	for _, mount := range action.Spec.VolumeMounts {
-		volumeMounts = append(volumeMounts, mount)
-	}
+	volumeMounts = append(volumeMounts, action.Spec.VolumeMounts...)
 
 	return volumes, volumeMounts
 }

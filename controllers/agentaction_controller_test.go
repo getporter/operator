@@ -156,6 +156,45 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 	}
 }
 
+func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
+	// long test is long
+	// Run through a full resource lifecycle: create, update, delete
+	ctx := context.Background()
+
+	namespace := "test"
+	name := "agent-config"
+	actionAgentCfg := &porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+	}
+	action := &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
+		Spec: porterv1.AgentActionSpec{
+			AgentConfig: &corev1.LocalObjectReference{Name: actionAgentCfg.Name},
+		},
+	}
+	testdata := []client.Object{
+		action,
+		&porterv1.AgentConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
+			Spec: porterv1.AgentConfigSpec{
+				Plugin: porterv1.Plugin{Name: ""},
+			},
+		},
+		&porterv1.AgentConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
+			Spec: porterv1.AgentConfigSpec{
+				Plugin: porterv1.Plugin{Name: "kubernetes"},
+			},
+		},
+		actionAgentCfg,
+	}
+	controller := setupAgentActionController(testdata...)
+
+	resolved, err := controller.resolveAgentConfig(ctx, logr.Discard(), action)
+	require.NoError(t, err)
+	require.Equal(t, "kubernetes", resolved.Plugin.Name)
+}
+
 func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	// long test is long
 	// Run through a full resource lifecycle: create, update, delete
@@ -165,7 +204,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	name := "mybuns-install"
 	testdata := []client.Object{
 		&porterv1.AgentAction{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}},
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
+		},
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
 			ImagePullSecrets: []corev1.LocalObjectReference{{
@@ -696,8 +736,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assert.Equal(t, "test", podTemplate.Namespace, "incorrect pod namespace")
 	assertSharedAgentLabels(t, podTemplate.Labels)
 	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
-	assert.Len(t, podTemplate.Spec.Volumes, 3, "incorrect pod volumes")
-	assert.Len(t, podTemplate.Spec.Volumes, 3)
+	assert.Len(t, podTemplate.Spec.Volumes, 4, "incorrect pod volumes")
 	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
 	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
 	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
@@ -722,7 +761,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/resourceGeneration=1 porter.sh/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.BoolPtr(true))
-	assert.Len(t, agentContainer.VolumeMounts, 3)
+	assert.Len(t, agentContainer.VolumeMounts, 4)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
@@ -757,6 +796,7 @@ func testAgentCfgSpec() porterv1.AgentConfigSpec {
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
+		Plugin:                     porterv1.Plugin{Name: "kubernetes"},
 	}
 }
 
@@ -799,12 +839,13 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assert.Equal(t, "test", podTemplate.Namespace, "incorrect pod namespace")
 	assertSharedAgentLabels(t, podTemplate.Labels)
 	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
-	assert.Len(t, podTemplate.Spec.Volumes, 4, "incorrect pod volumes")
+	assert.Len(t, podTemplate.Spec.Volumes, 5, "incorrect pod volumes")
 	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
 	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
 	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
 	assert.Equal(t, porterv1.VolumeImgPullSecretName, podTemplate.Spec.Volumes[3].Name, "expected the img-pull-secret volume")
 	assert.Equal(t, testSA.ImagePullSecrets[0].Name, podTemplate.Spec.Volumes[3].Secret.SecretName, "expected the service account image pull secret name")
+	assert.Equal(t, porterv1.VolumePorterPluginsName, podTemplate.Spec.Volumes[4].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
 	assert.Equal(t, pointer.Int64Ptr(65532), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
 	assert.Equal(t, pointer.Int64Ptr(0), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
@@ -826,14 +867,52 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assertEnvVar(t, agentContainer.Env, "LABELS", "porter.sh/jobType=bundle-installer porter.sh/managed=true porter.sh/resourceGeneration=1 porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "porter.sh/resourceKind=AgentAction porter.sh/resourceName=porter-hello porter.sh/resourceGeneration=1 porter.sh/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.BoolPtr(true))
-	assert.Len(t, agentContainer.VolumeMounts, 4)
+	assert.Len(t, agentContainer.VolumeMounts, 5)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumeImgPullSecretName, porterv1.VolumeImgPullSecretPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterPluginsName, porterv1.VolumePorterPluginsPath)
 
 }
 
+func TestAgentActionReconciler_getAgentVolumes_agentconfigaction(t *testing.T) {
+	controller := setupAgentActionController()
+	action := testAgentAction()
+	agentCfg := testAgentCfgSpec()
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "mypvc"}}
+	configSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-agent-config"}}
+	workDirSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "myagentconfig"}}
+	volumes, volumeMounts := controller.getAgentVolumes(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, nil)
+
+	assert.Len(t, volumes, 4, "incorrect pod volumes")
+	assert.Equal(t, porterv1.VolumePorterSharedName, volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, porterv1.VolumePorterConfigName, volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, porterv1.VolumePorterWorkDirName, volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, porterv1.VolumePorterPluginsName, volumes[3].Name, "expected the porter-plugins volume")
+
+	assert.Len(t, volumeMounts, 4)
+	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
+	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
+	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterPluginsName, porterv1.VolumePorterPluginsPath)
+
+	// if the action is created by AgentConfig CRD, the plugin volume should not be mounted
+	action.OwnerReferences = append(action.OwnerReferences, metav1.OwnerReference{
+		APIVersion: porterv1.GroupVersion.String(),
+		Kind:       "AgentConfig",
+	})
+	volumesForAgentCfg, volumeMountsForAgentCfg := controller.getAgentVolumes(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, nil)
+	assert.Len(t, volumesForAgentCfg, 3, "incorrect pod volumes")
+	assert.Equal(t, porterv1.VolumePorterSharedName, volumesForAgentCfg[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, porterv1.VolumePorterConfigName, volumesForAgentCfg[1].Name, "expected the porter-config volume")
+	assert.Equal(t, porterv1.VolumePorterWorkDirName, volumesForAgentCfg[2].Name, "expected the porter-workdir volume")
+
+	assert.Len(t, volumeMountsForAgentCfg, 3)
+	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
+	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
+	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+}
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {
 	assertContains(t, labels, porterv1.LabelManaged, "true", "incorrect label")
 	assertContains(t, labels, porterv1.LabelResourceKind, "AgentAction", "incorrect label")
