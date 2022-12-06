@@ -712,7 +712,7 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 		)
 	}
 	if !action.IsAgentConfig() {
-		claimName := agentCfg.GetPVCName(action.Namespace)
+		claimName := agentCfg.GetPluginsPVCName(action.Namespace)
 		log.V(Log4Debug).Info("mounting porter plugin volume", "claim name", claimName)
 		volumes = append(volumes, corev1.Volume{
 			Name: porterv1.VolumePorterPluginsName,

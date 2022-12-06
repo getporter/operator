@@ -69,6 +69,46 @@ func TestAgentConfigSpec_GetVolumeSize(t *testing.T) {
 	})
 }
 
+func TestAgentConfigSpec_GetPVCName(t *testing.T) {
+	t.Run("no plugins defined", func(t *testing.T) {
+		c := AgentConfigSpec{}
+		assert.Empty(t, c.GetPluginsPVCName("default"))
+	})
+
+	t.Run("plugins defined", func(t *testing.T) {
+		c := AgentConfigSpec{
+			Plugins: []Plugin{
+				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
+			},
+		}
+		assert.Equal(t, "922e7fa0a39ba2abcc6456da47290a00", c.GetPluginsPVCName("default"))
+	})
+}
+
+func TestAgentConfigSpec_GetPluginsLabels(t *testing.T) {
+	t.Run("no plugins defined", func(t *testing.T) {
+		c := AgentConfigSpec{}
+		assert.Nil(t, c.GetPluginsLabels())
+	})
+
+	t.Run("plugins defined", func(t *testing.T) {
+		onePluginCfg := AgentConfigSpec{
+			Plugins: []Plugin{
+				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
+			},
+		}
+		assert.Equal(t, map[string]string{LabelManaged: "true", LablePlugins: "kubernetes_v1.0.0"}, onePluginCfg.GetPluginsLabels())
+
+		multiplePluginsCfg := AgentConfigSpec{
+			Plugins: []Plugin{
+				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
+				{Name: "azure", Version: "v1.2.0", FeedURL: "https://test1"},
+			},
+		}
+		assert.Equal(t, map[string]string{LabelManaged: "true", LablePlugins: "kubernetes_v1.0.0_azure_v1.2.0"}, multiplePluginsCfg.GetPluginsLabels())
+	})
+}
+
 func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 	t.Run("empty is ignored", func(t *testing.T) {
 		nsConfig := AgentConfigSpec{

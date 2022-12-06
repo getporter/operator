@@ -153,7 +153,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
 	require.True(t, exists)
 	require.Equal(t, agentCfg.Name, rn)
-	require.Equal(t, agentCfg.GetPVCName(), pluginsPV.Spec.ClaimRef.Name)
+	require.Equal(t, agentCfg.GetPluginsPVCName(), pluginsPV.Spec.ClaimRef.Name)
 
 	triggerReconcile()
 
@@ -171,7 +171,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// the renamed pvc should be created with label selector set and correct access mode
 	renamedPVC := &corev1.PersistentVolumeClaim{}
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
 	readonlyMany := []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
 	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
 	matchLables := agentCfg.Spec.GetPluginsLabels()
@@ -246,7 +246,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// second trigger will remove the agent config from the pvc's owner reference list
 	triggerReconcile()
 	// Verify that pvc and pv no longer has the agent config in their owner reference list
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPVCName()}, renamedPVC))
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
 	for _, owner := range renamedPVC.OwnerReferences {
 		require.NotEqual(t, "AgentConfig", owner.Kind, "failed to remove agent config from pv's owner reference list after deletion")
 	}

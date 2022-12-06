@@ -13,7 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// AnnotationAgentCfgPluginHash is the label used to store plugin hashes from a AgentConfig definition.
 const AnnotationAgentCfgPluginsHash = "agent-config-plugins-hash"
+
+// DefaultPlugins is the set of default plugins that will be used by the operator.
+var DefaultPlugins = []Plugin{
+	{Name: "kubernetes"},
+}
 
 // AgentConfigSpec defines the configuration for the Porter agent.
 //
@@ -98,7 +104,9 @@ func (c AgentConfigSpec) GetVolumeSize() resource.Quantity {
 	return q
 }
 
-func (c *AgentConfigSpec) GetPVCName(namespace string) string {
+// GetPluginsPVCName returns a hash of the plugin configs.
+// if no plugins are defined, it returns an empty string.
+func (c *AgentConfigSpec) GetPluginsPVCName(namespace string) string {
 	if len(c.Plugins) == 0 {
 		return ""
 	}
@@ -124,17 +132,28 @@ func (c *AgentConfigSpec) GetPVCName(namespace string) string {
 
 	return hex.EncodeToString(pluginHash[:])
 }
+
+// GetPluginsLabels returns a value that is safe to use
+// as a label value and represents the plugin configuration used
+// to trigger reconciliation.
+// labels are restricted to alphanumeric and .-_
+// that's why the feedURL is not used.
 func (c AgentConfigSpec) GetPluginsLabels() map[string]string {
 	if len(c.Plugins) == 0 {
 		return nil
 	}
 
 	var plugins []string
-	for _, p := range c.Plugins {
+	for i, p := range c.Plugins {
 		if p.Name == "" {
 			continue
 		}
-		plugins = append(plugins, p.Name)
+
+		format := "%s"
+		if i > 0 {
+			format = "_%s"
+		}
+		plugins = append(plugins, fmt.Sprintf(format, p.Name))
 
 		if p.Version != "" {
 			plugins = append(plugins, fmt.Sprintf("_%s", p.Version))
@@ -197,14 +216,14 @@ func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
 }
 
-// GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
-func (ac *AgentConfig) GetPVCName() string {
-	return ac.Spec.GetPVCName(ac.Namespace)
+// GetPluginsPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
+func (ac *AgentConfig) GetPluginsPVCName() string {
+	return ac.Spec.GetPluginsPVCName(ac.Namespace)
 }
 
 // GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
 func (ac *AgentConfig) GetPVCNameAnnotation() map[string]string {
-	return map[string]string{AnnotationAgentCfgPluginsHash: ac.Spec.GetPVCName(ac.Namespace)}
+	return map[string]string{AnnotationAgentCfgPluginsHash: ac.Spec.GetPluginsPVCName(ac.Namespace)}
 }
 
 // GetRetryLabelValue returns a value that is safe to use
