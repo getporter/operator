@@ -312,6 +312,31 @@ Currently the Operator only supports the first imagePullSecret in a service acco
 A single secret with authentication for multiple registries can achieved by 
 [creating a secret from a file](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#registry-secret-existing-credentials).
 
+## Install Plugins
+Create the `quickstart_agentconfig.yaml` with the following content:
+```yaml
+apiVersion: porter.sh/v1
+kind: AgentConfig
+metadata:
+  name: agentconfig-quickstart
+  namespace: quickstart
+spec:
+  porterRepository: ghcr.io/getporter/porter-agent
+  porterVersion: v1.0.2
+  serviceAccount: porter-agent
+  volumeSize: 64Mi
+  pullPolicy: Always
+  installationServiceAccount: installation-agent
+  plugins:
+    - name: "kubernetes"
+```
+
+Create the `AgentConfig` custom resource by running `kubectl apply -f quickstart_agentconfig.yaml`
+
+If no plugins are defined in a AgentConfig, the operator will set its default value to use the `kubernetes-plugin`
+
+🚨 WARNING: Currently, the operator can only install one plugin per AgentConfig. If more than one plugins are defined in the CRD, it will omit the rest of the defined plugins but the first one.
+
 ## Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!

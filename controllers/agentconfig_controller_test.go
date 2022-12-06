@@ -334,8 +334,8 @@ func TestAgentConfigReconciler_setDefaultPlugins(t *testing.T) {
 	}{
 		{name: "no custom plugins defined", expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
 		{name: "one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, updated: false}},
-		{name: "one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
-		{name: "more than one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
+		{name: "one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "azure"}}, updated: false}},
+		{name: "more than one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "azure"}}, updated: true}},
 		{name: "more than one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
 	}
 

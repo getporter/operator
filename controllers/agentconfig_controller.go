@@ -670,18 +670,14 @@ func (r *AgentConfigReconciler) GetPersistentVolumeClaims(ctx context.Context, l
 
 func setDefaultPlugins(agentCfg *porterv1.AgentConfig) bool {
 	var shouldUpdate bool
-	plugins := defaultPlugins()
 	numOfPlugins := len(agentCfg.Spec.Plugins)
 	if numOfPlugins == 0 {
+		plugins := defaultPlugins()
 		agentCfg.Spec.Plugins = plugins
 		shouldUpdate = true
 	}
-	if len(agentCfg.Spec.Plugins) > 1 {
+	if numOfPlugins > 1 {
 		agentCfg.Spec.Plugins = agentCfg.Spec.Plugins[:1]
-		shouldUpdate = true
-	}
-	if agentCfg.Spec.Plugins[0].Name != plugins[0].Name {
-		agentCfg.Spec.Plugins = plugins
 		shouldUpdate = true
 	}
 	return shouldUpdate

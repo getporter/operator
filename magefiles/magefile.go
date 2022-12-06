@@ -150,44 +150,6 @@ func BuildImages() {
 	mgx.Must(p.SetEnv("MANAGER_IMAGE", img))
 }
 
-func getPlugins() error {
-	// TODO: move this to a shared target in porter
-
-	plugins := []struct {
-		name    string
-		url     string
-		feed    string
-		version string
-	}{
-		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "v1.0.1"},
-	}
-	var errG errgroup.Group
-	for _, plugin := range plugins {
-		plugin := plugin
-		pluginDir := filepath.Join("bin/plugins/", plugin.name)
-		if _, err := os.Stat(pluginDir); err == nil {
-			log.Println("Plugin already installed into bin:", plugin.name)
-			continue
-		}
-
-		errG.Go(func() error {
-			log.Println("Installing plugin:", plugin.name)
-			if plugin.version == "" {
-				plugin.version = "latest"
-			}
-			var source string
-			if plugin.feed != "" {
-				source = "--feed-url=" + plugin.feed
-			} else {
-				source = "--url=" + plugin.url
-			}
-			return buildPorterCmd("plugin", "install", plugin.name, "--version", plugin.version, source).Run()
-		})
-	}
-
-	return errG.Wait()
-}
-
 func getMixins() error {
 	// TODO: move this to a shared target in porter
 
