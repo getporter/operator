@@ -177,13 +177,13 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 		&porterv1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
 			Spec: porterv1.AgentConfigSpec{
-				Plugin: porterv1.Plugin{Name: ""},
+				Plugins: []porterv1.Plugin{{Name: ""}},
 			},
 		},
 		&porterv1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
 			Spec: porterv1.AgentConfigSpec{
-				Plugin: porterv1.Plugin{Name: "kubernetes"},
+				Plugins: []porterv1.Plugin{{Name: "kubernetes"}},
 			},
 		},
 		actionAgentCfg,
@@ -192,7 +192,7 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 
 	resolved, err := controller.resolveAgentConfig(ctx, logr.Discard(), action)
 	require.NoError(t, err)
-	require.Equal(t, "kubernetes", resolved.Plugin.Name)
+	require.Equal(t, "kubernetes", resolved.Plugins[0].Name)
 }
 
 func TestAgentActionReconciler_Reconcile(t *testing.T) {
@@ -796,7 +796,7 @@ func testAgentCfgSpec() porterv1.AgentConfigSpec {
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
-		Plugin:                     porterv1.Plugin{Name: "kubernetes"},
+		Plugins:                    []porterv1.Plugin{{Name: "kubernetes"}},
 	}
 }
 

@@ -322,6 +322,34 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	assert.Empty(t, action.Spec.VolumeMounts, "incorrect VolumeMounts")
 }
 
+func TestAgentConfigReconciler_setDefaultPlugins(t *testing.T) {
+	type expectedResult struct {
+		plugins porterv1.PluginList
+		updated bool
+	}
+	testcases := []struct {
+		name     string
+		plugins  porterv1.PluginList
+		expected expectedResult
+	}{
+		{name: "no custom plugins defined", expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
+		{name: "one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, updated: false}},
+		{name: "one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
+		{name: "more than one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
+		{name: "more than one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
+	}
+
+	for _, tc := range testcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			testAgentCfg := &porterv1.AgentConfig{Spec: porterv1.AgentConfigSpec{Plugins: tc.plugins}}
+			updated := setDefaultPlugins(testAgentCfg)
+			require.Equal(t, tc.expected.updated, updated)
+			require.Equal(t, tc.expected.plugins, testAgentCfg.Spec.Plugins)
+		})
+	}
+}
+
 func setupAgentConfigController(objs ...client.Object) AgentConfigReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

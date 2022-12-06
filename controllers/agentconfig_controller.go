@@ -95,12 +95,10 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
 	// to install plugins other than the default one
-	isSet, err := r.setDefaultPlugins(ctx, agentCfg)
-	if err != nil {
+	updatedCfg := setDefaultPlugins(agentCfg)
+	if updatedCfg {
+		err := r.Update(ctx, agentCfg)
 		return ctrl.Result{}, err
-	}
-	if isSet {
-		return ctrl.Result{}, nil
 	}
 
 	readyPVC, tempPVC, err := r.GetPersistentVolumeClaims(ctx, log, agentCfg)
@@ -670,7 +668,7 @@ func (r *AgentConfigReconciler) GetPersistentVolumeClaims(ctx context.Context, l
 	return readyPVC, tempPVC, nil
 }
 
-func (r *AgentConfigReconciler) setDefaultPlugins(ctx context.Context, agentCfg *porterv1.AgentConfig) (bool, error) {
+func setDefaultPlugins(agentCfg *porterv1.AgentConfig) bool {
 	var shouldUpdate bool
 	plugins := defaultPlugins()
 	numOfPlugins := len(agentCfg.Spec.Plugins)
@@ -686,15 +684,7 @@ func (r *AgentConfigReconciler) setDefaultPlugins(ctx context.Context, agentCfg 
 		agentCfg.Spec.Plugins = plugins
 		shouldUpdate = true
 	}
-	if shouldUpdate {
-		err := r.Update(ctx, agentCfg)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-
-	}
-	return false, nil
+	return shouldUpdate
 }
 
 func containOwner(owners []metav1.OwnerReference, agentCfg *porterv1.AgentConfig) (int, bool) {
