@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -261,12 +262,12 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 }
 
 func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
-	controller := setupInstallationController()
+	ctx := context.Background()
 
-	inst := &porterv1.Installation{
+	agentCfg := &porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: porterv1.GroupVersion.String(),
-			Kind:       "Installation",
+			Kind:       "AgentConfig",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  "test",
@@ -280,21 +281,69 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 				porterv1.AnnotationRetry: "2021-2-2 12:00:00",
 			},
 		},
-		Spec: porterv1.InstallationSpec{
-			Namespace:    "dev",
-			Name:         "wordpress",
-			AgentConfig:  &corev1.LocalObjectReference{Name: "myAgentConfig"},
-			PorterConfig: &corev1.LocalObjectReference{Name: "myPorterConfig"},
+		Spec: porterv1.AgentConfigSpec{
+			Plugins:    []porterv1.Plugin{{Name: "test", Version: "v1.2.3"}},
+			VolumeSize: "64Mi",
 		},
 	}
-	action, err := controller.createAgentAction(context.Background(), logr.Discard(), inst)
+	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
+	lables := agentCfg.Spec.GetPluginsLabels()
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: agentCfg.Name + "-",
+			Namespace:    agentCfg.Namespace,
+			Labels:       lables,
+			Annotations:  agentCfg.GetPVCNameAnnotation(),
+			OwnerReferences: []metav1.OwnerReference{
+				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
+					APIVersion:         agentCfg.APIVersion,
+					Kind:               agentCfg.Kind,
+					Name:               agentCfg.Name,
+					UID:                agentCfg.UID,
+					Controller:         pointer.BoolPtr(true),
+					BlockOwnerDeletion: pointer.BoolPtr(true),
+				},
+			},
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceStorage: agentCfg.Spec.GetVolumeSize(),
+				},
+			},
+		},
+	}
+	pv := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-pv-agent-config",
+			Namespace:       agentCfg.Namespace,
+			OwnerReferences: pvc.OwnerReferences,
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			ClaimRef: &corev1.ObjectReference{
+				Kind:            pvc.Kind,
+				Namespace:       pvc.Namespace,
+				Name:            pvc.Name,
+				UID:             pvc.UID,
+				APIVersion:      pvc.APIVersion,
+				ResourceVersion: pvc.ResourceVersion,
+			},
+		},
+	}
+	pvc.Spec.VolumeName = pv.Name
+	pvc.Status.Phase = corev1.ClaimBound
+	// the pvc controller should have updated the pvc with the pvc-protection finalizer
+	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
+	controller := setupAgentConfigController(pvc, pv)
+	action, err := controller.createAgentAction(ctx, logr.Discard(), pvc, agentCfg, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "test", action.Namespace)
 	assert.Contains(t, action.Name, "myblog-")
 	assert.Len(t, action.OwnerReferences, 1, "expected an owner reference")
 	wantOwnerRef := metav1.OwnerReference{
 		APIVersion:         porterv1.GroupVersion.String(),
-		Kind:               "Installation",
+		Kind:               "AgentConfig",
 		Name:               "myblog",
 		UID:                "random-uid",
 		Controller:         pointer.BoolPtr(true),
@@ -302,24 +351,20 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	}
 	assert.Equal(t, wantOwnerRef, action.OwnerReferences[0], "incorrect owner reference")
 
-	assertContains(t, action.Annotations, porterv1.AnnotationRetry, inst.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
+	assertContains(t, action.Annotations, porterv1.AnnotationRetry, agentCfg.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
 	assertContains(t, action.Labels, porterv1.LabelManaged, "true", "incorrect label")
-	assertContains(t, action.Labels, porterv1.LabelResourceKind, "Installation", "incorrect label")
+	assertContains(t, action.Labels, porterv1.LabelResourceKind, "AgentConfig", "incorrect label")
 	assertContains(t, action.Labels, porterv1.LabelResourceName, "myblog", "incorrect label")
 	assertContains(t, action.Labels, porterv1.LabelResourceGeneration, "1", "incorrect label")
 	assertContains(t, action.Labels, "testLabel", "abc123", "incorrect label")
 
-	assert.Equal(t, inst.Spec.AgentConfig, action.Spec.AgentConfig, "incorrect AgentConfig reference")
-	assert.Equal(t, inst.Spec.AgentConfig, action.Spec.AgentConfig, "incorrect PorterConfig reference")
-	assert.Nilf(t, action.Spec.Command, "should use the default command for the agent")
-	assert.Equal(t, []string{"installation", "apply", "installation.yaml"}, action.Spec.Args, "incorrect agent arguments")
-	assert.Contains(t, action.Spec.Files, "installation.yaml")
-	assert.NotEmpty(t, action.Spec.Files["installation.yaml"], "expected installation.yaml to get set on the action")
-
-	assert.Empty(t, action.Spec.Env, "incorrect Env")
-	assert.Empty(t, action.Spec.EnvFrom, "incorrect EnvFrom")
-	assert.Empty(t, action.Spec.Volumes, "incorrect Volumes")
-	assert.Empty(t, action.Spec.VolumeMounts, "incorrect VolumeMounts")
+	assert.NotEmpty(t, action.Spec.Volumes, "incorrect Volumes")
+	assert.Equal(t, action.Spec.Volumes[0].Name, porterv1.VolumePorterPluginsName, "incorrect Volumes")
+	assert.Equal(t, action.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName, pvc.Name, "incorrect Volumes")
+	assert.NotEmpty(t, action.Spec.VolumeMounts, "incorrect Volumes mounts")
+	assert.Equal(t, action.Spec.VolumeMounts[0].Name, porterv1.VolumePorterPluginsName, "incorrect VolumeMounts")
+	assert.Equal(t, action.Spec.VolumeMounts[0].MountPath, porterv1.VolumePorterPluginsPath, "incorrect VolumeMounts")
+	assert.Equal(t, action.Spec.VolumeMounts[0].SubPath, "plugins", "incorrect VolumeMounts")
 }
 
 func TestAgentConfigReconciler_setDefaultPlugins(t *testing.T) {

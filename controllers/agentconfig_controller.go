@@ -318,7 +318,7 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 	return r.syncStatus(ctx, log, agentCfg, action)
 }
 
-// create an AgentAction that will trigger running porter
+// createAgentAction creates an AgentAction with the temporary volumes that's used for plugin installation.
 func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig, args []string) (*porterv1.AgentAction, error) {
 	log.V(Log5Trace).Info("Creating porter agent action")
 
