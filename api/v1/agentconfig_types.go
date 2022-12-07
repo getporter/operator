@@ -226,7 +226,7 @@ func (ac *AgentConfig) GetPluginsPVCName() string {
 	return ac.Spec.GetPluginsPVCName(ac.Namespace)
 }
 
-// GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
+// GetPluginsPVCNameAnnotation returns a string that's the hash using plugins spec and the AgentConfig's namepsace and name.
 func (ac *AgentConfig) GetPluginsPVCNameAnnotation() map[string]string {
 	return map[string]string{AnnotationAgentCfgPluginsHash: ac.Spec.GetPluginsPVCName(ac.Namespace)}
 }
