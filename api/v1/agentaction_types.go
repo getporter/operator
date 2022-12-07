@@ -78,9 +78,10 @@ func (a *AgentAction) GetRetryLabelValue() string {
 	return getRetryLabelValue(a.Annotations)
 }
 
-func (a *AgentAction) IsAgentConfig() bool {
+// CreatedByAgentConfig checks if an AgentAction is running on behalf of an agent config.
+func (a *AgentAction) CreatedByAgentConfig() bool {
 	for _, ref := range a.GetOwnerReferences() {
-		if ref.Kind == "AgentConfig" {
+		if ref.Kind == KindAgentConfig {
 			return true
 		}
 	}

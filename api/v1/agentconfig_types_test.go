@@ -81,7 +81,7 @@ func TestAgentConfigSpec_GetPVCName(t *testing.T) {
 				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
-		assert.Equal(t, "922e7fa0a39ba2abcc6456da47290a00", c.GetPluginsPVCName("default"))
+		assert.Equal(t, "porter-922e7fa0a39ba2abcc6456da47290a00", c.GetPluginsPVCName("default"))
 	})
 }
 
@@ -97,7 +97,7 @@ func TestAgentConfigSpec_GetPluginsLabels(t *testing.T) {
 				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
-		assert.Equal(t, map[string]string{LabelManaged: "true", LablePlugins: "kubernetes_v1.0.0"}, onePluginCfg.GetPluginsLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0"}, onePluginCfg.GetPluginsLabels())
 
 		multiplePluginsCfg := AgentConfigSpec{
 			Plugins: []Plugin{
@@ -105,7 +105,7 @@ func TestAgentConfigSpec_GetPluginsLabels(t *testing.T) {
 				{Name: "azure", Version: "v1.2.0", FeedURL: "https://test1"},
 			},
 		}
-		assert.Equal(t, map[string]string{LabelManaged: "true", LablePlugins: "kubernetes_v1.0.0_azure_v1.2.0"}, multiplePluginsCfg.GetPluginsLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0_azure_v1.2.0"}, multiplePluginsCfg.GetPluginsLabels())
 	})
 }
 

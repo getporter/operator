@@ -13,8 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// AnnotationAgentCfgPluginHash is the label used to store plugin hashes from a AgentConfig definition.
-const AnnotationAgentCfgPluginsHash = "agent-config-plugins-hash"
+const (
+	// AnnotationAgentCfgPluginHash is the label used to store plugin hashes from a AgentConfig definition.
+	AnnotationAgentCfgPluginsHash = "agent-config-plugins-hash"
+
+	// KindAgentConfig represents AgentConfig kind value.
+	KindAgentConfig = "AgentConfig"
+)
 
 // DefaultPlugins is the set of default plugins that will be used by the operator.
 var DefaultPlugins = []Plugin{
@@ -130,7 +135,7 @@ func (c *AgentConfigSpec) GetPluginsPVCName(namespace string) string {
 	input = append(input, []byte(namespace)...)
 	pluginHash := md5.Sum(input)
 
-	return hex.EncodeToString(pluginHash[:])
+	return "porter-" + hex.EncodeToString(pluginHash[:])
 }
 
 // GetPluginsLabels returns a value that is safe to use
@@ -162,7 +167,7 @@ func (c AgentConfigSpec) GetPluginsLabels() map[string]string {
 
 	return map[string]string{
 		LabelManaged: "true",
-		LablePlugins: strings.Join(plugins, ""),
+		LabelPlugins: strings.Join(plugins, ""),
 	}
 }
 
@@ -216,13 +221,13 @@ func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
 }
 
-// GetPluginsPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
+// GetPluginsPVCName returns a string that's the hash using plugins spec and the AgentConfig's namepsace and name.
 func (ac *AgentConfig) GetPluginsPVCName() string {
 	return ac.Spec.GetPluginsPVCName(ac.Namespace)
 }
 
 // GetPVCName returns an string that's the hash using plugins spec and the AgentConfig's namepsace and name.
-func (ac *AgentConfig) GetPVCNameAnnotation() map[string]string {
+func (ac *AgentConfig) GetPluginsPVCNameAnnotation() map[string]string {
 	return map[string]string{AnnotationAgentCfgPluginsHash: ac.Spec.GetPluginsPVCName(ac.Namespace)}
 }
 

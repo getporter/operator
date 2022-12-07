@@ -711,7 +711,8 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 		},
 		)
 	}
-	if !action.IsAgentConfig() {
+	// Only add the plugin volume if the action is not created to configure porter itself
+	if !action.CreatedByAgentConfig() {
 		claimName := agentCfg.GetPluginsPVCName(action.Namespace)
 		log.V(Log4Debug).Info("mounting porter plugin volume", "claim name", claimName)
 		volumes = append(volumes, corev1.Volume{

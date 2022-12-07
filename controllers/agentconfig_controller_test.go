@@ -147,9 +147,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// verify that the pv that has plugins installed has been updated with the expected lables and claim reference
 	pluginsPV := &corev1.PersistentVolume{}
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pluginsPV))
-	pluginLabels, exists := pluginsPV.Labels[porterv1.LablePlugins]
+	pluginLabels, exists := pluginsPV.Labels[porterv1.LabelPlugins]
 	require.True(t, exists)
-	require.Equal(t, agentCfg.Spec.GetPluginsLabels()[porterv1.LablePlugins], pluginLabels)
+	require.Equal(t, agentCfg.Spec.GetPluginsLabels()[porterv1.LabelPlugins], pluginLabels)
 	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
 	require.True(t, exists)
 	require.Equal(t, agentCfg.Name, rn)
@@ -293,7 +293,7 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 			GenerateName: agentCfg.Name + "-",
 			Namespace:    agentCfg.Namespace,
 			Labels:       lables,
-			Annotations:  agentCfg.GetPVCNameAnnotation(),
+			Annotations:  agentCfg.GetPluginsPVCNameAnnotation(),
 			OwnerReferences: []metav1.OwnerReference{
 				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
 					APIVersion:         agentCfg.APIVersion,

@@ -94,7 +94,8 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
-	// to install plugins other than the default one
+	// to install multiple plugins. Currently, only the first item defined in the plugin list will be
+	// installed.
 	updatedCfg := setDefaultPlugins(agentCfg)
 	if updatedCfg {
 		err := r.Update(ctx, agentCfg)
@@ -236,7 +237,7 @@ func (r *AgentConfigReconciler) isHandled(ctx context.Context, log logr.Logger, 
 	return &action, true, nil
 }
 
-// Run the porter agent with the command `porter agent config apply`
+// Run the porter agent with the command `porter plugins install <plugin-name>`
 func (r *AgentConfigReconciler) applyAgentConfig(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
 	log.V(Log5Trace).Info("Initializing agent config status")
 	agentCfg.Status.Initialize()
@@ -264,7 +265,7 @@ func (r *AgentConfigReconciler) createAgentVolumeWithPlugins(ctx context.Context
 			GenerateName: agentCfg.Name + "-",
 			Namespace:    agentCfg.Namespace,
 			Labels:       lables,
-			Annotations:  agentCfg.GetPVCNameAnnotation(),
+			Annotations:  agentCfg.GetPluginsPVCNameAnnotation(),
 			OwnerReferences: []metav1.OwnerReference{
 				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
 					APIVersion:         agentCfg.APIVersion,
@@ -327,7 +328,7 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 		labels[k] = v
 	}
 
-	volumn, volumnMount := getPluginVolumn(pvc)
+	volumn, volumnMount := getPluginVolume(pvc)
 	agentCfgName := &corev1.LocalObjectReference{Name: agentCfg.Name}
 
 	action := &porterv1.AgentAction{
@@ -403,7 +404,7 @@ func (r *AgentConfigReconciler) retry(ctx context.Context, log logr.Logger, agen
 	return nil
 }
 
-func getPluginVolumn(pvc *corev1.PersistentVolumeClaim) (corev1.Volume, corev1.VolumeMount) {
+func getPluginVolume(pvc *corev1.PersistentVolumeClaim) (corev1.Volume, corev1.VolumeMount) {
 	volume := corev1.Volume{
 		Name: porterv1.VolumePorterPluginsName,
 		VolumeSource: corev1.VolumeSource{
@@ -508,6 +509,7 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return err
 	}
 
+	// remove owner reference from the persistent volume first
 	if idx, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
 		pv.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
 		err := r.Update(ctx, pv)
@@ -517,7 +519,8 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return nil
 	}
 
-	// remove owner reference
+	// remove owner reference from the persistent volume claim after we know the backing volume has no reference to the
+	// the agent config resource anymore
 	if idx, exist := containOwner(newPVC.GetOwnerReferences(), agentCfg); exist {
 		newPVC.OwnerReferences = removeOwnerByIdx(newPVC.GetOwnerReferences(), idx)
 		err := r.Update(ctx, newPVC)
@@ -565,7 +568,7 @@ func (r *AgentConfigReconciler) bindPVWithPluginPVC(ctx context.Context, log log
 		return false, err
 	}
 
-	if _, exist := pv.Labels[porterv1.LablePlugins]; !exist {
+	if _, exist := pv.Labels[porterv1.LabelPlugins]; !exist {
 		labels := agentCfg.Spec.GetPluginsLabels()
 		labels[porterv1.LabelResourceName] = agentCfg.Name
 		pv.Labels = labels
