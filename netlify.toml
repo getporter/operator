@@ -7,7 +7,7 @@
   command = "go run mage.go -v DocsDeploy"
 
   [build.environment]
-    GO_VERSION = "1.19.3"
+    GO_VERSION = "1.19.4"
 
 [context.branch-deploy]
   command = "go run mage.go -v DocsDeployPreview"
