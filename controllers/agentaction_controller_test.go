@@ -157,14 +157,13 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 }
 
 func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
-	// long test is long
-	// Run through a full resource lifecycle: create, update, delete
 	ctx := context.Background()
 
 	namespace := "test"
 	name := "agent-config"
 	actionAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Status:     porterv1.AgentConfigStatus{Ready: true},
 	}
 	action := &porterv1.AgentAction{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
@@ -176,12 +175,14 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 		action,
 		&porterv1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
+			Status:     porterv1.AgentConfigStatus{Ready: true},
 			Spec: porterv1.AgentConfigSpec{
 				Plugins: []porterv1.Plugin{{Name: ""}},
 			},
 		},
 		&porterv1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
+			Status:     porterv1.AgentConfigStatus{Ready: true},
 			Spec: porterv1.AgentConfigSpec{
 				Plugins: []porterv1.Plugin{{Name: "kubernetes"}},
 			},
@@ -211,6 +212,12 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 			ImagePullSecrets: []corev1.LocalObjectReference{{
 				Name: "my-img-pull-secret",
 			},
+			},
+		},
+		&porterv1.AgentConfig{
+			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default", Generation: 1},
+			Status: porterv1.AgentConfigStatus{
+				Ready: true,
 			},
 		},
 	}

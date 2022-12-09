@@ -480,12 +480,14 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			"plugin", config.Spec.Plugins)
 	}
 
+	var isCfgReady bool
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.AgentConfig{}
 	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
+	isCfgReady = err == nil && systemCfg.Status.Ready
 	logConfig("system", systemCfg)
 
 	// Read agent configuration defined at the namespace level
@@ -494,6 +496,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
 	}
+	isCfgReady = err == nil && nsCfg.Status.Ready
 	logConfig("namespace", nsCfg)
 
 	// Read agent configuration override
@@ -504,6 +507,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			return porterv1.AgentConfigSpec{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
 		}
 		logConfig("instance", instCfg)
+		isCfgReady = err == nil && instCfg.Status.Ready
 	}
 
 	// Apply overrides
@@ -511,6 +515,10 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	cfg, err := base.MergeConfig(nsCfg.Spec, instCfg.Spec)
 	if err != nil {
 		return porterv1.AgentConfigSpec{}, err
+	}
+
+	if !isCfgReady {
+		return porterv1.AgentConfigSpec{}, errors.New("resolved agent configuration is not ready to be used. Waiting for the next retry")
 	}
 
 	log.V(Log4Debug).Info("resolved porter agent configuration",

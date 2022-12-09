@@ -104,6 +104,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	action.Status.Phase = porterv1.PhaseSucceeded
 	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
 	require.NoError(t, controller.Status().Update(ctx, &action))
+	require.False(t, agentCfg.Status.Ready)
 
 	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
 	pvc := &corev1.PersistentVolumeClaim{}
@@ -141,6 +142,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, "1", actionList.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
 	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseSucceeded, agentCfg.Status.Phase, "incorrect Phase")
+	require.False(t, agentCfg.Status.Ready)
 
 	require.NotEmpty(t, actionList.Spec.Volumes)
 
@@ -168,6 +170,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
 
 	triggerReconcile()
+	require.False(t, agentCfg.Status.Ready)
 
 	// the renamed pvc should be created with label selector set and correct access mode
 	renamedPVC := &corev1.PersistentVolumeClaim{}
@@ -184,6 +187,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Update(ctx, renamedPVC))
 
 	triggerReconcile()
+	require.True(t, agentCfg.Status.Ready)
 
 	// Fail the action
 	action.Status.Phase = porterv1.PhaseFailed
@@ -235,15 +239,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	agentCfg.Generation = 3
 	agentCfg.DeletionTimestamp = &now
 	require.NoError(t, controller.Update(ctx, &agentCfg))
-
-	// first trigger will remove the agent config from the pv's owner reference list
 	triggerReconcile()
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pv))
-	for _, owner := range pv.OwnerReferences {
-		require.NotEqual(t, "AgentConfig", owner.Kind, "failed to remove agent config from pv's owner reference list after deletion")
-	}
 
-	// second trigger will remove the agent config from the pvc's owner reference list
+	// remove the agent config from the pvc's owner reference list
 	triggerReconcile()
 	// Verify that pvc and pv no longer has the agent config in their owner reference list
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))

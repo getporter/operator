@@ -82,8 +82,8 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// Check if we have finished removing the agentCfg from the pvc and pv's owner reference
-	processed, err := r.isDeleteProcessed(ctx, agentCfg)
+	// Check if we have finished removing the agentCfg from the pvc owner reference
+	processed, err := r.isDeleteProcessed(ctx, log, agentCfg)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -93,34 +93,12 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
-	// to install multiple plugins. Currently, only the first item defined in the plugin list will be
-	// installed.
-	updatedCfg := setDefaultPlugins(agentCfg)
-	if updatedCfg {
-		err := r.Update(ctx, agentCfg)
-		return ctrl.Result{}, err
-	}
-
-	readyPVC, tempPVC, err := r.getExistingPluginPVCs(ctx, log, agentCfg)
+	updatedStatus, err := r.syncPluginInstallStatus(ctx, log, agentCfg)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// Check to see if there is a plugin volume already has all the defined plugins installed
-	shouldUpdate, ready := checkPluginPVCsReadiness(agentCfg, readyPVC, tempPVC)
-	if ready {
-		if shouldUpdate {
-			return ctrl.Result{}, nil
-		}
-
-		updated, err := r.updateOwnerReference(ctx, log, agentCfg, readyPVC)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-
-		if updated {
-			return ctrl.Result{}, nil
-		}
+	if updatedStatus {
+		return ctrl.Result{}, nil
 	}
 
 	// Check if we have already handled any spec changes
@@ -132,39 +110,9 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, err
 		}
 
-		// if the plugin install action is not finished, we need to wait for it before acting further
-		if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
-			log.V(Log4Debug).Info("Plugins is not ready yet.", "action status", action.Status)
-			return ctrl.Result{}, nil
-		}
-
-		// delete the temporary pvc first once the plugin install action has been completed
-		shouldDeleteTmpPVC := tempPVC != nil && readyPVC == nil
-		if shouldDeleteTmpPVC {
-			updated, err := r.bindPVWithPluginPVC(ctx, log, tempPVC, agentCfg)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if updated {
-				return ctrl.Result{}, nil
-			}
-			err = r.deleteTemporaryPVC(ctx, log, tempPVC, agentCfg)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			return ctrl.Result{}, nil
-		}
-
-		if tempPVC == nil {
-			hashedPVCName := agentCfg.GetPluginsPVCName()
-			// create the pvc with the hash of plugins metadata
-			_, err = r.createHashPVC(ctx, log, agentCfg)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-
-			log.V(Log4Debug).Info("Created the new PVC with plugins hash as its name.", "new persistentvolumeclaim", hashedPVCName)
+		err := r.renamePluginVolume(ctx, log, action, agentCfg)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
 
 		return ctrl.Result{}, nil
@@ -476,6 +424,14 @@ func (r *AgentConfigReconciler) shouldDelete(agentCfg *porterv1.AgentConfig) boo
 
 // cleanup remove the owner references on both pvc and pv so the when no resource is referencing them, GC can clean them up after the agentCfg has been deleted
 func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) error {
+	if agentCfg.Status.Ready {
+		agentCfg.Status.Ready = false
+		err := r.saveStatus(ctx, log, agentCfg)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
 	hashPVC := agentCfg.GetPluginsPVCName()
 	log.V(Log4Debug).Info("Start cleaning up persistent volume claim.", "persistentvolumeclaim", hashPVC, "namespace", agentCfg.Namespace)
 	key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: hashPVC}
@@ -498,18 +454,7 @@ func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, ag
 		return err
 	}
 
-	// remove owner reference from the persistent volume first
-	if idx, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
-		pv.OwnerReferences = removeOwnerByIdx(pv.GetOwnerReferences(), idx)
-		err := r.Update(ctx, pv)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// remove owner reference from the persistent volume claim after we know the backing volume has no reference to the
-	// the agent config resource anymore
+	// remove owner reference from the persistent volume claim
 	if idx, exist := containOwner(newPVC.GetOwnerReferences(), agentCfg); exist {
 		newPVC.OwnerReferences = removeOwnerByIdx(newPVC.GetOwnerReferences(), idx)
 		err := r.Update(ctx, newPVC)
@@ -600,12 +545,12 @@ func (r *AgentConfigReconciler) deleteTemporaryPVC(ctx context.Context, log logr
 	return nil
 }
 
-func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, agentCfg *porterv1.AgentConfig) (bool, error) {
+func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (bool, error) {
 
 	if !isDeleted(agentCfg) {
 		return false, nil
 	}
-	// check if the finalizers for the pvc and pv has been removed
+
 	pvc, exists, err := r.getPersistentVolumeClaim(ctx, agentCfg.Namespace, agentCfg.GetPluginsPVCName())
 	if err != nil {
 		return false, err
@@ -614,16 +559,6 @@ func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, agentCfg 
 		ref := pvc.GetOwnerReferences()
 		if _, exist := containOwner(ref, agentCfg); exist {
 			return false, nil
-		}
-
-		pv, err := r.getPersistentVolume(ctx, agentCfg.Namespace, pvc.Spec.VolumeName)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return false, err
-		}
-		if pv != nil {
-			if _, exist := containOwner(pv.GetOwnerReferences(), agentCfg); exist {
-				return false, nil
-			}
 		}
 	}
 
@@ -662,13 +597,13 @@ func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log l
 	return readyPVC, tempPVC, nil
 }
 
-func checkPluginPVCsReadiness(agentCfg *porterv1.AgentConfig, hashedPluginsPVC, tempPVC *corev1.PersistentVolumeClaim) (completed bool, ready bool) {
+func checkPluginAndAgentReadiness(agentCfg *porterv1.AgentConfig, hashedPluginsPVC, tempPVC *corev1.PersistentVolumeClaim) (pvcReady bool, cfgReady bool) {
 	if hashedPluginsPVC != nil && tempPVC == nil && !isDeleted(agentCfg) {
-		completed = agentCfg.Status.Phase == porterv1.PhaseSucceeded
-		ready = hashedPluginsPVC.Status.Phase == corev1.ClaimBound
+		cfgReady = agentCfg.Status.Phase == porterv1.PhaseSucceeded
+		pvcReady = hashedPluginsPVC.Status.Phase == corev1.ClaimBound
 	}
 
-	return completed, ready
+	return pvcReady, cfgReady
 }
 
 func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig, readyPVC *corev1.PersistentVolumeClaim) (bool, error) {
@@ -686,9 +621,17 @@ func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log lo
 
 	}
 
+	var shouldUpdateStatus bool
 	if agentCfg.Status.Phase == porterv1.PhasePending {
 		// update the agentCfg status to be ready
 		agentCfg.Status.Phase = porterv1.PhaseSucceeded
+		shouldUpdateStatus = true
+	}
+	if !agentCfg.Status.Ready {
+		agentCfg.Status.Ready = true
+		shouldUpdateStatus = true
+	}
+	if shouldUpdateStatus {
 		if err := r.saveStatus(ctx, log, agentCfg); err != nil {
 			return false, err
 		}
@@ -727,4 +670,83 @@ func removeOwnerByIdx(s []metav1.OwnerReference, index int) []metav1.OwnerRefere
 	ret := make([]metav1.OwnerReference, 0)
 	ret = append(ret, s[:index]...)
 	return append(ret, s[index+1:]...)
+}
+
+func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (bool, error) {
+	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
+	// to install multiple plugins. Currently, only the first item defined in the plugin list will be
+	// installed.
+	updatedCfg := setDefaultPlugins(agentCfg)
+	if updatedCfg {
+		err := r.Update(ctx, agentCfg)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	readyPVC, tempPVC, err := r.getExistingPluginPVCs(ctx, log, agentCfg)
+	if err != nil {
+		return false, err
+	}
+	// Check to see if there is a plugin volume already has all the defined plugins installed
+	pluginReady, agentCfgReady := checkPluginAndAgentReadiness(agentCfg, readyPVC, tempPVC)
+	if pluginReady {
+
+		updated, err := r.updateOwnerReference(ctx, log, agentCfg, readyPVC)
+		if err != nil {
+			return false, err
+		}
+
+		if updated {
+			return true, nil
+		}
+		// if plugin is not ready, we just need to wait for it before we move forward
+	} else if agentCfgReady {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func (r *AgentConfigReconciler) renamePluginVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg *porterv1.AgentConfig) error {
+	// if the plugin install action is not finished, we need to wait for it before acting further
+	if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
+		log.V(Log4Debug).Info("Plugins is not ready yet.", "action status", action.Status)
+		return nil
+	}
+	readyPVC, tempPVC, err := r.getExistingPluginPVCs(ctx, log, agentCfg)
+	if err != nil {
+		return err
+	}
+	// delete the temporary pvc first once the plugin install action has been completed
+	shouldDeleteTmpPVC := tempPVC != nil && readyPVC == nil
+	if shouldDeleteTmpPVC {
+		updated, err := r.bindPVWithPluginPVC(ctx, log, tempPVC, agentCfg)
+		if err != nil {
+			return err
+		}
+		if updated {
+			return nil
+		}
+		err = r.deleteTemporaryPVC(ctx, log, tempPVC, agentCfg)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	if tempPVC == nil {
+		hashedPVCName := agentCfg.GetPluginsPVCName()
+		// create the pvc with the hash of plugins metadata
+		_, err = r.createHashPVC(ctx, log, agentCfg)
+		if err != nil {
+			return err
+		}
+
+		log.V(Log4Debug).Info("Created the new PVC with plugins hash as its name.", "new persistentvolumeclaim", hashedPVCName)
+	}
+
+	return nil
 }
