@@ -159,23 +159,36 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 	ctx := context.Background()
 
-	namespace := "test"
-	name := "agent-config"
-	actionAgentCfg := &porterv1.AgentConfig{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
-		Status:     porterv1.AgentConfigStatus{Ready: true},
-	}
-	action := &porterv1.AgentAction{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
-		Spec: porterv1.AgentActionSpec{
-			AgentConfig: &corev1.LocalObjectReference{Name: actionAgentCfg.Name},
+	testcases := []struct {
+		name            string
+		data            []client.Object
+		expectedErr     error
+		expectedPlugins porterv1.PluginList
+	}{
+		{
+			name: "successful", data: []client.Object{
+				&porterv1.AgentConfig{
+					ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
+					Spec: porterv1.AgentConfigSpec{
+						Plugins: []porterv1.Plugin{{Name: ""}},
+					},
+				},
+				&porterv1.AgentConfig{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "agent-config"},
+				},
+				&porterv1.AgentAction{
+					ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "agent-config", Generation: 1},
+					Spec: porterv1.AgentActionSpec{
+						AgentConfig: &corev1.LocalObjectReference{Name: actionAgentCfg.Name},
+					},
+				},
+			},
 		},
 	}
 	testdata := []client.Object{
 		action,
 		&porterv1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
-			Status:     porterv1.AgentConfigStatus{Ready: true},
 			Spec: porterv1.AgentConfigSpec{
 				Plugins: []porterv1.Plugin{{Name: ""}},
 			},

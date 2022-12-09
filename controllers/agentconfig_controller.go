@@ -641,6 +641,11 @@ func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log lo
 	return false, nil
 }
 
+// QA: if we manually set a default plugin when no plugins are defined on an agent config, we run into issues when different levels of agent config is merged together in `resolveAgentConfig`
+// Currently, the MergeConfig will only merge non-empty field, meaning if no plugins defined on an agent config, it will not override the previous one.
+// By always setting a default plugin when none is defined, a user may expect to inherent namespace level agent config when it's override agent config has no plugins defined. However,
+// due to the default value, it will not inherent namespace level plugins configuration.
+// Is that an ok thing?
 func setDefaultPlugins(agentCfg *porterv1.AgentConfig) bool {
 	var shouldUpdate bool
 	numOfPlugins := len(agentCfg.Spec.Plugins)
