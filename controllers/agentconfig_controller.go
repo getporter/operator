@@ -54,8 +54,8 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	log := r.Log.WithValues("agent config", req.Name, "namespace", req.Namespace)
 
 	// Retrieve the agent config
-	agentCfg := &porterv1.AgentConfig{}
-	err := r.Get(ctx, req.NamespacedName, agentCfg)
+	agentCfgData := &porterv1.AgentConfig{}
+	err := r.Get(ctx, req.NamespacedName, agentCfgData)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.V(Log5Trace).Info("Reconciliation skipped: AgentConfig CRD or one of its owned resources was deleted.")
@@ -63,6 +63,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, err
 	}
+	agentCfg := porterv1.NewAgentConfigAdapter(*agentCfgData)
 
 	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration)
 	log.V(Log5Trace).Info("Reconciling agent config")
@@ -128,7 +129,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	}
 
-	updated, err := ensureFinalizerSet(ctx, log, r.Client, agentCfg)
+	updated, err := ensureFinalizerSet(ctx, log, r.Client, &agentCfg.AgentConfig)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -143,7 +144,9 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 	if created {
-		log.V(Log4Debug).Info("Created new temporary persistent volume claim.", "name", pvc.Name)
+		if pvc != nil {
+			log.V(Log4Debug).Info("Created new temporary persistent volume claim.", "name", pvc.Name)
+		}
 	}
 
 	// Use porter to finish reconciling the agent config
@@ -157,7 +160,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // Determines if this AgentConfig has been handled by Porter
-func (r *AgentConfigReconciler) isHandled(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (*porterv1.AgentAction, bool, error) {
+func (r *AgentConfigReconciler) isHandled(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (*porterv1.AgentAction, bool, error) {
 	labels := getActionLabels(agentCfg)
 	results := porterv1.AgentActionList{}
 	err := r.List(ctx, &results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(labels))
@@ -175,7 +178,7 @@ func (r *AgentConfigReconciler) isHandled(ctx context.Context, log logr.Logger, 
 }
 
 // Run the porter agent with the command `porter plugins install <plugin-name>`
-func (r *AgentConfigReconciler) applyAgentConfig(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) applyAgentConfig(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter) error {
 	log.V(Log5Trace).Info("Initializing agent config status")
 	agentCfg.Status.Initialize()
 	if err := r.saveStatus(ctx, log, agentCfg); err != nil {
@@ -185,18 +188,20 @@ func (r *AgentConfigReconciler) applyAgentConfig(ctx context.Context, log logr.L
 	return r.runPorterPluginInstall(ctx, log, pvc, agentCfg)
 }
 
-func (r *AgentConfigReconciler) createAgentVolumeWithPlugins(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (*corev1.PersistentVolumeClaim, bool, error) {
-
+func (r *AgentConfigReconciler) createAgentVolumeWithPlugins(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (*corev1.PersistentVolumeClaim, bool, error) {
+	if agentCfg.Spec.Plugins.IsZero() {
+		return nil, true, nil
+	}
 	pvc, exists, err := r.getPersistentVolumeClaim(ctx, agentCfg.Namespace, agentCfg.GetPluginsPVCName())
 	if err != nil {
 		return nil, false, err
 	}
 
 	if exists {
-		return pvc, exists, nil
+		return pvc, false, nil
 	}
 
-	lables := agentCfg.Spec.GetPluginsLabels()
+	lables := agentCfg.Spec.Plugins.GetLabels()
 	pvc = &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: agentCfg.Name + "-",
@@ -233,19 +238,24 @@ func (r *AgentConfigReconciler) createAgentVolumeWithPlugins(ctx context.Context
 }
 
 // runPorterPluginInstall creates an AgentAction that triggers a porter run to install plugins on the passed in volume.
-func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
-	if len(agentCfg.Spec.Plugins) == 0 {
+func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter) error {
+	if agentCfg.Spec.Plugins.IsZero() {
 		return nil
 	}
 	installCmd := []string{"plugins", "install"}
-	for _, p := range agentCfg.Spec.Plugins {
-		installCmd = append(installCmd, p.Name)
-		if p.FeedURL != "" {
-			installCmd = append(installCmd, "--feed-url", p.FeedURL)
+	for _, name := range agentCfg.Spec.Plugins.GetNames() {
+		installCmd = append(installCmd, name)
+		plugin, _ := agentCfg.Spec.Plugins.GetByName(name)
+		if plugin.FeedURL != "" {
+			installCmd = append(installCmd, "--feed-url", plugin.FeedURL)
 		}
-		if p.Version != "" {
-			installCmd = append(installCmd, "--version", p.Version)
+		if plugin.Version != "" {
+			installCmd = append(installCmd, "--version", plugin.Version)
 		}
+		// TODO: once porter has ability to install multiple plugins with one command, we will allow users
+		// to install multiple plugins. Currently, only the first item defined in the plugin list will be
+		// installed.
+		break
 	}
 	action, err := r.createAgentAction(ctx, log, pvc, agentCfg, installCmd)
 	if err != nil {
@@ -257,7 +267,7 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 }
 
 // createAgentAction creates an AgentAction with the temporary volumes that's used for plugin installation.
-func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig, args []string) (*porterv1.AgentAction, error) {
+func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter, args []string) (*porterv1.AgentAction, error) {
 	log.V(Log5Trace).Info("Creating porter agent action")
 
 	labels := getActionLabels(agentCfg)
@@ -302,10 +312,17 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 }
 
 // Check the status of the porter-agent job and use that to update the AgentAction status
-func (r *AgentConfigReconciler) syncStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig, action *porterv1.AgentAction) error {
+func (r *AgentConfigReconciler) syncStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter, action *porterv1.AgentAction) error {
+
 	origStatus := agentCfg.Status
 
 	applyAgentAction(log, agentCfg, action)
+
+	// if the spec changed, we need to reset the readiness of the agent config
+	if origStatus.Ready && origStatus.ObservedGeneration != agentCfg.Generation {
+		agentCfg.Status.Ready = false
+
+	}
 
 	if !reflect.DeepEqual(origStatus, agentCfg.Status) {
 		return r.saveStatus(ctx, log, agentCfg)
@@ -315,18 +332,20 @@ func (r *AgentConfigReconciler) syncStatus(ctx context.Context, log logr.Logger,
 }
 
 // Only update the status with a PATCH, don't clobber the entire agent config
-func (r *AgentConfigReconciler) saveStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) saveStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) error {
 	log.V(Log5Trace).Info("Patching agent config status")
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, agentCfg, func() client.Object {
+	cfg := &agentCfg.AgentConfig
+	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, cfg, func() client.Object {
 		return &porterv1.AgentConfig{}
 	})
 }
 
 // Sync the retry annotation from the agent config to the agent action to trigger another run.
-func (r *AgentConfigReconciler) retry(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig, action *porterv1.AgentAction) error {
+func (r *AgentConfigReconciler) retry(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter, action *porterv1.AgentAction) error {
 	log.V(Log5Trace).Info("Initializing agent config status")
 	agentCfg.Status.Initialize()
 	agentCfg.Status.Action = &corev1.LocalObjectReference{Name: action.Name}
+	agentCfg.Status.Ready = false
 	if err := r.saveStatus(ctx, log, agentCfg); err != nil {
 		return err
 	}
@@ -365,10 +384,10 @@ func definePluginVomeAndMount(pvc *corev1.PersistentVolumeClaim) (corev1.Volume,
 func (r *AgentConfigReconciler) createHashPVC(
 	ctx context.Context,
 	log logr.Logger,
-	agentCfg *porterv1.AgentConfig,
+	agentCfg *porterv1.AgentConfigAdapter,
 ) (*corev1.PersistentVolumeClaim, error) {
 	log.V(Log4Debug).Info("Renaming temporary persistent volume claim.", "new persistentvolumeclaim", agentCfg.GetPluginsPVCName())
-	lables := agentCfg.Spec.GetPluginsLabels()
+	lables := agentCfg.Spec.Plugins.GetLabels()
 	lables[porterv1.LabelResourceName] = agentCfg.Name
 
 	selector := &metav1.LabelSelector{
@@ -379,7 +398,7 @@ func (r *AgentConfigReconciler) createHashPVC(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      agentCfg.GetPluginsPVCName(),
 			Namespace: agentCfg.Namespace,
-			Labels:    agentCfg.Spec.GetPluginsLabels(),
+			Labels:    lables,
 			OwnerReferences: []metav1.OwnerReference{
 				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
 					APIVersion:         agentCfg.APIVersion,
@@ -411,19 +430,19 @@ func (r *AgentConfigReconciler) createHashPVC(
 }
 
 // removeAgentCfgFinalizer deletes the porter finalizer from the specified resource and saves it.
-func removeAgentCfgFinalizer(ctx context.Context, log logr.Logger, client client.Client, agentCfg *porterv1.AgentConfig) error {
+func removeAgentCfgFinalizer(ctx context.Context, log logr.Logger, client client.Client, agentCfg *porterv1.AgentConfigAdapter) error {
 	log.V(Log5Trace).Info("removing finalizer")
 	controllerutil.RemoveFinalizer(agentCfg, porterv1.FinalizerName)
-	return client.Update(ctx, agentCfg)
+	return client.Update(ctx, &agentCfg.AgentConfig)
 }
 
-func (r *AgentConfigReconciler) shouldDelete(agentCfg *porterv1.AgentConfig) bool {
+func (r *AgentConfigReconciler) shouldDelete(agentCfg *porterv1.AgentConfigAdapter) bool {
 	// ignore a deleted CRD with no finalizers
 	return isDeleted(agentCfg) && isFinalizerSet(agentCfg)
 }
 
 // cleanup remove the owner references on both pvc and pv so the when no resource is referencing them, GC can clean them up after the agentCfg has been deleted
-func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) cleanup(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) error {
 	if agentCfg.Status.Ready {
 		agentCfg.Status.Ready = false
 		err := r.saveStatus(ctx, log, agentCfg)
@@ -496,14 +515,14 @@ func (r *AgentConfigReconciler) getPersistentVolume(ctx context.Context, namespa
 }
 
 // bindPVWithPluginPVC binds the persistent volume to the claim with a name created by the hash of all plugins defined on a AgentConfigSpec.
-func (r *AgentConfigReconciler) bindPVWithPluginPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) (bool, error) {
+func (r *AgentConfigReconciler) bindPVWithPluginPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter) (bool, error) {
 	pv, err := r.getPersistentVolume(ctx, tempPVC.Namespace, tempPVC.Spec.VolumeName)
 	if err != nil {
 		return false, err
 	}
 
 	if _, exist := pv.Labels[porterv1.LabelPlugins]; !exist {
-		labels := agentCfg.Spec.GetPluginsLabels()
+		labels := agentCfg.Spec.Plugins.GetLabels()
 		labels[porterv1.LabelResourceName] = agentCfg.Name
 		pv.Labels = labels
 		pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
@@ -524,7 +543,7 @@ func (r *AgentConfigReconciler) bindPVWithPluginPVC(ctx context.Context, log log
 }
 
 // deleteTemporaryPVC deletes the persistent volume claim created by the agent action controller.
-func (r *AgentConfigReconciler) deleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) deleteTemporaryPVC(ctx context.Context, log logr.Logger, tempPVC *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter) error {
 	hasFinalizer := controllerutil.ContainsFinalizer(tempPVC, "kubernetes.io/pvc-protection")
 	if hasFinalizer {
 		log.V(Log4Debug).Info("Starting to remove finalizers from temporary pvc.", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace)
@@ -545,7 +564,7 @@ func (r *AgentConfigReconciler) deleteTemporaryPVC(ctx context.Context, log logr
 	return nil
 }
 
-func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (bool, error) {
+func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (bool, error) {
 
 	if !isDeleted(agentCfg) {
 		return false, nil
@@ -565,14 +584,14 @@ func (r *AgentConfigReconciler) isDeleteProcessed(ctx context.Context, log logr.
 	return true, nil
 }
 
-func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (readyPVC *corev1.PersistentVolumeClaim, tempPVC *corev1.PersistentVolumeClaim, err error) {
+func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (readyPVC *corev1.PersistentVolumeClaim, tempPVC *corev1.PersistentVolumeClaim, err error) {
 	results := &corev1.PersistentVolumeClaimList{}
-	err = r.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.GetPluginsLabels()))
+	err = r.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))
 	if err != nil && !apierrors.IsNotFound(err) {
 		return nil, nil, err
 	}
 
-	hashedName := agentCfg.GetPluginsPVCName()
+	hashedName := agentCfg.Spec.Plugins.GetPVCName(agentCfg.Namespace)
 	for _, item := range results.Items {
 		item := item
 		if item.Name == hashedName {
@@ -583,7 +602,7 @@ func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log l
 
 		if annotation := item.GetAnnotations(); annotation != nil {
 			hash, ok := annotation[porterv1.AnnotationAgentCfgPluginsHash]
-			if ok && hash == agentCfg.GetPluginsPVCName() {
+			if ok && hash == hashedName {
 				tempPVC = &item
 				log.V(Log4Debug).Info("Temporary plugin persistent volume claims found", "persistentvolumeclaim", tempPVC.Name, "namespace", tempPVC.Namespace, "status", tempPVC.Status.Phase)
 			}
@@ -597,7 +616,7 @@ func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log l
 	return readyPVC, tempPVC, nil
 }
 
-func checkPluginAndAgentReadiness(agentCfg *porterv1.AgentConfig, hashedPluginsPVC, tempPVC *corev1.PersistentVolumeClaim) (pvcReady bool, cfgReady bool) {
+func checkPluginAndAgentReadiness(agentCfg *porterv1.AgentConfigAdapter, hashedPluginsPVC, tempPVC *corev1.PersistentVolumeClaim) (pvcReady bool, cfgReady bool) {
 	if hashedPluginsPVC != nil && tempPVC == nil && !isDeleted(agentCfg) {
 		cfgReady = agentCfg.Status.Phase == porterv1.PhaseSucceeded
 		pvcReady = hashedPluginsPVC.Status.Phase == corev1.ClaimBound
@@ -606,7 +625,7 @@ func checkPluginAndAgentReadiness(agentCfg *porterv1.AgentConfig, hashedPluginsP
 	return pvcReady, cfgReady
 }
 
-func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig, readyPVC *corev1.PersistentVolumeClaim) (bool, error) {
+func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter, readyPVC *corev1.PersistentVolumeClaim) (bool, error) {
 	// update readyPVC to include this agentCfg in its ownerRference so when a delete happens, we know other agentCfg is still using this pvc
 	if _, exist := containOwner(readyPVC.OwnerReferences, agentCfg); !exist {
 		err := controllerutil.SetOwnerReference(agentCfg, readyPVC, r.Scheme)
@@ -641,27 +660,7 @@ func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log lo
 	return false, nil
 }
 
-// QA: if we manually set a default plugin when no plugins are defined on an agent config, we run into issues when different levels of agent config is merged together in `resolveAgentConfig`
-// Currently, the MergeConfig will only merge non-empty field, meaning if no plugins defined on an agent config, it will not override the previous one.
-// By always setting a default plugin when none is defined, a user may expect to inherent namespace level agent config when it's override agent config has no plugins defined. However,
-// due to the default value, it will not inherent namespace level plugins configuration.
-// Is that an ok thing?
-func setDefaultPlugins(agentCfg *porterv1.AgentConfig) bool {
-	var shouldUpdate bool
-	numOfPlugins := len(agentCfg.Spec.Plugins)
-	if numOfPlugins == 0 {
-		plugins := porterv1.DefaultPlugins
-		agentCfg.Spec.Plugins = plugins
-		shouldUpdate = true
-	}
-	if numOfPlugins > 1 {
-		agentCfg.Spec.Plugins = agentCfg.Spec.Plugins[:1]
-		shouldUpdate = true
-	}
-	return shouldUpdate
-}
-
-func containOwner(owners []metav1.OwnerReference, agentCfg *porterv1.AgentConfig) (int, bool) {
+func containOwner(owners []metav1.OwnerReference, agentCfg *porterv1.AgentConfigAdapter) (int, bool) {
 	for i, owner := range owners {
 		if owner.APIVersion == agentCfg.APIVersion && owner.Kind == agentCfg.Kind && owner.Name == agentCfg.Name {
 			return i, true
@@ -677,17 +676,11 @@ func removeOwnerByIdx(s []metav1.OwnerReference, index int) []metav1.OwnerRefere
 	return append(ret, s[index+1:]...)
 }
 
-func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfig) (bool, error) {
-	// TODO: once porter has ability to install multiple plugins with one command, we will allow users
-	// to install multiple plugins. Currently, only the first item defined in the plugin list will be
-	// installed.
-	updatedCfg := setDefaultPlugins(agentCfg)
-	if updatedCfg {
-		err := r.Update(ctx, agentCfg)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
+func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (bool, error) {
+	if agentCfg.Spec.Plugins.IsZero() && !agentCfg.Status.Ready {
+		agentCfg.Status.Ready = true
+		err := r.saveStatus(ctx, log, agentCfg)
+		return true, err
 	}
 
 	readyPVC, tempPVC, err := r.getExistingPluginPVCs(ctx, log, agentCfg)
@@ -714,7 +707,7 @@ func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log
 	return false, nil
 }
 
-func (r *AgentConfigReconciler) renamePluginVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg *porterv1.AgentConfig) error {
+func (r *AgentConfigReconciler) renamePluginVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg *porterv1.AgentConfigAdapter) error {
 	// if the plugin install action is not finished, we need to wait for it before acting further
 	if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
 		log.V(Log4Debug).Info("Plugins is not ready yet.", "action status", action.Status)

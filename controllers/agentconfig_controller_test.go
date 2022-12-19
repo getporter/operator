@@ -33,13 +33,20 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	name := "mybuns"
 	testAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
+		Spec: porterv1.AgentConfigSpec{
+			Plugins: map[string]porterv1.Plugin{"kubernetes": {}},
+		},
 	}
 	testdata := []client.Object{
 		testAgentCfg,
 	}
 	controller := setupAgentConfigController(testdata...)
 
-	var agentCfg porterv1.AgentConfig
+	var (
+		agentCfg     *porterv1.AgentConfigAdapter
+		agentCfgData porterv1.AgentConfig
+	)
+
 	triggerReconcile := func() {
 		fullname := types.NamespacedName{Namespace: namespace, Name: testAgentCfg.Name}
 		key := client.ObjectKey{Namespace: namespace, Name: testAgentCfg.Name}
@@ -51,10 +58,11 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, result.IsZero())
 
-		err = controller.Get(ctx, key, &agentCfg)
+		err = controller.Get(ctx, key, &agentCfgData)
 		if !apierrors.IsNotFound(err) {
 			require.NoError(t, err)
 		}
+		agentCfg = porterv1.NewAgentConfigAdapter(agentCfgData)
 	}
 
 	triggerReconcile()
@@ -63,12 +71,8 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
 
 	triggerReconcile()
-	var foundDefaultPlugin bool
-	for _, p := range agentCfg.Spec.Plugins {
-		foundDefaultPlugin = p.Name == "kubernetes"
-	}
-	// Verify the agent config has the default plugin set
-	require.True(t, foundDefaultPlugin)
+	_, ok := agentCfg.Spec.Plugins.GetByName("kubernetes")
+	require.True(t, ok)
 
 	triggerReconcile()
 
@@ -151,7 +155,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pluginsPV))
 	pluginLabels, exists := pluginsPV.Labels[porterv1.LabelPlugins]
 	require.True(t, exists)
-	require.Equal(t, agentCfg.Spec.GetPluginsLabels()[porterv1.LabelPlugins], pluginLabels)
+	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPlugins], pluginLabels)
 	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
 	require.True(t, exists)
 	require.Equal(t, agentCfg.Name, rn)
@@ -177,7 +181,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
 	readonlyMany := []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
 	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
-	matchLables := agentCfg.Spec.GetPluginsLabels()
+	matchLables := agentCfg.Spec.Plugins.GetLabels()
 	matchLables[porterv1.LabelResourceName] = agentCfg.Name
 	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
 
@@ -202,8 +206,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionFailed)))
 
 	// Edit the agent config spec
-	agentCfg.Generation = 2
-	require.NoError(t, controller.Update(ctx, &agentCfg))
+	agentCfgData.Generation = 2
+	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"azure": {}}
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
 
 	triggerReconcile()
 
@@ -211,13 +216,14 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, int64(2), agentCfg.Status.ObservedGeneration)
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
+	assert.False(t, agentCfg.Status.Ready)
 
 	triggerReconcile()
 
 	// Retry the last action
 	lastAction := agentCfg.Status.Action.Name
 	agentCfg.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
-	require.NoError(t, controller.Update(ctx, &agentCfg))
+	require.NoError(t, controller.Update(ctx, &agentCfg.AgentConfig))
 
 	triggerReconcile()
 
@@ -233,12 +239,21 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
 
+	agentCfgData.Generation = 3
+	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"kubernetes": {}}
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was re-initialized
+	assert.True(t, agentCfg.Status.Ready)
+
 	// Delete the agent config (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
 	// The fake client doesn't really follow finalizer logic
 	now := metav1.NewTime(time.Now())
-	agentCfg.Generation = 3
+	agentCfg.Generation = 4
 	agentCfg.DeletionTimestamp = &now
-	require.NoError(t, controller.Update(ctx, &agentCfg))
+	require.NoError(t, controller.Update(ctx, &agentCfg.AgentConfig))
 	triggerReconcile()
 
 	// remove the agent config from the pvc's owner reference list
@@ -252,7 +267,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// this trigger will then remove the agent config's finalizer
 	triggerReconcile()
 	// Verify that the agent config was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg), &agentCfg)
+	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
 	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
 
 	// Verify that reconcile doesn't error out after it's deleted
@@ -280,18 +295,19 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 			},
 		},
 		Spec: porterv1.AgentConfigSpec{
-			Plugins:    []porterv1.Plugin{{Name: "test", Version: "v1.2.3"}},
+			Plugins:    map[string]porterv1.Plugin{"test": {Version: "v1.2.3"}},
 			VolumeSize: "64Mi",
 		},
 	}
+	wrapper := porterv1.NewAgentConfigAdapter(*agentCfg)
 	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
-	lables := agentCfg.Spec.GetPluginsLabels()
+	lables := wrapper.Spec.Plugins.GetLabels()
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: agentCfg.Name + "-",
 			Namespace:    agentCfg.Namespace,
 			Labels:       lables,
-			Annotations:  agentCfg.GetPluginsPVCNameAnnotation(),
+			Annotations:  wrapper.GetPluginsPVCNameAnnotation(),
 			OwnerReferences: []metav1.OwnerReference{
 				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
 					APIVersion:         agentCfg.APIVersion,
@@ -307,7 +323,7 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 			Resources: corev1.ResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
-					corev1.ResourceStorage: agentCfg.Spec.GetVolumeSize(),
+					corev1.ResourceStorage: wrapper.Spec.GetVolumeSize(),
 				},
 			},
 		},
@@ -334,7 +350,7 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	// the pvc controller should have updated the pvc with the pvc-protection finalizer
 	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
 	controller := setupAgentConfigController(pvc, pv)
-	action, err := controller.createAgentAction(ctx, logr.Discard(), pvc, agentCfg, nil)
+	action, err := controller.createAgentAction(ctx, logr.Discard(), pvc, wrapper, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "test", action.Namespace)
 	assert.Contains(t, action.Name, "myblog-")
@@ -363,34 +379,6 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	assert.Equal(t, action.Spec.VolumeMounts[0].Name, porterv1.VolumePorterPluginsName, "incorrect VolumeMounts")
 	assert.Equal(t, action.Spec.VolumeMounts[0].MountPath, porterv1.VolumePorterPluginsPath, "incorrect VolumeMounts")
 	assert.Equal(t, action.Spec.VolumeMounts[0].SubPath, "plugins", "incorrect VolumeMounts")
-}
-
-func TestAgentConfigReconciler_setDefaultPlugins(t *testing.T) {
-	type expectedResult struct {
-		plugins porterv1.PluginList
-		updated bool
-	}
-	testcases := []struct {
-		name     string
-		plugins  porterv1.PluginList
-		expected expectedResult
-	}{
-		{name: "no custom plugins defined", expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
-		{name: "one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes", Version: "v1.2.3"}}, updated: false}},
-		{name: "one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "azure"}}, updated: false}},
-		{name: "more than one custom plugins defined", plugins: []porterv1.Plugin{{Name: "azure"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "azure"}}, updated: true}},
-		{name: "more than one custom plugins defined with default value", plugins: []porterv1.Plugin{{Name: "kubernetes"}, {Name: "hashicorp"}}, expected: expectedResult{plugins: []porterv1.Plugin{{Name: "kubernetes"}}, updated: true}},
-	}
-
-	for _, tc := range testcases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			testAgentCfg := &porterv1.AgentConfig{Spec: porterv1.AgentConfigSpec{Plugins: tc.plugins}}
-			updated := setDefaultPlugins(testAgentCfg)
-			require.Equal(t, tc.expected.updated, updated)
-			require.Equal(t, tc.expected.plugins, testAgentCfg.Spec.Plugins)
-		})
-	}
 }
 
 func setupAgentConfigController(objs ...client.Object) AgentConfigReconciler {

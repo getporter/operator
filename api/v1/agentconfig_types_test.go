@@ -9,37 +9,42 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func TestAgentConfigSpec_GetPorterImage(t *testing.T) {
+func TestAgentConfigSpecAdapter_GetPorterImage(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
-		c := AgentConfigSpec{}
+		c := AgentConfigSpecAdapter{}
 		assert.Equal(t, DefaultPorterAgentRepository+":"+DefaultPorterAgentVersion, c.GetPorterImage())
 	})
 
 	t.Run("porter version set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterVersion: "canary"}
-		assert.Equal(t, DefaultPorterAgentRepository+":canary", c.GetPorterImage())
+		cl := NewAgentConfigSpecAdapter(c)
+
+		assert.Equal(t, DefaultPorterAgentRepository+":canary", cl.GetPorterImage())
 	})
 
 	t.Run("porter repository set", func(t *testing.T) {
 		// Test if someone has mirrored porter's agent to another registry
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter"}
-		assert.Equal(t, "localhost:5000/myporter:"+DefaultPorterAgentVersion, c.GetPorterImage())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "localhost:5000/myporter:"+DefaultPorterAgentVersion, cl.GetPorterImage())
 	})
 
 	t.Run("porter repository and version set", func(t *testing.T) {
 		c := AgentConfigSpec{PorterRepository: "localhost:5000/myporter", PorterVersion: "v1.2.3"}
-		assert.Equal(t, "localhost:5000/myporter:v1.2.3", c.GetPorterImage())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "localhost:5000/myporter:v1.2.3", cl.GetPorterImage())
 	})
 
 	t.Run("digest set", func(t *testing.T) {
 		c := AgentConfigSpec{
 			PorterVersion: "sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da",
 		}
-		assert.Equal(t, DefaultPorterAgentRepository+"@sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da", c.GetPorterImage())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, DefaultPorterAgentRepository+"@sha256:ea7d328dc6b65e4b62a971ba8436f89d5857c2878c211312aaa5e2db2e47a2da", cl.GetPorterImage())
 	})
 }
 
-func TestAgentConfigSpec_GetPullPolicy(t *testing.T) {
+func TestAgentConfigSpecAdapter_GetPullPolicy(t *testing.T) {
 	testcases := map[string]v1.PullPolicy{
 		"":       v1.PullIfNotPresent,
 		"latest": v1.PullAlways,
@@ -50,62 +55,106 @@ func TestAgentConfigSpec_GetPullPolicy(t *testing.T) {
 	for version, wantPullPolicy := range testcases {
 		t.Run("version "+version, func(t *testing.T) {
 			c := AgentConfigSpec{PorterVersion: version}
-			assert.Equal(t, wantPullPolicy, c.GetPullPolicy())
+			cl := NewAgentConfigSpecAdapter(c)
+			assert.Equal(t, wantPullPolicy, cl.GetPullPolicy())
 		})
 
 	}
 }
 
-func TestAgentConfigSpec_GetVolumeSize(t *testing.T) {
+func TestAgentConfigSpecAdapter_GetVolumeSize(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Equal(t, resource.MustParse("64Mi"), c.GetVolumeSize())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, resource.MustParse("64Mi"), cl.GetVolumeSize())
 	})
 
 	t.Run("quantity set", func(t *testing.T) {
 		qty := resource.MustParse("128Mi")
 		c := AgentConfigSpec{VolumeSize: "128Mi"}
-		assert.Equal(t, qty, c.GetVolumeSize())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, qty, cl.GetVolumeSize())
 	})
 }
 
-func TestAgentConfigSpec_GetPVCName(t *testing.T) {
+func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 	t.Run("no plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Empty(t, c.GetPluginsPVCName("default"))
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Empty(t, cl.GetPluginsPVCName("default"))
 	})
 
-	t.Run("plugins defined", func(t *testing.T) {
+	t.Run("one plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{
-			Plugins: []Plugin{
-				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: map[string]Plugin{
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
-		assert.Equal(t, "porter-922e7fa0a39ba2abcc6456da47290a00", c.GetPluginsPVCName("default"))
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "porter-922e7fa0a39ba2abcc6456da47290a00", cl.GetPluginsPVCName("default"))
+	})
+
+	t.Run("multiple plugins defined", func(t *testing.T) {
+		c := AgentConfigSpec{
+			Plugins: map[string]Plugin{
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
+				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+			},
+		}
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "porter-c5f38cf969f470e9c1e2890ae77d0452", cl.GetPluginsPVCName("default"))
+
+		// change the order of the plugins should not affect the name output.
+		c2 := AgentConfigSpec{
+			Plugins: map[string]Plugin{
+				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
+				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			},
+		}
+		cl2 := NewAgentConfigSpecAdapter(c2)
+		assert.Equal(t, "porter-c5f38cf969f470e9c1e2890ae77d0452", cl2.GetPluginsPVCName("default"))
 	})
 }
 
-func TestAgentConfigSpec_GetPluginsLabels(t *testing.T) {
+func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 	t.Run("no plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{}
-		assert.Nil(t, c.GetPluginsLabels())
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Nil(t, cl.Plugins.GetLabels())
 	})
 
-	t.Run("plugins defined", func(t *testing.T) {
+	t.Run("one plugin defined", func(t *testing.T) {
 		onePluginCfg := AgentConfigSpec{
-			Plugins: []Plugin{
-				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: map[string]Plugin{
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0"}, onePluginCfg.GetPluginsLabels())
+		cl := NewAgentConfigSpecAdapter(onePluginCfg)
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0"}, cl.Plugins.GetLabels())
+	})
 
+	t.Run("multiple plugins defined", func(t *testing.T) {
 		multiplePluginsCfg := AgentConfigSpec{
-			Plugins: []Plugin{
-				{Name: "kubernetes", Version: "v1.0.0", FeedURL: "https://test"},
-				{Name: "azure", Version: "v1.2.0", FeedURL: "https://test1"},
+			Plugins: map[string]Plugin{
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				"azure":      {Version: "v1.2.0", FeedURL: "https://test1"},
+				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0_azure_v1.2.0"}, multiplePluginsCfg.GetPluginsLabels())
+		mcl := NewAgentConfigSpecAdapter(multiplePluginsCfg)
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_v1.2.0_hashicorp_v1.0.0_kubernetes_v1.0.0"}, mcl.Plugins.GetLabels())
+
+		multiplePluginsCfgWithDifferentOrder := AgentConfigSpec{
+			Plugins: map[string]Plugin{
+				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+				"azure":      {Version: "v1.2.0", FeedURL: "https://test1"},
+				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			},
+		}
+		mclWithDifferentOrder := NewAgentConfigSpecAdapter(multiplePluginsCfgWithDifferentOrder)
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_v1.2.0_hashicorp_v1.0.0_kubernetes_v1.0.0"}, mclWithDifferentOrder.Plugins.GetLabels())
 	})
 }
 
@@ -133,7 +182,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
-			Plugins:                    PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}},
+			Plugins:                    map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}},
 		}
 
 		instConfig := AgentConfigSpec{
@@ -153,6 +202,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
-		assert.Equal(t, PluginList{Plugin{Name: "test-plugin", FeedURL: "localhost:5000"}}, config.Plugins)
+		assert.Equal(t, map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}}, config.Plugins)
 	})
 }

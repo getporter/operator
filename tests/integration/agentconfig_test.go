@@ -25,25 +25,26 @@ var _ = Describe("AgentConfig delete", func() {
 				agentCfg := NewTestAgentCfg()
 				agentCfg.Namespace = ns
 
-				Expect(k8sClient.Create(ctx, agentCfg)).Should(Succeed())
-				Expect(waitForPorter(ctx, agentCfg, 1, "waiting for plugins to be installed")).Should(Succeed())
+				Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
+				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 1, "waiting for plugins to be installed")).Should(Succeed())
 				validateResourceConditions(agentCfg)
-				Expect(len(agentCfg.Spec.Plugins)).To(Equal(1))
+				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
 
 				Log("verify it's created")
 				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, []string{"plugins", "list", "-o", "json"})
 				firstName := gjson.Get(jsonOut, "0.name").String()
 				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
 				Expect(int64(1)).To(Equal(numPluginsInstalled))
-				Expect(agentCfg.Spec.Plugins[0].Name).To(Equal(firstName))
+				_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
+				Expect(ok).To(BeTrue())
 
 				Log("delete a agent config")
-				Expect(k8sClient.Delete(ctx, agentCfg)).Should(Succeed())
-				Expect(waitForResourceDeleted(ctx, agentCfg)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, &agentCfg.AgentConfig)).Should(Succeed())
+				Expect(waitForResourceDeleted(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 
 				Log("verify persistent volums and claims no longer has the agent config in their owner reference")
 				results := &corev1.PersistentVolumeClaimList{}
-				Expect(k8sClient.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.GetPluginsLabels()))).Should(Succeed())
+				Expect(k8sClient.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))).Should(Succeed())
 				for _, pvc := range results.Items {
 					for _, ow := range pvc.OwnerReferences {
 						if ow.Kind == "AgentConfig" {
@@ -67,8 +68,8 @@ var _ = Describe("AgentConfig delete", func() {
 })
 
 // NewTestCredSet minimal CredentialSet CRD for tests
-func NewTestAgentCfg() *porterv1.AgentConfig {
-	cs := &porterv1.AgentConfig{
+func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
+	cs := porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "porter.sh/v1",
 			Kind:       "AgentConfig",
@@ -77,10 +78,10 @@ func NewTestAgentCfg() *porterv1.AgentConfig {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.AgentConfigSpec{
-			Plugins: []porterv1.Plugin{
-				{Name: "kubernetes"},
+			Plugins: map[string]porterv1.Plugin{
+				"kubernetes": {},
 			},
 		},
 	}
-	return cs
+	return porterv1.NewAgentConfigAdapter(cs)
 }

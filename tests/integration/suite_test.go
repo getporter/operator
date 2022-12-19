@@ -197,7 +197,7 @@ func createTestNamespace(ctx context.Context) string {
 			PorterVersion:              agentVersion,
 			ServiceAccount:             svc.Name,
 			InstallationServiceAccount: "installation-agent",
-			Plugins:                    porterv1.PluginList{porterv1.Plugin{Name: "kubernetes", FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.0-rc.1"}},
+			Plugins:                    map[string]porterv1.Plugin{"kubernetes": {FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.0"}},
 		},
 	}
 	Expect(k8sClient.Create(ctx, agentCfg)).To(Succeed())

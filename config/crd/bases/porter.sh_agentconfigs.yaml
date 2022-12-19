@@ -45,16 +45,15 @@ spec:
                   in.
                 type: string
               plugins:
-                items:
+                additionalProperties:
+                  description: Plugin represents the plugin configuration.
                   properties:
                     feedUrl:
-                      type: string
-                    name:
                       type: string
                     version:
                       type: string
                   type: object
-                type: array
+                type: object
               porterRepository:
                 description: PorterRepository is the repository for the Porter Agent
                   image. Defaults to ghcr.io/getporter/porter-agent
@@ -172,6 +171,9 @@ spec:
                 description: 'The current status of the agent. Possible values are:
                   Unknown, Pending, Running, Succeeded, and Failed.'
                 type: string
+              ready:
+                description: The current status of the .
+                type: boolean
             type: object
         type: object
     served: true

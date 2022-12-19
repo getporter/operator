@@ -239,7 +239,7 @@ func (r *AgentActionReconciler) getSharedAgentLabels(action *porterv1.AgentActio
 	return labels
 }
 
-func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec) (*corev1.PersistentVolumeClaim, error) {
+func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter) (*corev1.PersistentVolumeClaim, error) {
 	labels := r.getSharedAgentLabels(action)
 	var results corev1.PersistentVolumeClaimList
 	if err := r.List(ctx, &results, client.InNamespace(action.Namespace), client.MatchingLabels(labels)); err != nil {
@@ -351,11 +351,11 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 }
 
 // creates a secret for the porter configuration directory
-func (r *AgentActionReconciler) getImagePullSecret(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec) (*corev1.Secret, error) {
+func (r *AgentActionReconciler) getImagePullSecret(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter) (*corev1.Secret, error) {
 
 	installationSvcAccountName := "default"
-	if agentCfg.InstallationServiceAccount != "" {
-		installationSvcAccountName = agentCfg.InstallationServiceAccount
+	if agentCfg.InstallationServiceAccount() != "" {
+		installationSvcAccountName = agentCfg.InstallationServiceAccount()
 	}
 
 	log.V(Log4Debug).Info("checking service accounts for image pull secrets", "installation_service_account", installationSvcAccountName, "action_name", action.Name, "action_namespace", action.Namespace)
@@ -392,7 +392,7 @@ func (r *AgentActionReconciler) getAgentJobLabels(action *porterv1.AgentAction) 
 }
 
 func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Logger,
-	action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec,
+	action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter,
 	pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) (batchv1.Job, error) {
 
 	// not checking for an existing job because that happens earlier during reconcile
@@ -442,7 +442,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 					},
 					Volumes:            volumes,
 					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
-					ServiceAccountName: agentCfg.ServiceAccount,
+					ServiceAccountName: agentCfg.ServiceAccount(),
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 					SecurityContext: &corev1.PodSecurityContext{
 						// Run as the well-known nonroot user that Porter uses for the invocation image and the agent
@@ -465,7 +465,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 	return porterJob, nil
 }
 
-func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) (porterv1.AgentConfigSpec, error) {
+func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) (porterv1.AgentConfigSpecAdapter, error) {
 	log.V(Log5Trace).Info("Resolving porter agent configuration")
 
 	logConfig := func(level string, config *porterv1.AgentConfig) {
@@ -485,7 +485,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	systemCfg := &porterv1.AgentConfig{}
 	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
+		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
 	isCfgReady = err == nil && systemCfg.Status.Ready
 	logConfig("system", systemCfg)
@@ -494,7 +494,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	nsCfg := &porterv1.AgentConfig{}
 	err = r.Get(ctx, types.NamespacedName{Name: "default", Namespace: action.Namespace}, nsCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return porterv1.AgentConfigSpec{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
+		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
 	}
 	isCfgReady = err == nil && nsCfg.Status.Ready
 	logConfig("namespace", nsCfg)
@@ -504,7 +504,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	if action.Spec.AgentConfig != nil {
 		err = r.Get(ctx, types.NamespacedName{Name: action.Spec.AgentConfig.Name, Namespace: action.Namespace}, instCfg)
 		if err != nil && !apierrors.IsNotFound(err) {
-			return porterv1.AgentConfigSpec{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
+			return porterv1.AgentConfigSpecAdapter{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
 		}
 		logConfig("instance", instCfg)
 		isCfgReady = err == nil && instCfg.Status.Ready
@@ -514,22 +514,23 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	base := &systemCfg.Spec
 	cfg, err := base.MergeConfig(nsCfg.Spec, instCfg.Spec)
 	if err != nil {
-		return porterv1.AgentConfigSpec{}, err
+		return porterv1.AgentConfigSpecAdapter{}, err
 	}
 
-	if !isCfgReady {
-		return porterv1.AgentConfigSpec{}, errors.New("resolved agent configuration is not ready to be used. Waiting for the next retry")
+	if !isCfgReady && !action.CreatedByAgentConfig() {
+		return porterv1.AgentConfigSpecAdapter{}, errors.New("resolved agent configuration is not ready to be used. Waiting for the next retry")
 	}
+	cfgList := porterv1.NewAgentConfigSpecAdapter(cfg)
 
 	log.V(Log4Debug).Info("resolved porter agent configuration",
-		"porterImage", cfg.GetPorterImage(),
-		"pullPolicy", cfg.GetPullPolicy(),
+		"porterImage", cfgList.GetPorterImage(),
+		"pullPolicy", cfgList.GetPullPolicy(),
 		"serviceAccount", cfg.ServiceAccount,
-		"volumeSize", cfg.GetVolumeSize(),
+		"volumeSize", cfgList.GetVolumeSize(),
 		"installationServiceAccount", cfg.InstallationServiceAccount,
 		"plugin", cfg.Plugins,
 	)
-	return cfg, nil
+	return cfgList, nil
 }
 
 func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) (porterv1.PorterConfigSpec, error) {
@@ -595,7 +596,7 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 	return cfg, nil
 }
 
-func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec, pvc *corev1.PersistentVolumeClaim) ([]corev1.EnvVar, []corev1.EnvFromSource) {
+func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter, pvc *corev1.PersistentVolumeClaim) ([]corev1.EnvVar, []corev1.EnvFromSource) {
 	sharedLabels := r.getSharedAgentLabels(action)
 
 	env := []corev1.EnvVar{
@@ -630,7 +631,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 		{
 			Name:  "SERVICE_ACCOUNT",
-			Value: agentCfg.InstallationServiceAccount,
+			Value: agentCfg.InstallationServiceAccount(),
 		},
 		{
 			Name:  "AFFINITY_MATCH_LABELS",
@@ -657,7 +658,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 	return env, envFrom
 }
 
-func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpec, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
+func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter, pvc *corev1.PersistentVolumeClaim, configSecret *corev1.Secret, workdirSecret *corev1.Secret, imgPullSecret *corev1.Secret) ([]corev1.Volume, []corev1.VolumeMount) {
 	volumes := []corev1.Volume{
 		{
 			Name: porterv1.VolumePorterSharedName,

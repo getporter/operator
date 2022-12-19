@@ -156,59 +156,6 @@ func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 	}
 }
 
-func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
-	ctx := context.Background()
-
-	testcases := []struct {
-		name            string
-		data            []client.Object
-		expectedErr     error
-		expectedPlugins porterv1.PluginList
-	}{
-		{
-			name: "successful", data: []client.Object{
-				&porterv1.AgentConfig{
-					ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
-					Spec: porterv1.AgentConfigSpec{
-						Plugins: []porterv1.Plugin{{Name: ""}},
-					},
-				},
-				&porterv1.AgentConfig{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "agent-config"},
-				},
-				&porterv1.AgentAction{
-					ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "agent-config", Generation: 1},
-					Spec: porterv1.AgentActionSpec{
-						AgentConfig: &corev1.LocalObjectReference{Name: actionAgentCfg.Name},
-					},
-				},
-			},
-		},
-	}
-	testdata := []client.Object{
-		action,
-		&porterv1.AgentConfig{
-			ObjectMeta: metav1.ObjectMeta{Namespace: operatorNamespace, Name: "default"},
-			Spec: porterv1.AgentConfigSpec{
-				Plugins: []porterv1.Plugin{{Name: ""}},
-			},
-		},
-		&porterv1.AgentConfig{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default"},
-			Status:     porterv1.AgentConfigStatus{Ready: true},
-			Spec: porterv1.AgentConfigSpec{
-				Plugins: []porterv1.Plugin{{Name: "kubernetes"}},
-			},
-		},
-		actionAgentCfg,
-	}
-	controller := setupAgentActionController(testdata...)
-
-	resolved, err := controller.resolveAgentConfig(ctx, logr.Discard(), action)
-	require.NoError(t, err)
-	require.Equal(t, "kubernetes", resolved.Plugins[0].Name)
-}
-
 func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	// long test is long
 	// Run through a full resource lifecycle: create, update, delete
@@ -440,7 +387,8 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 				err := controller.Client.Create(context.Background(), existingPvc)
 				require.NoError(t, err)
 			}
-			pvc, err := controller.createAgentVolume(context.Background(), logr.Discard(), action, agentCfg)
+			spec := porterv1.NewAgentConfigSpecAdapter(agentCfg)
+			pvc, err := controller.createAgentVolume(context.Background(), logr.Discard(), action, spec)
 			require.NoError(t, err)
 
 			// Verify the pvc properties
@@ -808,16 +756,18 @@ func testAgentAction() *porterv1.AgentAction {
 		},
 	}
 }
-func testAgentCfgSpec() porterv1.AgentConfigSpec {
-	return porterv1.AgentConfigSpec{
+func testAgentCfgSpec() porterv1.AgentConfigSpecAdapter {
+	spec := porterv1.AgentConfigSpec{
 		VolumeSize:                 "128Mi",
 		PorterRepository:           "getporter/custom-agent",
 		PorterVersion:              "v1.0.0",
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
-		Plugins:                    []porterv1.Plugin{{Name: "kubernetes"}},
+		Plugins:                    map[string]porterv1.Plugin{"kubernetes": {}},
 	}
+
+	return porterv1.NewAgentConfigSpecAdapter(spec)
 }
 
 func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T) {
