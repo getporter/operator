@@ -42,7 +42,7 @@ var _ = Describe("AgentConfig delete", func() {
 				Expect(k8sClient.Delete(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 				Expect(waitForResourceDeleted(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 
-				Log("verify persistent volums and claims no longer has the agent config in their owner reference")
+				Log("verify persistent volume and claim no longer has the agent config in their owner reference")
 				results := &corev1.PersistentVolumeClaimList{}
 				Expect(k8sClient.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))).Should(Succeed())
 				for _, pvc := range results.Items {

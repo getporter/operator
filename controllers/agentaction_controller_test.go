@@ -883,6 +883,39 @@ func TestAgentActionReconciler_getAgentVolumes_agentconfigaction(t *testing.T) {
 	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
 	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
 }
+
+func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
+	systemCfg := porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: operatorNamespace},
+		Status: porterv1.AgentConfigStatus{
+			Ready: true,
+		},
+		Spec: porterv1.AgentConfigSpec{
+			PorterVersion: "v1.0",
+		},
+	}
+	actionWithOverride := testAgentAction()
+	overrideCfg := porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: actionWithOverride.Namespace},
+		Status: porterv1.AgentConfigStatus{
+			Ready: false,
+		},
+		Spec: porterv1.AgentConfigSpec{
+			PorterVersion: "v2",
+		},
+	}
+	actionWithOverride.Spec.AgentConfig = &corev1.LocalObjectReference{Name: overrideCfg.Name}
+	actionWithNoOverride := testAgentAction()
+	actionWithNoOverride.Name = "no override"
+	controller := setupAgentActionController(&systemCfg, &overrideCfg, actionWithOverride, actionWithNoOverride)
+
+	_, err := controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithOverride)
+	require.ErrorContains(t, err, "resolved agent configuration is not ready to be used")
+
+	_, err = controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithNoOverride)
+	require.NoError(t, err)
+}
+
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {
 	assertContains(t, labels, porterv1.LabelManaged, "true", "incorrect label")
 	assertContains(t, labels, porterv1.LabelResourceKind, "AgentAction", "incorrect label")

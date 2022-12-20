@@ -493,21 +493,26 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	// Read agent configuration defined at the namespace level
 	nsCfg := &porterv1.AgentConfig{}
 	err = r.Get(ctx, types.NamespacedName{Name: "default", Namespace: action.Namespace}, nsCfg)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
+	if !apierrors.IsNotFound(err) {
+		if err != nil {
+			return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
+		}
+		isCfgReady = nsCfg.Status.Ready
 	}
-	isCfgReady = err == nil && nsCfg.Status.Ready
 	logConfig("namespace", nsCfg)
 
 	// Read agent configuration override
 	instCfg := &porterv1.AgentConfig{}
 	if action.Spec.AgentConfig != nil {
 		err = r.Get(ctx, types.NamespacedName{Name: action.Spec.AgentConfig.Name, Namespace: action.Namespace}, instCfg)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return porterv1.AgentConfigSpecAdapter{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
+		if !apierrors.IsNotFound(err) {
+			if err != nil {
+				return porterv1.AgentConfigSpecAdapter{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
+
+			}
+			isCfgReady = err == nil && instCfg.Status.Ready
 		}
 		logConfig("instance", instCfg)
-		isCfgReady = err == nil && instCfg.Status.Ready
 	}
 
 	// Apply overrides
