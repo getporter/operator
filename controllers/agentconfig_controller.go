@@ -628,7 +628,7 @@ func checkPluginAndAgentReadiness(agentCfg *porterv1.AgentConfigAdapter, hashedP
 func (r *AgentConfigReconciler) updateOwnerReference(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter, readyPVC *corev1.PersistentVolumeClaim) (bool, error) {
 	// update readyPVC to include this agentCfg in its ownerRference so when a delete happens, we know other agentCfg is still using this pvc
 	if _, exist := containOwner(readyPVC.OwnerReferences, agentCfg); !exist {
-		err := controllerutil.SetOwnerReference(agentCfg, readyPVC, r.Scheme)
+		err := controllerutil.SetOwnerReference(&agentCfg.AgentConfig, readyPVC, r.Scheme)
 		if err != nil {
 			return false, fmt.Errorf("failed to set owner reference: %w", err)
 		}
@@ -689,6 +689,7 @@ func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log
 	}
 	// Check to see if there is a plugin volume already has all the defined plugins installed
 	pluginReady, agentCfgReady := checkPluginAndAgentReadiness(agentCfg, readyPVC, tempPVC)
+	log.V(Log4Debug).Info("Existing volume and agent Status", "volume status", pluginReady, "agent status", agentCfgReady)
 	if pluginReady {
 
 		updated, err := r.updateOwnerReference(ctx, log, agentCfg, readyPVC)
@@ -699,8 +700,10 @@ func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log
 		if updated {
 			return true, nil
 		}
-		// if plugin is not ready, we just need to wait for it before we move forward
-	} else if agentCfgReady {
+	}
+
+	// if plugin is not ready, we just need to wait for it before we move forward
+	if agentCfgReady {
 		return true, nil
 	}
 
