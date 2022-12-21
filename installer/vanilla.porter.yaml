@@ -65,7 +65,7 @@ parameters:
   - name: mongodbChartVersion
     description: Version of the mongodb helm chart to install
     type: string
-    default: "12.1.15"
+    default: "12.1.16"
     applyTo:
       - install
 
