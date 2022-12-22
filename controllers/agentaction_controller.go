@@ -487,7 +487,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
-	isCfgReady = err == nil && systemCfg.Status.Ready
+	isCfgReady = (err == nil && systemCfg.Status.Ready)
 	logConfig("system", systemCfg)
 
 	// Read agent configuration defined at the namespace level
@@ -510,12 +510,15 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 				return porterv1.AgentConfigSpecAdapter{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
 
 			}
-			isCfgReady = err == nil && instCfg.Status.Ready
+			isCfgReady = instCfg.Status.Ready
 		}
 		logConfig("instance", instCfg)
 	}
 
 	// Apply overrides
+	// the merging logic here is each subsequent config will override the previous config.
+	// for example, if namespace Spec.Plugins is {"azure": {}, "hashicorp": {}} and installation Spec.Plugins is {"kubernetes": {}}
+	// the result of the merge will be {"kubernetes": {}}
 	base := &systemCfg.Spec
 	cfg, err := base.MergeConfig(nsCfg.Spec, instCfg.Spec)
 	if err != nil {

@@ -182,7 +182,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
-			Plugins:                    map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}},
+			Plugins:                    map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}},
 		}
 
 		instConfig := AgentConfigSpec{
@@ -192,6 +192,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
+			Plugins:                    map[string]Plugin{"azure": {FeedURL: "localhost:6000"}},
 		}
 
 		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
@@ -202,6 +203,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
-		assert.Equal(t, map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}}, config.Plugins)
+		assert.Equal(t, map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}, config.Plugins)
 	})
 }
