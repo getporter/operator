@@ -4,6 +4,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -181,6 +183,8 @@ func init() {
 // Plugin represents the plugin configuration.
 type Plugin struct {
 	FeedURL string `json:"feedUrl,omitempty" mapstructure:"feedURL,omitempty"`
+	URL     string `json:"url,omitempty" mapstructure:"url,omitempty"`
+	Mirror  string `json:"mirror,omitempty" mapstructure:"mirror,omitempty"`
 	Version string `json:"version,omitempty" mapstructure:"version,omitempty"`
 }
 
@@ -333,7 +337,12 @@ func (op PluginsConfigList) GetPVCName(namespace string) string {
 		input = append(input, []byte(k)...)
 		if p.FeedURL != "" {
 			input = append(input, []byte(p.FeedURL)...)
-
+		}
+		if p.URL != "" {
+			input = append(input, []byte(p.URL)...)
+		}
+		if p.Mirror != "" {
+			input = append(input, []byte(p.Mirror)...)
 		}
 		if p.Version != "" {
 			input = append(input, []byte(p.Version)...)
@@ -351,7 +360,8 @@ func (op PluginsConfigList) GetPVCName(namespace string) string {
 // as a label value and represents the plugin configuration used
 // to trigger reconciliation.
 // labels are restricted to alphanumeric and .-_
-// that's why the feedURL is not used.
+// therefore all URLs will be sanitized before using them as part of
+// the label.
 func (op PluginsConfigList) GetLabels() map[string]string {
 	if len(op.data) == 0 {
 		return nil
@@ -368,6 +378,15 @@ func (op PluginsConfigList) GetLabels() map[string]string {
 		}
 		plugins = append(plugins, fmt.Sprintf(format, k))
 
+		if p.FeedURL != "" {
+			plugins = append(plugins, fmt.Sprintf("_%s", cleanURL(p.FeedURL)))
+		}
+		if p.URL != "" {
+			plugins = append(plugins, fmt.Sprintf("_%s", cleanURL(p.URL)))
+		}
+		if p.Mirror != "" {
+			plugins = append(plugins, fmt.Sprintf("_%s", cleanURL(p.Mirror)))
+		}
 		if p.Version != "" {
 			plugins = append(plugins, fmt.Sprintf("_%s", p.Version))
 		}
@@ -383,4 +402,22 @@ func (op PluginsConfigList) GetLabels() map[string]string {
 // GetPVCNameAnnotation returns a string that's the hash using plugins spec and the AgentConfig's namespace.
 func (op PluginsConfigList) GetPVCNameAnnotation(namespace string) map[string]string {
 	return map[string]string{AnnotationAgentCfgPluginsHash: op.GetPVCName(namespace)}
+}
+
+func cleanURL(inputURL string) string {
+	var cleanURL string
+	u, err := url.Parse(inputURL)
+	if err == nil {
+		// Remove the scheme (e.g. "http", "https") from the URL
+		cleanURL = strings.Replace(u.String(), u.Scheme+"://", "", -1)
+	}
+
+	// Replace all non-alphanumeric, non-._- characters with an underscore
+	reg, err := regexp.Compile("[^a-zA-Z0-9._-]+")
+	if err != nil {
+		return ""
+	}
+	cleanURL = reg.ReplaceAllString(cleanURL, "_")
+
+	return cleanURL
 }

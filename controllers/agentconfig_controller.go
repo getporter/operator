@@ -246,6 +246,12 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 	for _, name := range agentCfg.Spec.Plugins.GetNames() {
 		installCmd = append(installCmd, name)
 		plugin, _ := agentCfg.Spec.Plugins.GetByName(name)
+		if plugin.Mirror != "" {
+			installCmd = append(installCmd, "--mirror", plugin.Mirror)
+		}
+		if plugin.URL != "" {
+			installCmd = append(installCmd, "--url", plugin.URL)
+		}
 		if plugin.FeedURL != "" {
 			installCmd = append(installCmd, "--feed-url", plugin.FeedURL)
 		}

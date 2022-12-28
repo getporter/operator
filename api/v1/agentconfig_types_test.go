@@ -98,8 +98,8 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 		c := AgentConfigSpec{
 			Plugins: map[string]Plugin{
 				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+				"azure":      {Version: "v1.0.0", URL: "https://test"},
+				"hashicorp":  {Version: "v1.0.0", Mirror: "https://test"},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(c)
@@ -109,8 +109,8 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 		c2 := AgentConfigSpec{
 			Plugins: map[string]Plugin{
 				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				"hashicorp":  {Version: "v1.0.0", URL: "https://test"},
+				"kubernetes": {Version: "v1.0.0", Mirror: "https://test"},
 			},
 		}
 		cl2 := NewAgentConfigSpecAdapter(c2)
@@ -132,29 +132,29 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(onePluginCfg)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_v1.0.0"}, cl.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_test_v1.0.0"}, cl.Plugins.GetLabels())
 	})
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
 		multiplePluginsCfg := AgentConfigSpec{
 			Plugins: map[string]Plugin{
 				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", FeedURL: "https://test1"},
+				"azure":      {Version: "v1.2.0", URL: "https://test1"},
 				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
 		mcl := NewAgentConfigSpecAdapter(multiplePluginsCfg)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_v1.2.0_hashicorp_v1.0.0_kubernetes_v1.0.0"}, mcl.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mcl.Plugins.GetLabels())
 
 		multiplePluginsCfgWithDifferentOrder := AgentConfigSpec{
 			Plugins: map[string]Plugin{
 				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", FeedURL: "https://test1"},
+				"azure":      {Version: "v1.2.0", URL: "https://test1"},
 				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
 			},
 		}
 		mclWithDifferentOrder := NewAgentConfigSpecAdapter(multiplePluginsCfgWithDifferentOrder)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_v1.2.0_hashicorp_v1.0.0_kubernetes_v1.0.0"}, mclWithDifferentOrder.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mclWithDifferentOrder.Plugins.GetLabels())
 	})
 }
 
