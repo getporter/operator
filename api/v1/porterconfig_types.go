@@ -91,12 +91,12 @@ func MergeMap(target, override map[string]interface{}) map[string]interface{} {
 
 // SecretsConfig is the plugin stanza for secrets.
 type SecretsConfig struct {
-	PluginConfig `json:",squash" yaml:",inline" mapstructure:",squash"`
+	PluginConfig `yaml:",inline" mapstructure:",squash"`
 }
 
 // StorageConfig is the plugin stanza for storage.
 type StorageConfig struct {
-	PluginConfig `json:",squash" yaml:",inline" mapstructure:",squash"`
+	PluginConfig `yaml:",inline" mapstructure:",squash"`
 }
 
 // PluginConfig is a standardized config stanza that defines which plugin to

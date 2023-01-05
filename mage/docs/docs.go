@@ -3,7 +3,6 @@ package docs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -70,7 +69,7 @@ func TriggerNetlifyDeployment(webhook string) error {
 
 	if r.StatusCode >= 300 {
 		defer r.Body.Close()
-		msg, _ := ioutil.ReadAll(r.Body)
+		msg, _ := io.ReadAll(r.Body)
 		return fmt.Errorf("request failed (%d) %s: %s", r.StatusCode, r.Status, msg)
 	}
 

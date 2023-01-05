@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -77,7 +76,7 @@ func addGopathBinOnGithubActions() error {
 
 	log.Println("Adding GOPATH/bin to the PATH for the GitHub Actions Agent")
 	gopathBin := gopath.GetGopathBin()
-	return ioutil.WriteFile(githubPath, []byte(gopathBin), 0644)
+	return os.WriteFile(githubPath, []byte(gopathBin), 0644)
 }
 
 // Ensure EnsureMage is installed and on the PATH.
@@ -91,6 +90,11 @@ func Fmt() {
 
 func Vet() {
 	must.RunV("go", "vet", "./...")
+}
+
+func Lint() {
+	tools.EnsureStaticCheck()
+	must.RunV("staticcheck", "./...")
 }
 
 // Build the controller and bundle.
@@ -428,7 +432,7 @@ func Bump(sample string) {
 
 	sampleFile := fmt.Sprintf("config/samples/%s.yaml", sample)
 
-	dataB, err := ioutil.ReadFile(sampleFile)
+	dataB, err := os.ReadFile(sampleFile)
 	mgx.Must(errors.Wrapf(err, "error reading installation definition %s", sampleFile))
 
 	updateRetry := fmt.Sprintf(`.metadata.annotations."porter.sh/retry" = "%s"`, time.Now().Format(time.RFC3339))
@@ -570,7 +574,7 @@ func useCluster() bool {
 		}
 		os.Setenv("KUBECONFIG", currentKubeConfig)
 
-		err := ioutil.WriteFile(kubeconfig, []byte(contents), 0644)
+		err := os.WriteFile(kubeconfig, []byte(contents), 0644)
 		mgx.Must(errors.Wrapf(err, "error writing %s", kubeconfig))
 
 		setClusterNamespace(operatorNamespace)
@@ -663,7 +667,7 @@ func BuildLocalPorterAgent() {
 
 // generatedCodeFilter remove generated code files from coverage report
 func generatedCodeFilter(filename string) error {
-	fd, err := ioutil.ReadFile(filename)
+	fd, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -677,7 +681,7 @@ func generatedCodeFilter(filename string) error {
 	}
 
 	fd = []byte(strings.Join(lines, "\n"))
-	err = ioutil.WriteFile(filename, fd, 0600)
+	err = os.WriteFile(filename, fd, 0600)
 	if err != nil {
 		return err
 	}
