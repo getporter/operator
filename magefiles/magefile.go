@@ -93,7 +93,7 @@ func Vet() {
 }
 
 func Lint() {
-	tools.EnsureStaticCheck()
+	mg.Deps(tools.EnsureStaticCheck)
 	must.RunV("staticcheck", "./...")
 }
 

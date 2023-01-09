@@ -165,17 +165,14 @@ func (r *AgentActionReconciler) applyJobToStatus(log logr.Logger, action *porter
 		setCondition(log, action, porterv1.ConditionStarted, "JobStarted")
 	}
 
-conditions:
 	for _, condition := range job.Status.Conditions {
 		switch condition.Type {
 		case batchv1.JobComplete:
 			action.Status.Phase = porterv1.PhaseSucceeded
 			setCondition(log, action, porterv1.ConditionComplete, "JobCompleted")
-			break conditions
 		case batchv1.JobFailed:
 			action.Status.Phase = porterv1.PhaseFailed
 			setCondition(log, action, porterv1.ConditionFailed, "JobFailed")
-			break conditions
 		}
 	}
 }
