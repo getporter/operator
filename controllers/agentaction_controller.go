@@ -170,11 +170,9 @@ func (r *AgentActionReconciler) applyJobToStatus(log logr.Logger, action *porter
 		case batchv1.JobComplete:
 			action.Status.Phase = porterv1.PhaseSucceeded
 			setCondition(log, action, porterv1.ConditionComplete, "JobCompleted")
-			break
 		case batchv1.JobFailed:
 			action.Status.Phase = porterv1.PhaseFailed
 			setCondition(log, action, porterv1.ConditionFailed, "JobFailed")
-			break
 		}
 	}
 }
@@ -628,9 +626,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 	}
 
-	for _, e := range action.Spec.Env {
-		env = append(env, e)
-	}
+	env = append(env, action.Spec.Env...)
 
 	envFrom := []corev1.EnvFromSource{
 		// Environment variables for the plugins
@@ -644,9 +640,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 	}
 
-	for _, e := range action.Spec.EnvFrom {
-		envFrom = append(envFrom, e)
-	}
+	envFrom = append(envFrom, action.Spec.EnvFrom...)
 
 	return env, envFrom
 }
@@ -714,13 +708,9 @@ func (r *AgentActionReconciler) getAgentVolumes(action *porterv1.AgentAction, pv
 		)
 	}
 
-	for _, volume := range action.Spec.Volumes {
-		volumes = append(volumes, volume)
-	}
+	volumes = append(volumes, action.Spec.Volumes...)
 
-	for _, mount := range action.Spec.VolumeMounts {
-		volumeMounts = append(volumeMounts, mount)
-	}
+	volumeMounts = append(volumeMounts, action.Spec.VolumeMounts...)
 
 	return volumes, volumeMounts
 }

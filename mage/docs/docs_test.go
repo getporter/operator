@@ -1,7 +1,6 @@
 package docs
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,9 +11,7 @@ import (
 
 func TestEnsurePorterRepository(t *testing.T) {
 	t.Run("has local repo", func(t *testing.T) {
-		tmp, err := ioutil.TempDir("", "porter-docs-test")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmp)
+		tmp := t.TempDir()
 
 		resolvedPath, err := ensurePorterRepositoryIn(tmp, "")
 		require.NoError(t, err)
@@ -22,9 +19,7 @@ func TestEnsurePorterRepository(t *testing.T) {
 	})
 
 	t.Run("missing local repo", func(t *testing.T) {
-		tmp, err := ioutil.TempDir("", "porter-docs-test")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmp)
+		tmp := t.TempDir()
 
 		resolvedPath, err := ensurePorterRepositoryIn("missing", tmp)
 		require.NoError(t, err)
@@ -32,19 +27,14 @@ func TestEnsurePorterRepository(t *testing.T) {
 	})
 
 	t.Run("local repo unset", func(t *testing.T) {
-		tmp, err := ioutil.TempDir("", "porter-docs-test")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmp)
-
+		tmp := t.TempDir()
 		resolvedPath, err := ensurePorterRepositoryIn("", tmp)
 		require.NoError(t, err)
 		require.Equal(t, tmp, resolvedPath)
 	})
 
 	t.Run("empty default path clones repo", func(t *testing.T) {
-		tmp, err := ioutil.TempDir("", "porter-docs-test")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmp)
+		tmp := t.TempDir()
 
 		resolvedPath, err := ensurePorterRepositoryIn("", tmp)
 		require.NoError(t, err)
@@ -55,9 +45,7 @@ func TestEnsurePorterRepository(t *testing.T) {
 	})
 
 	t.Run("changes in default path are reset", func(t *testing.T) {
-		tmp, err := ioutil.TempDir("", "porter-docs-test")
-		require.NoError(t, err)
-		defer os.RemoveAll(tmp)
+		tmp := t.TempDir()
 
 		repoPath, err := ensurePorterRepositoryIn("", tmp)
 		require.NoError(t, err)
@@ -67,7 +55,7 @@ func TestEnsurePorterRepository(t *testing.T) {
 		require.NoError(t, os.Remove(readme))
 
 		// Make sure rerunning resets the change
-		repoPath, err = ensurePorterRepositoryIn("", tmp)
+		_, err = ensurePorterRepositoryIn("", tmp)
 		require.NoError(t, err)
 		require.FileExists(t, readme)
 	})

@@ -19,6 +19,8 @@ jobs:
           cache-dependency-path: go.sum
       - name: Set up Mage
         run: go run mage.go EnsureMage
+      - name: VetLint
+        run: mage -v vet lint
       - name: Test
         run: mage -v Test
         env:
