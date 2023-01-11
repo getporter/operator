@@ -176,6 +176,7 @@ spec:
                   Unknown, Pending, Running, Succeeded, and Failed.'
                 type: string
               ready:
+                default: false
                 description: The current status of whether the AgentConfig is ready
                   to be used for an AgentAction.
                 type: boolean

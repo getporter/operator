@@ -9,7 +9,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -65,7 +64,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	agentCfg := porterv1.NewAgentConfigAdapter(*agentCfgData)
 
-	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration)
+	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration, "status", agentCfg.Status.Ready)
 	log.V(Log5Trace).Info("Reconciling agent config")
 
 	// Check if we have requested an agent run yet
@@ -263,6 +262,7 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 		// TODO: once porter has ability to install multiple plugins with one command, we will allow users
 		// to install multiple plugins. Currently, only the first item defined in the plugin list will be
 		// installed.
+		//lint:ignore SA4004 current implementation only support one plugin but we eventually will support multiple
 		break
 	}
 	action, err := r.createAgentAction(ctx, log, pvc, agentCfg, installCmd)
@@ -306,8 +306,8 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig:  agentCfgName,
 			Args:         args,
-			Volumes:      []v1.Volume{volumn},
-			VolumeMounts: []v1.VolumeMount{volumnMount},
+			Volumes:      []corev1.Volume{volumn},
+			VolumeMounts: []corev1.VolumeMount{volumnMount},
 		},
 	}
 
@@ -329,7 +329,6 @@ func (r *AgentConfigReconciler) syncStatus(ctx context.Context, log logr.Logger,
 	// if the spec changed, we need to reset the readiness of the agent config
 	if origStatus.Ready && origStatus.ObservedGeneration != agentCfg.Generation || agentCfg.Status.Phase != porterv1.PhaseSucceeded {
 		agentCfg.Status.Ready = false
-
 	}
 
 	if !reflect.DeepEqual(origStatus, agentCfg.Status) {

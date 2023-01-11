@@ -103,6 +103,7 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 type AgentConfigStatus struct {
 	PorterResourceStatus `json:",inline"`
 	// The current status of whether the AgentConfig is ready to be used for an AgentAction.
+	// +kubebuilder:default:=false
 	// +kubebuilder:validation:Type=boolean
 	Ready bool `json:"ready"`
 }
