@@ -103,6 +103,12 @@ var _ = BeforeSuite(func(done Done) {
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = (&controllers.AgentConfigReconciler{
+		Client: k8sManager.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("AgentConfig"),
+	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		err = k8sManager.Start(ctrl.SetupSignalHandler())
 		Expect(err).ToNot(HaveOccurred())
@@ -191,6 +197,7 @@ func createTestNamespace(ctx context.Context) string {
 			PorterVersion:              agentVersion,
 			ServiceAccount:             svc.Name,
 			InstallationServiceAccount: "installation-agent",
+			Plugins:                    map[string]porterv1.Plugin{"kubernetes": {FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.0"}},
 		},
 	}
 	Expect(k8sClient.Create(ctx, agentCfg)).To(Succeed())

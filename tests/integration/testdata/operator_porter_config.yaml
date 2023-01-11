@@ -1,6 +1,5 @@
-debug: true
-debug-plugins: true
 default-secrets: "kubernetes-secrets"
+verbosity: "debug"
 default-storage: "in-cluster-mongodb"
 storage:
   - name: "in-cluster-mongodb"

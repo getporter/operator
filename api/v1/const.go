@@ -40,6 +40,8 @@ const (
 	// Operator.
 	LabelManaged = Prefix + "managed"
 
+	LabelPluginsHash = Prefix + "plugins-hash"
+
 	// LabelResourceKind is a label applied to resources created by the Porter
 	// Operator, representing the kind of owning resource. It is used to help the
 	// operator determine if a resource has already been created.
@@ -97,4 +99,11 @@ const (
 	// VolumeImagePullSecretPath is the mount path of the volume containing for docker
 	// auth for image pull secrets.
 	VolumeImgPullSecretPath = "/home/nonroot"
+	// VolumePorterSharedName is the name of the volume shared between the porter
+	// agent and the invocation image.
+	VolumePorterPluginsName = "porter-plugins"
+
+	// VolumePorterConfigPath is the mount path of the volume containing Porter's
+	// config file.
+	VolumePorterPluginsPath = "/app/.porter/plugins"
 )

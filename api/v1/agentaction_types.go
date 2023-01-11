@@ -78,6 +78,17 @@ func (a *AgentAction) GetRetryLabelValue() string {
 	return getRetryLabelValue(a.Annotations)
 }
 
+// CreatedByAgentConfig checks if an AgentAction is running on behalf of an agent config.
+func (a *AgentAction) CreatedByAgentConfig() bool {
+	for _, ref := range a.GetOwnerReferences() {
+		if ref.Kind == KindAgentConfig {
+			return true
+		}
+	}
+
+	return false
+}
+
 // SetRetryAnnotation flags the resource to retry its last operation.
 func (a *AgentAction) SetRetryAnnotation(retry string) {
 	if a.Annotations == nil {
