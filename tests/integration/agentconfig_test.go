@@ -16,7 +16,7 @@ import (
 )
 
 var _ = Describe("AgentConfig delete", func() {
-	Context("when an existing AgentConfig is delete", func() {
+	Context("when an existing AgentConfig is deleted", func() {
 		It("should delete AgentConfig and remove owner reference from all volumes it's associated with", func() {
 			By("creating an agent action", func() {
 				ctx := context.Background()

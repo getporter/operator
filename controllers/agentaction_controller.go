@@ -354,8 +354,8 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 func (r *AgentActionReconciler) getImagePullSecret(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg porterv1.AgentConfigSpecAdapter) (*corev1.Secret, error) {
 
 	installationSvcAccountName := "default"
-	if agentCfg.InstallationServiceAccount() != "" {
-		installationSvcAccountName = agentCfg.InstallationServiceAccount()
+	if agentCfg.GetInstallationServiceAccount() != "" {
+		installationSvcAccountName = agentCfg.GetInstallationServiceAccount()
 	}
 
 	log.V(Log4Debug).Info("checking service accounts for image pull secrets", "installation_service_account", installationSvcAccountName, "action_name", action.Name, "action_namespace", action.Namespace)
@@ -442,7 +442,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 					},
 					Volumes:            volumes,
 					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
-					ServiceAccountName: agentCfg.ServiceAccount(),
+					ServiceAccountName: agentCfg.GetServiceAccount(),
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 					SecurityContext: &corev1.PodSecurityContext{
 						// Run as the well-known nonroot user that Porter uses for the invocation image and the agent
@@ -480,24 +480,19 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			"plugin", config.Spec.Plugins)
 	}
 
-	var isCfgReady bool
 	// Read agent configuration defined at the system level
 	systemCfg := &porterv1.AgentConfig{}
 	err := r.Get(ctx, types.NamespacedName{Name: "default", Namespace: operatorNamespace}, systemCfg)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
-	isCfgReady = (err == nil && systemCfg.Status.Ready)
 	logConfig("system", systemCfg)
 
 	// Read agent configuration defined at the namespace level
 	nsCfg := &porterv1.AgentConfig{}
 	err = r.Get(ctx, types.NamespacedName{Name: "default", Namespace: action.Namespace}, nsCfg)
-	if !apierrors.IsNotFound(err) {
-		if err != nil {
-			return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve namespace level porter agent configuration")
-		}
-		isCfgReady = nsCfg.Status.Ready
+	if err != nil && !apierrors.IsNotFound(err) {
+		return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 	}
 	logConfig("namespace", nsCfg)
 
@@ -505,12 +500,8 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	instCfg := &porterv1.AgentConfig{}
 	if action.Spec.AgentConfig != nil {
 		err = r.Get(ctx, types.NamespacedName{Name: action.Spec.AgentConfig.Name, Namespace: action.Namespace}, instCfg)
-		if !apierrors.IsNotFound(err) {
-			if err != nil {
-				return porterv1.AgentConfigSpecAdapter{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
-
-			}
-			isCfgReady = instCfg.Status.Ready
+		if err != nil && !apierrors.IsNotFound(err) {
+			return porterv1.AgentConfigSpecAdapter{}, errors.Wrap(err, "cannot retrieve system level porter agent configuration")
 		}
 		logConfig("instance", instCfg)
 	}
@@ -519,24 +510,24 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	// the merging logic here is each subsequent config will override the previous config.
 	// for example, if namespace Spec.Plugins is {"azure": {}, "hashicorp": {}} and installation Spec.Plugins is {"kubernetes": {}}
 	// the result of the merge will be {"kubernetes": {}}
-	base := &systemCfg.Spec
-	cfg, err := base.MergeConfig(nsCfg.Spec, instCfg.Spec)
+	base := systemCfg
+	cfg, err := base.MergeReadyConfigs(*nsCfg, *instCfg)
 	if err != nil {
 		return porterv1.AgentConfigSpecAdapter{}, err
 	}
 
-	if !isCfgReady && !action.CreatedByAgentConfig() {
+	if !cfg.Status.Ready && !action.CreatedByAgentConfig() {
 		return porterv1.AgentConfigSpecAdapter{}, errors.New("resolved agent configuration is not ready to be used. Waiting for the next retry")
 	}
-	cfgList := porterv1.NewAgentConfigSpecAdapter(cfg)
+	cfgList := porterv1.NewAgentConfigSpecAdapter(cfg.Spec)
 
 	log.V(Log4Debug).Info("resolved porter agent configuration",
 		"porterImage", cfgList.GetPorterImage(),
 		"pullPolicy", cfgList.GetPullPolicy(),
-		"serviceAccount", cfg.ServiceAccount,
+		"serviceAccount", cfgList.GetServiceAccount(),
 		"volumeSize", cfgList.GetVolumeSize(),
-		"installationServiceAccount", cfg.InstallationServiceAccount,
-		"plugin", cfg.Plugins,
+		"installationServiceAccount", cfgList.GetInstallationServiceAccount(),
+		"plugin", cfgList.Plugins.GetNames(),
 	)
 	return cfgList, nil
 }
@@ -639,7 +630,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 		},
 		{
 			Name:  "SERVICE_ACCOUNT",
-			Value: agentCfg.InstallationServiceAccount(),
+			Value: agentCfg.GetInstallationServiceAccount(),
 		},
 		{
 			Name:  "AFFINITY_MATCH_LABELS",

@@ -150,12 +150,12 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	require.NotEmpty(t, actionList.Spec.Volumes)
 
-	// verify that the pv that has plugins installed has been updated with the expected lables and claim reference
+	// verify that the pv that has plugins installed has been updated with the expected labels and claim reference
 	pluginsPV := &corev1.PersistentVolume{}
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv.Name}, pluginsPV))
-	pluginLabels, exists := pluginsPV.Labels[porterv1.LabelPlugins]
+	pluginLabels, exists := pluginsPV.Labels[porterv1.LabelPluginsHash]
 	require.True(t, exists)
-	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPlugins], pluginLabels)
+	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPluginsHash], pluginLabels)
 	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
 	require.True(t, exists)
 	require.Equal(t, agentCfg.Name, rn)
@@ -202,6 +202,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the agent config status shows the action is failed
 	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
+	require.False(t, agentCfg.Status.Ready, "agent config should not be ready if the agent action has failed")
 	assert.Equal(t, porterv1.PhaseFailed, agentCfg.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionFailed)))
 
@@ -222,8 +223,8 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Retry the last action
 	lastAction := agentCfg.Status.Action.Name
-	agentCfg.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
-	require.NoError(t, controller.Update(ctx, &agentCfg.AgentConfig))
+	agentCfgData.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
 
 	triggerReconcile()
 
@@ -239,21 +240,13 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
 
-	agentCfgData.Generation = 3
-	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"kubernetes": {}}
-	require.NoError(t, controller.Update(ctx, &agentCfgData))
-
-	triggerReconcile()
-
-	// Verify that the agent config status was re-initialized
-	assert.True(t, agentCfg.Status.Ready)
-
 	// Delete the agent config (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
 	// The fake client doesn't really follow finalizer logic
 	now := metav1.NewTime(time.Now())
-	agentCfg.Generation = 4
-	agentCfg.DeletionTimestamp = &now
-	require.NoError(t, controller.Update(ctx, &agentCfg.AgentConfig))
+	agentCfgData.Generation = 3
+	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"kubernetes": {}}
+	agentCfgData.DeletionTimestamp = &now
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
 	triggerReconcile()
 
 	// remove the agent config from the pvc's owner reference list
@@ -301,12 +294,12 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	}
 	wrapper := porterv1.NewAgentConfigAdapter(*agentCfg)
 	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
-	lables := wrapper.Spec.Plugins.GetLabels()
+	labels := wrapper.Spec.Plugins.GetLabels()
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: agentCfg.Name + "-",
 			Namespace:    agentCfg.Namespace,
-			Labels:       lables,
+			Labels:       labels,
 			Annotations:  wrapper.GetPluginsPVCNameAnnotation(),
 			OwnerReferences: []metav1.OwnerReference{
 				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests

@@ -322,12 +322,6 @@ metadata:
   name: agentconfig-quickstart
   namespace: quickstart
 spec:
-  porterRepository: ghcr.io/getporter/porter-agent
-  porterVersion: v1.0.2
-  serviceAccount: porter-agent
-  volumeSize: 64Mi
-  pullPolicy: Always
-  installationServiceAccount: installation-agent
   plugins:
     kubernetes:
       version: v1.0.0

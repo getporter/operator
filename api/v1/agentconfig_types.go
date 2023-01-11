@@ -102,9 +102,9 @@ func (c AgentConfigSpec) MergeConfig(overrides ...AgentConfigSpec) (AgentConfigS
 // AgentConfigStatus defines the observed state of AgentConfig
 type AgentConfigStatus struct {
 	PorterResourceStatus `json:",inline"`
-	// The current status of the .
+	// The current status of whether the AgentConfig is ready to be used for an AgentAction.
 	// +kubebuilder:validation:Type=boolean
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 }
 
 // +kubebuilder:object:root=true
@@ -125,6 +125,32 @@ func (ac *AgentConfig) GetStatus() PorterResourceStatus {
 
 func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
+}
+
+// MergeReadyConfigs applies override AgentConfig that's ready to be used for an AgentAction in sequential order.
+func (ac AgentConfig) MergeReadyConfigs(overrides ...AgentConfig) (AgentConfig, error) {
+	specs := []AgentConfigSpec{ac.Spec}
+	cfg := ac
+	for _, override := range overrides {
+		specs = append(specs, override.Spec)
+		// only consider the agent config if it exist
+		if override.Name != "" {
+			cfg = override
+		}
+	}
+	base := AgentConfigSpec{}
+	cfgSpec, err := base.MergeConfig(specs...)
+	if err != nil {
+		return AgentConfig{}, err
+	}
+	cfg.Spec = cfgSpec
+
+	if !cfg.Status.Ready {
+		return AgentConfig{}, err
+	}
+
+	return cfg, nil
+
 }
 
 // AgentConfigAdapter is a wrapper of AgentConfig schema. It process the input data so that
@@ -182,7 +208,7 @@ func init() {
 
 // Plugin represents the plugin configuration.
 type Plugin struct {
-	FeedURL string `json:"feedUrl,omitempty" mapstructure:"feedURL,omitempty"`
+	FeedURL string `json:"feedURL,omitempty" mapstructure:"feedURL,omitempty"`
 	URL     string `json:"url,omitempty" mapstructure:"url,omitempty"`
 	Mirror  string `json:"mirror,omitempty" mapstructure:"mirror,omitempty"`
 	Version string `json:"version,omitempty" mapstructure:"version,omitempty"`
@@ -252,23 +278,23 @@ func (c AgentConfigSpecAdapter) GetVolumeSize() resource.Quantity {
 	return q
 }
 
-// PorterRepository returns the config value of Porter repository.
-func (c AgentConfigSpecAdapter) PorterRepository() string {
+// GetPorterRepository returns the config value of Porter repository.
+func (c AgentConfigSpecAdapter) GetPorterRepository() string {
 	return c.original.PorterRepository
 }
 
-// PorterVersion returns the config value of Porter version.
-func (c AgentConfigSpecAdapter) PorterVersion() string {
+// GetPorterVersion returns the config value of Porter version.
+func (c AgentConfigSpecAdapter) GetPorterVersion() string {
 	return c.original.PorterVersion
 }
 
-// ServiceAccount returns the config value of service account.
-func (c AgentConfigSpecAdapter) ServiceAccount() string {
+// GetServiceAccount returns the config value of service account.
+func (c AgentConfigSpecAdapter) GetServiceAccount() string {
 	return c.original.ServiceAccount
 }
 
-// InstallationServiceAccount returns the config value of installation service account.
-func (c AgentConfigSpecAdapter) InstallationServiceAccount() string {
+// GetInstallationServiceAccount returns the config value of installation service account.
+func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 	return c.original.InstallationServiceAccount
 }
 
@@ -329,37 +355,17 @@ func (op PluginsConfigList) GetPVCName(namespace string) string {
 	if len(op.data) == 0 {
 		return ""
 	}
-	var input []byte
 
-	for _, k := range op.keys {
-		p := op.data[k]
+	input := op.label() + namespace
 
-		input = append(input, []byte(k)...)
-		if p.FeedURL != "" {
-			input = append(input, []byte(p.FeedURL)...)
-		}
-		if p.URL != "" {
-			input = append(input, []byte(p.URL)...)
-		}
-		if p.Mirror != "" {
-			input = append(input, []byte(p.Mirror)...)
-		}
-		if p.Version != "" {
-			input = append(input, []byte(p.Version)...)
-
-		}
-	}
-
-	input = append(input, []byte(namespace)...)
-	pluginHash := md5.Sum(input)
-
-	return "porter-" + hex.EncodeToString(pluginHash[:])
+	return "porter-" + hashString(input)
 }
 
-// GetLabels returns a value that is safe to use
+// GetLabels returns a hash of all plugin configs that is safe to use
 // as a label value and represents the plugin configuration used
 // to trigger reconciliation.
-// labels are restricted to alphanumeric and .-_
+// labels are restricted to alphanumeric and .-_ value.
+// the maximum characters a label can contain is 63.
 // therefore all URLs will be sanitized before using them as part of
 // the label.
 func (op PluginsConfigList) GetLabels() map[string]string {
@@ -367,6 +373,13 @@ func (op PluginsConfigList) GetLabels() map[string]string {
 		return nil
 	}
 
+	return map[string]string{
+		LabelManaged:     "true",
+		LabelPluginsHash: hashString(op.label()),
+	}
+}
+
+func (op PluginsConfigList) label() string {
 	var plugins []string
 	var i int
 	for _, k := range op.keys {
@@ -393,10 +406,7 @@ func (op PluginsConfigList) GetLabels() map[string]string {
 		i++
 	}
 
-	return map[string]string{
-		LabelManaged: "true",
-		LabelPlugins: strings.Join(plugins, ""),
-	}
+	return strings.Join(plugins, "")
 }
 
 // GetPVCNameAnnotation returns a string that's the hash using plugins spec and the AgentConfig's namespace.
@@ -420,4 +430,10 @@ func cleanURL(inputURL string) string {
 	cleanURL = reg.ReplaceAllString(cleanURL, "_")
 
 	return cleanURL
+}
+
+func hashString(input string) string {
+	hash := md5.Sum([]byte(input))
+
+	return hex.EncodeToString(hash[:])
 }

@@ -132,7 +132,7 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(onePluginCfg)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "kubernetes_test_v1.0.0"}, cl.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPluginsHash: "kubernetes_test_v1.0.0"}, cl.Plugins.GetLabels())
 	})
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 			},
 		}
 		mcl := NewAgentConfigSpecAdapter(multiplePluginsCfg)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mcl.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPluginsHash: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mcl.Plugins.GetLabels())
 
 		multiplePluginsCfgWithDifferentOrder := AgentConfigSpec{
 			Plugins: map[string]Plugin{
@@ -154,7 +154,7 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 			},
 		}
 		mclWithDifferentOrder := NewAgentConfigSpecAdapter(multiplePluginsCfgWithDifferentOrder)
-		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPlugins: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mclWithDifferentOrder.Plugins.GetLabels())
+		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPluginsHash: "azure_test1_v1.2.0_hashicorp_test_v1.0.0_kubernetes_test_v1.0.0"}, mclWithDifferentOrder.Plugins.GetLabels())
 	})
 }
 
