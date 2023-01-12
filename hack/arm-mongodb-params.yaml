@@ -1,0 +1,7 @@
+# You can change the arm64 image used for mongodb by setting PORTER_MONGODB_IMAGE
+schemaVersion: 1.0.1
+name: arm-mongodb-hack
+parameters:
+  - name: mongodbVals
+    source:
+      path: hack/arm-mongodb-vals.yaml

@@ -65,9 +65,14 @@ parameters:
   - name: mongodbChartVersion
     description: Version of the mongodb helm chart to install
     type: string
-    default: "12.1.16"
+    default: "13.6.2"
     applyTo:
       - install
+  - name: mongodbVals
+    description: Helm values file to use when installing the mongodb chart
+    type: file
+    default: ""
+    path: /cnab/app/mongodb-vals.yaml
 
 credentials:
   - name: kubeconfig
@@ -103,6 +108,8 @@ install:
       atomic: false
       set:
         auth.enabled: false
+      values:
+        - /cnab/app/mongodb-vals.yaml
   - exec:
       description: "Wait for operator deployment to complete"
       command: ./helpers.sh
