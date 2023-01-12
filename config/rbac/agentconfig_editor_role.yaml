@@ -1,0 +1,24 @@
+# permissions for end users to edit agnetconfig.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agentconfigs-editor-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs/status
+  verbs:
+  - get

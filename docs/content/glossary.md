@@ -107,6 +107,8 @@ Values are merged from all resolved AgentConfig resources, so that you can defin
 * Using the AgentConfig with the name "default" defined in the operator namespace.
 * By default, using a reasonable set of defaults for the default installation of the Operator, assuming that the default RBAC roles exist in the cluster.
 
+🚨 WARNING: Currently, only one plugin per AgentConfig can be installed through the plugins configuration.
+
 [AgentConfig]: /operator/file-formats/#agentconfig
 
 ### PorterConfig

@@ -11,3 +11,5 @@ spec:
   volumeSize: 64Mi
   pullPolicy: Always
   installationServiceAccount: installation-agent
+  plugins:
+    - name: "kubernetes"

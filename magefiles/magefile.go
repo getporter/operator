@@ -18,6 +18,8 @@ import (
 	. "get.porter.sh/magefiles/docker"
 	"get.porter.sh/magefiles/porter"
 	"get.porter.sh/magefiles/releases"
+
+	//mage:import
 	. "get.porter.sh/magefiles/tests"
 	"get.porter.sh/magefiles/tools"
 	. "get.porter.sh/operator/mage"
@@ -53,12 +55,15 @@ const (
 	porterVersion = "v1.0.1"
 )
 
-var srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
-var binDir = "bin"
+var (
+	srcDirs = []string{"api", "config", "controllers", "installer", "installer-olm"}
+	binDir  = "bin"
+)
 
-// Porter agent that has k8s plugin included
-var porterAgentImgRepository = "ghcr.io/getporter/dev/porter-agent-kubernetes"
-var porterAgentImgVersion = porterVersion
+var (
+	porterAgentImgRepository = "ghcr.io/getporter/porter-agent"
+	porterAgentImgVersion    = "v1.0.2"
+)
 
 // Local porter agent image name to use for local testing
 var localAgentImgName = "localhost:5000/porter-agent:canary-dev"
@@ -119,7 +124,7 @@ func GenerateController() error {
 
 // Build the porter-operator bundle.
 func BuildBundle() {
-	mg.SerialDeps(getPlugins, getMixins, StartDockerRegistry, PublishImages)
+	mg.SerialDeps(getMixins, StartDockerRegistry, PublishImages)
 
 	buildManifests()
 
@@ -147,44 +152,6 @@ func BuildImages() {
 	// Make the full image name available as an environment variable
 	p, _ := ci.DetectBuildProvider()
 	mgx.Must(p.SetEnv("MANAGER_IMAGE", img))
-}
-
-func getPlugins() error {
-	// TODO: move this to a shared target in porter
-
-	plugins := []struct {
-		name    string
-		url     string
-		feed    string
-		version string
-	}{
-		{name: "kubernetes", feed: "https://cdn.porter.sh/plugins/atom.xml", version: "v1.0.1"},
-	}
-	var errG errgroup.Group
-	for _, plugin := range plugins {
-		plugin := plugin
-		pluginDir := filepath.Join("bin/plugins/", plugin.name)
-		if _, err := os.Stat(pluginDir); err == nil {
-			log.Println("Plugin already installed into bin:", plugin.name)
-			continue
-		}
-
-		errG.Go(func() error {
-			log.Println("Installing plugin:", plugin.name)
-			if plugin.version == "" {
-				plugin.version = "latest"
-			}
-			var source string
-			if plugin.feed != "" {
-				source = "--feed-url=" + plugin.feed
-			} else {
-				source = "--url=" + plugin.url
-			}
-			return buildPorterCmd("plugin", "install", plugin.name, "--version", plugin.version, source).Run()
-		})
-	}
-
-	return errG.Wait()
 }
 
 func getMixins() error {
@@ -646,7 +613,7 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 
 func BuildLocalPorterAgent() {
 	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
-	mg.SerialDeps(getPlugins, getMixins)
+	mg.SerialDeps(getMixins)
 	porterRegistry := "ghcr.io/getporter"
 	buildImage := func(img string) error {
 		_, err := shx.Output("docker", "build", "-t", img,

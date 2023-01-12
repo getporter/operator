@@ -36,6 +36,7 @@ var resourceTypeMap = map[string]string{
 	"CredentialSet": "credentialsets",
 	"Installation":  "installations",
 	"AgentAction":   "agentactions",
+	"AgentConfig":   "agentconfigs",
 }
 
 var gvrVersion = "v1"
@@ -282,7 +283,9 @@ func getAgentActionCmdOut(action *porterv1.AgentAction, aaOut string) string {
 	return strings.SplitAfterN(strings.Replace(aaOut, "\n", "", -1), strings.Join(action.Spec.Args, " "), 2)[1]
 }
 
-/* Fully execute an agent action and return the associated result of the command executed. For example an agent action
+/*
+	Fully execute an agent action and return the associated result of the command executed. For example an agent action
+
 that does "porter credentials list" will return just the result of the porter command from the job logs. This can be
 used to run porter commands inside the cluster to validate porter state
 */
