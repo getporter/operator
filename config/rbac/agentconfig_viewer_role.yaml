@@ -1,0 +1,20 @@
+# permissions for end users to view credentialsets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agentconfigs-viewer-role
+rules:
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs/status
+  verbs:
+  - get

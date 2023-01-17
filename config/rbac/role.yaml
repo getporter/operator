@@ -20,6 +20,18 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - persistentvolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - create
@@ -87,6 +99,20 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - porter.sh
+  resources:
+  - agentconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - porter.sh
   resources:
