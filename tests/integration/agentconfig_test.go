@@ -71,7 +71,7 @@ var _ = Describe("AgentConfig delete", func() {
 func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
 	cs := porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "porter.sh/v1",
+			APIVersion: "getporter.org/v1",
 			Kind:       "AgentConfig",
 		},
 		ObjectMeta: metav1.ObjectMeta{

@@ -5,20 +5,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: credentialsets.porter.sh
+  name: installations.getporter.org
 spec:
-  group: porter.sh
+  group: getporter.org
   names:
-    kind: CredentialSet
-    listKind: CredentialSetList
-    plural: credentialsets
-    singular: credentialset
+    kind: Installation
+    listKind: InstallationList
+    plural: installations
+    singular: installation
   scope: Namespaced
   versions:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: CredentialSet is the Schema for the credentialsets API
+        description: Installation is the Schema for the installations API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -33,7 +33,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: CredentialSetSpec defines the desired state of CredentialSet
+            description: "InstallationSpec defines the desired state of Installation
+              \n SERIALIZATION NOTE: * The json serialization is for persisting this
+              to Kubernetes. * The yaml serialization is for creating a Porter representation
+              of the resource."
             properties:
               agentConfig:
                 description: AgentConfig is the name of an AgentConfig to use instead
@@ -44,36 +47,53 @@ spec:
                       TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
-              credentials:
-                description: Credentials list of bundle credentials in the credential
-                  set.
+              bundle:
+                description: Bundle definition for the installation.
+                properties:
+                  digest:
+                    description: Digest is the current digest of the bundle.
+                    type: string
+                  repository:
+                    description: Repository is the OCI repository of the current bundle
+                      definition.
+                    type: string
+                  tag:
+                    description: Tag is the OCI tag of the current bundle definition.
+                    type: string
+                  version:
+                    description: Version is the current version of the bundle.
+                    type: string
+                required:
+                - repository
+                type: object
+              credentialSets:
+                description: CredentialSets that should be included when the bundle
+                  is reconciled.
                 items:
-                  description: Credential defines a element in a CredentialSet
-                  properties:
-                    name:
-                      description: Name is the bundle credential name
-                      type: string
-                    source:
-                      description: 'Source is the bundle credential source supported:
-                        secret unsupported: file path(via configMap), specific value,
-                        env var, shell cmd'
-                      properties:
-                        secret:
-                          description: Secret is a credential source using a secret
-                            plugin
-                          type: string
-                      type: object
-                  required:
-                  - name
-                  - source
-                  type: object
+                  type: string
                 type: array
+              labels:
+                additionalProperties:
+                  type: string
+                description: Labels applied to the installation.
+                type: object
               name:
-                description: Name is the name of the credential set in Porter. Immutable.
+                description: Name is the name of the installation in Porter. Immutable.
                 type: string
               namespace:
-                description: Namespace (in Porter) where the credential set is defined.
+                description: Namespace (in Porter) where the installation is defined.
                 type: string
+              parameterSets:
+                description: ParameterSets that should be included when the bundle
+                  is reconciled.
+                items:
+                  type: string
+                type: array
+              parameters:
+                description: Parameters specified by the user through overrides. Does
+                  not include defaults, or values resolved from parameter sources.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
               porterConfig:
                 description: PorterConfig is the name of a PorterConfig to use instead
                   of the PorterConfig defined at the namespace or system level.
@@ -84,17 +104,20 @@ spec:
                     type: string
                 type: object
               schemaVersion:
-                description: SchemaVersion is the version of the credential set state
+                description: SchemaVersion is the version of the installation state
                   schema.
                 type: string
+              uninstalled:
+                description: Uninstalled specifies if the installation should be uninstalled.
+                type: boolean
             required:
-            - credentials
+            - bundle
             - name
             - namespace
             - schemaVersion
             type: object
           status:
-            description: CredentialSetStatus defines the observed state of CredentialSet
+            description: InstallationStatus defines the observed state of Installation
             properties:
               action:
                 description: The most recent action executed for the resource

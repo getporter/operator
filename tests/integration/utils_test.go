@@ -40,7 +40,7 @@ var resourceTypeMap = map[string]string{
 }
 
 var gvrVersion = "v1"
-var gvrGroup = "porter.sh"
+var gvrGroup = "getporter.org"
 
 // Get the amount of time that we should wait for a test action to be processed.
 func getWaitTimeout() time.Duration {

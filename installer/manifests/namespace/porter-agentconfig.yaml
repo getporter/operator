@@ -1,9 +1,9 @@
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: AgentConfig
 metadata:
   name: default
   labels:
-    porter.sh/generator: "porter-operator-bundle"
+    getporter.org/generator: "porter-operator-bundle"
 spec:
   plugins:
     kubernetes: {}

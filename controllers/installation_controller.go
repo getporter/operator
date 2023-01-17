@@ -28,11 +28,11 @@ type InstallationReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=installations,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=installations/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=porter.sh,resources=installations/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=installations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=installations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=getporter.org,resources=installations/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete

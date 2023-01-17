@@ -42,7 +42,7 @@ You can copy/paste the output of the `porter credentials show NAME -o yaml` comm
 In addition to the normal fields available on a [Porter Credential Set document](/reference/file-formats/#credential-set), the following fields are supported:
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: CredentialSet
 metadata:
   name: credentialset-sample
@@ -78,7 +78,7 @@ In addition to the normal fields available on a [Porter Parameter Set document](
 
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: ParameterSet
 metadata:
   name: parameterset-sample
@@ -111,7 +111,7 @@ spec:
 See the glossary for more information about the [AgentAction] resource.
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: AgentAction
 metadata:
   name: agentaction-sample
@@ -142,7 +142,7 @@ spec:
 See the glossary for more information about the [AgentConfig] resource.
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: AgentConfig
 metadata:
   name: customAgent
@@ -183,7 +183,7 @@ The configureNamespace action of the porter operator bundle creates a service ac
 See the glossary for more information about the [PorterConfig] resource.
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: PorterConfig
 metadata:
   name: customPorterConfig

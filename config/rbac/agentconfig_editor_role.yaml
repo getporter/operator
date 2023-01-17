@@ -5,7 +5,7 @@ metadata:
   name: agentconfigs-editor-role
 rules:
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentconfigs
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentconfigs/status
   verbs:

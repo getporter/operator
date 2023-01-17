@@ -62,7 +62,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentactions
   verbs:
@@ -74,13 +74,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentactions/finalizers
   verbs:
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentactions/status
   verbs:
@@ -88,7 +88,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentconfigs
   verbs:
@@ -100,13 +100,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentconfigs/finalizers
   verbs:
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - agentconfigs/status
   verbs:
@@ -114,7 +114,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - credentialsets
   verbs:
@@ -126,13 +126,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - credentialsets/finalizers
   verbs:
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - credentialsets/status
   verbs:
@@ -140,7 +140,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - installations
   verbs:
@@ -152,14 +152,14 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - installations/finalizers
   verbs:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - installations/status
   verbs:
@@ -167,7 +167,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets
   verbs:
@@ -179,13 +179,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets/finalizers
   verbs:
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets/status
   verbs:
@@ -193,7 +193,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - porterconfigs
   verbs:

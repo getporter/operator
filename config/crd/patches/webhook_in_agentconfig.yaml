@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: agentconfig.porter.sh
+  name: agentconfig.getporter.org
 spec:
   conversion:
     strategy: Webhook

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	Prefix          = "porter.sh/"
+	Prefix          = "getporter.org/"
 	AnnotationRetry = Prefix + "retry"
 )
 

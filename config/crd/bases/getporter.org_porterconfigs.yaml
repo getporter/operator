@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
-  name: porterconfigs.porter.sh
+  name: porterconfigs.getporter.org
 spec:
-  group: porter.sh
+  group: getporter.org
   names:
     kind: PorterConfig
     listKind: PorterConfigList
