@@ -11,6 +11,9 @@ operator
 /kind.config
 /kind.config.yaml
 
+# Custom dev config
+hack/arm-mongodb-vals.yaml
+
 # Test binary, build with `go test -c`
 *.test
 

@@ -28,6 +28,7 @@ environment for Porter, make a change and test it.
 We recommend that you start there so that you understand how to use Porter.
 
 You will need a Porter, KinD, Go, and Docker to work on the operator.
+If you have an Apple M1/M2, see [ARM Support](#arm-support) for additional setup.
 
 [tutorial]: https://porter.sh/contribute/tutorial/
 
@@ -41,6 +42,24 @@ mage deploy
 # Use the test cluster
 export KUBECONFIG=kind.config
 ```
+
+## ARM Support
+
+If you are developing on an ARM machine, such as a mac M1 or M2, you will need to apply a configuration change before you can deploy the operator to a local development cluster.
+The operator bundle uses the Bitnami Mongodb Helm chart, and [Bitnami doesn't support ARM yet](https://github.com/bitnami/charts/issues/7305).
+
+Carolyn has built a custom image of the Bitnami Mongodb image with arm support:
+
+```
+ghcr.io/carolynvs/mongodb-bitnami-compat:6.0.3-debian-11-r50@sha256:7397ffec8a5164deca5da0b52eb9f811acac04caaf1ecb215c2ef2ed33665191
+```
+
+The image was built using https://github.com/ZCube/bitnami-compat to create an arm64 compatible image from the Bitnami source.
+When you run `mage deploy` to deploy the operator to your local development cluster, it detects if you are on ARM, and will automatically use her custom image.
+If you prefer to build your own, set the `PORTER_MONGODB_IMAGE` environment variable to the location of your custom image.
+
+If you are deploying the bundle manually, you can provide a custom parameter set to the operator bundle to change the image.
+See [hack/arm-mongodb-vals.tmpl.yaml] and [hack/arm-mongodb-params.yaml] for an example of an appropriate Helm values file and the corresponding Porter parameter set to pass to the porter install command.
 
 ## Magefile explained
 

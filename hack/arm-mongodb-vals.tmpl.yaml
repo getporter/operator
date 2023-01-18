@@ -1,0 +1,9 @@
+# This changes the image used for running mongodb to one that supports arm64
+# Bitnami helm charts do not support arm: https://github.com/bitnami/charts/issues/7305
+# This image was built using https://github.com/ZCube/bitnami-compat to create an
+# arm64 compatible image from the bitnami source.
+image:
+  registry: ghcr.io
+  repository: carolynvs/mongodb-bitnami-compat
+  tag: 6.0.3-debian-11-r50
+  digest: sha256:7397ffec8a5164deca5da0b52eb9f811acac04caaf1ecb215c2ef2ed33665191
