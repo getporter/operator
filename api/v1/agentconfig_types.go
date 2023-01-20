@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/opencontainers/go-digest"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +72,7 @@ type AgentConfigSpec struct {
 	// +optional
 	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
 	// +optional
-	Plugins map[string]Plugin `json:"plugins,omitempty" mapstructure:"plugins,omitempty"`
+	Plugins PluginsSpec `json:"plugins,omitempty" mapstructure:"plugins,omitempty"`
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
@@ -128,8 +129,8 @@ func (ac *AgentConfig) SetStatus(value PorterResourceStatus) {
 	ac.Status.PorterResourceStatus = value
 }
 
-// MergeReadyConfigs applies override AgentConfig that's ready to be used for an AgentAction in sequential order.
-func (ac AgentConfig) MergeReadyConfigs(overrides ...AgentConfig) (AgentConfig, error) {
+// MergeConfigs applies override AgentConfig that's ready to be used for an AgentAction in sequential order.
+func (ac AgentConfig) MergeConfigs(overrides ...AgentConfig) (AgentConfig, error) {
 	specs := []AgentConfigSpec{ac.Spec}
 	cfg := ac
 	for _, override := range overrides {
@@ -145,10 +146,6 @@ func (ac AgentConfig) MergeReadyConfigs(overrides ...AgentConfig) (AgentConfig, 
 		return AgentConfig{}, err
 	}
 	cfg.Spec = cfgSpec
-
-	if !cfg.Status.Ready {
-		return AgentConfig{}, err
-	}
 
 	return cfg, nil
 
@@ -207,6 +204,14 @@ func init() {
 	SchemeBuilder.Register(&AgentConfig{}, &AgentConfigList{})
 }
 
+type PluginsSpec struct {
+	// SchemaVersion is the version of the plugins configuration state schema.
+	SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
+
+	// Configs is a map of plugin configuration using plugin name as the key.
+	Configs map[string]Plugin `json:"configs,omitempty" mapstructure:"configs,omitempty"`
+}
+
 // Plugin represents the plugin configuration.
 type Plugin struct {
 	FeedURL string `json:"feedURL,omitempty" mapstructure:"feedURL,omitempty"`
@@ -226,7 +231,7 @@ type AgentConfigSpecAdapter struct {
 func NewAgentConfigSpecAdapter(spec AgentConfigSpec) AgentConfigSpecAdapter {
 	return AgentConfigSpecAdapter{
 		original: spec,
-		Plugins:  NewPluginsList(spec.Plugins),
+		Plugins:  NewPluginsList(spec.Plugins.Configs),
 	}
 }
 
@@ -299,6 +304,18 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 	return c.original.InstallationServiceAccount
 }
 
+func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {
+	raw := struct {
+		SchemaVersion string            `yaml:"schemaVersion"`
+		Plugins       map[string]Plugin `yaml:"plugins"`
+	}{
+		SchemaVersion: c.original.Plugins.SchemaVersion,
+		Plugins:       c.Plugins.data,
+	}
+
+	return yaml.Marshal(raw)
+}
+
 // PluginConfigList is the list implementation of the Plugins map.
 // The list is sorted based on the plugin names alphabetically.
 type PluginsConfigList struct {
@@ -317,8 +334,12 @@ func NewPluginsList(ps map[string]Plugin) PluginsConfigList {
 		return keys[i] < keys[j]
 	})
 
+	data := make(map[string]Plugin, len(keys))
+	for _, k := range keys {
+		data[k] = ps[k]
+	}
 	return PluginsConfigList{
-		data: ps,
+		data: data,
 		keys: keys,
 	}
 }

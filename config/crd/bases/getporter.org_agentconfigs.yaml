@@ -45,18 +45,29 @@ spec:
                   in.
                 type: string
               plugins:
-                additionalProperties:
-                  description: Plugin represents the plugin configuration.
-                  properties:
-                    feedURL:
-                      type: string
-                    mirror:
-                      type: string
-                    url:
-                      type: string
-                    version:
-                      type: string
-                  type: object
+                properties:
+                  configs:
+                    additionalProperties:
+                      description: Plugin represents the plugin configuration.
+                      properties:
+                        feedURL:
+                          type: string
+                        mirror:
+                          type: string
+                        url:
+                          type: string
+                        version:
+                          type: string
+                      type: object
+                    description: Configs is a map of plugin configuration using plugin
+                      name as the key.
+                    type: object
+                  schemaVersion:
+                    description: SchemaVersion is the version of the plugins configuration
+                      state schema.
+                    type: string
+                required:
+                - schemaVersion
                 type: object
               porterRepository:
                 description: PorterRepository is the repository for the Porter Agent

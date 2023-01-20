@@ -34,7 +34,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	testAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 		Spec: porterv1.AgentConfigSpec{
-			Plugins: map[string]porterv1.Plugin{"kubernetes": {}},
+			Plugins: porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"kubernetes": {}}},
 		},
 	}
 	testdata := []client.Object{
@@ -208,7 +208,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// Edit the agent config spec
 	agentCfgData.Generation = 2
-	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"azure": {}}
+	agentCfgData.Spec.Plugins = porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"azure": {}}}
 	require.NoError(t, controller.Update(ctx, &agentCfgData))
 
 	triggerReconcile()
@@ -244,7 +244,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// The fake client doesn't really follow finalizer logic
 	now := metav1.NewTime(time.Now())
 	agentCfgData.Generation = 3
-	agentCfgData.Spec.Plugins = map[string]porterv1.Plugin{"kubernetes": {}}
+	agentCfgData.Spec.Plugins = porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"kubernetes": {}}}
 	agentCfgData.DeletionTimestamp = &now
 	require.NoError(t, controller.Update(ctx, &agentCfgData))
 	triggerReconcile()
@@ -288,7 +288,7 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 			},
 		},
 		Spec: porterv1.AgentConfigSpec{
-			Plugins:    map[string]porterv1.Plugin{"test": {Version: "v1.2.3"}},
+			Plugins:    porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"test": {Version: "v1.2.3"}}},
 			VolumeSize: "64Mi",
 		},
 	}

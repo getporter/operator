@@ -86,8 +86,10 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 	t.Run("one plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(c)
@@ -96,10 +98,12 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.0.0", URL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", Mirror: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.0.0", URL: "https://test"},
+					"hashicorp":  {Version: "v1.0.0", Mirror: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(c)
@@ -107,10 +111,12 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 		// change the order of the plugins should not affect the name output.
 		c2 := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", URL: "https://test"},
-				"kubernetes": {Version: "v1.0.0", Mirror: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
+					"hashicorp":  {Version: "v1.0.0", URL: "https://test"},
+					"kubernetes": {Version: "v1.0.0", Mirror: "https://test"},
+				},
 			},
 		}
 		cl2 := NewAgentConfigSpecAdapter(c2)
@@ -127,8 +133,10 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 
 	t.Run("one plugin defined", func(t *testing.T) {
 		onePluginCfg := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(onePluginCfg)
@@ -137,20 +145,24 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
 		multiplePluginsCfg := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", URL: "https://test1"},
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.2.0", URL: "https://test1"},
+					"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		mcl := NewAgentConfigSpecAdapter(multiplePluginsCfg)
 		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPluginsHash: "d8dbdcb6a9de4e60ef7886f90cbe73f4"}, mcl.Plugins.GetLabels())
 
 		multiplePluginsCfgWithDifferentOrder := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", URL: "https://test1"},
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			Plugins: PluginsSpec{
+				Configs: map[string]Plugin{
+					"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.2.0", URL: "https://test1"},
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		mclWithDifferentOrder := NewAgentConfigSpecAdapter(multiplePluginsCfgWithDifferentOrder)
@@ -182,7 +194,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
-			Plugins:                    map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}},
+			Plugins:                    PluginsSpec{Configs: map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}}},
 		}
 
 		instConfig := AgentConfigSpec{
@@ -192,7 +204,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
-			Plugins:                    map[string]Plugin{"azure": {FeedURL: "localhost:6000"}},
+			Plugins:                    PluginsSpec{Configs: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}},
 		}
 
 		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
@@ -203,6 +215,6 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
-		assert.Equal(t, map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}, config.Plugins)
+		assert.Equal(t, PluginsSpec{Configs: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}}, config.Plugins)
 	})
 }

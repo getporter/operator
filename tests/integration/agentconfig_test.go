@@ -78,8 +78,10 @@ func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.AgentConfigSpec{
-			Plugins: map[string]porterv1.Plugin{
-				"kubernetes": {},
+			Plugins: porterv1.PluginsSpec{
+				Configs: map[string]porterv1.Plugin{
+					"kubernetes": {},
+				},
 			},
 		},
 	}

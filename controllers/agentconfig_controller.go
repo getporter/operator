@@ -238,33 +238,7 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 		return nil
 	}
 
-	pluginNames := agentCfg.Spec.Plugins.GetNames()
-	if len(pluginNames) > 1 {
-		log.V(Log5Trace).Error(errors.New("unexpected number of plugins defined"), "Currently only the first plugins defined in a AgentConfig resource will be installed.")
-	}
-
-	installCmd := []string{"plugins", "install"}
-	for _, name := range pluginNames {
-		installCmd = append(installCmd, name)
-		plugin, _ := agentCfg.Spec.Plugins.GetByName(name)
-		if plugin.Mirror != "" {
-			installCmd = append(installCmd, "--mirror", plugin.Mirror)
-		}
-		if plugin.URL != "" {
-			installCmd = append(installCmd, "--url", plugin.URL)
-		}
-		if plugin.FeedURL != "" {
-			installCmd = append(installCmd, "--feed-url", plugin.FeedURL)
-		}
-		if plugin.Version != "" {
-			installCmd = append(installCmd, "--version", plugin.Version)
-		}
-		// TODO: once porter has ability to install multiple plugins with one command, we will allow users
-		// to install multiple plugins. Currently, only the first item defined in the plugin list will be
-		// installed.
-		//lint:ignore SA4004 current implementation only support one plugin but we eventually will support multiple
-		break
-	}
+	installCmd := []string{"plugins", "install", "-f", "plugins.yaml"}
 	action, err := r.createAgentAction(ctx, log, pvc, agentCfg, installCmd)
 	if err != nil {
 		return err
@@ -285,6 +259,10 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 
 	volumn, volumnMount := definePluginVomeAndMount(pvc)
 	agentCfgName := &corev1.LocalObjectReference{Name: agentCfg.Name}
+	pluginsCfg, err := agentCfg.Spec.ToPorterDocument()
+	if err != nil {
+		return nil, err
+	}
 
 	action := &porterv1.AgentAction{
 		ObjectMeta: metav1.ObjectMeta{
@@ -308,6 +286,9 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 			Args:         args,
 			Volumes:      []corev1.Volume{volumn},
 			VolumeMounts: []corev1.VolumeMount{volumnMount},
+			Files: map[string][]byte{
+				"plugins.yaml": pluginsCfg,
+			},
 		},
 	}
 

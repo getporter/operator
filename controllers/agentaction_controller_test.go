@@ -764,7 +764,7 @@ func testAgentCfgSpec() porterv1.AgentConfigSpecAdapter {
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
-		Plugins:                    map[string]porterv1.Plugin{"kubernetes": {}},
+		Plugins:                    porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"kubernetes": {}}},
 	}
 
 	return porterv1.NewAgentConfigSpecAdapter(spec)
@@ -912,8 +912,9 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 	_, err := controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithOverride)
 	require.ErrorContains(t, err, "resolved agent configuration is not ready to be used")
 
-	_, err = controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithNoOverride)
+	cfg, err := controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithNoOverride)
 	require.NoError(t, err)
+	require.Equal(t, "v1.0", cfg.GetPorterVersion())
 }
 
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {
