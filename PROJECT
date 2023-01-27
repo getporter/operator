@@ -1,4 +1,4 @@
-domain: porter.sh
+domain: getporter.org
 layout:
 - go.kubebuilder.io/v3
 plugins:
@@ -9,25 +9,25 @@ repo: get.porter.sh/operator
 resources:
 - api:
     crdVersion: v1
-  domain: porter.sh
+  domain: getporter.org
   kind: Installation
   path: get.porter.sh/operator/api/v1
   version: v1
 - api:
     crdVersion: v1
-  domain: porter.sh
+  domain: getporter.org
   kind: AgentConfig
   path: get.porter.sh/operator/api/v1
   version: v1
 - api:
     crdVersion: v1
-  domain: porter.sh
+  domain: getporter.org
   kind: PorterConfig
   path: get.porter.sh/operator/api/v1
   version: v1
 - api:
     crdVersion: v1
-  domain: porter.sh
+  domain: getporter.org
   kind: AgentAction
   path: get.porter.sh/operator/api/v1
   version: v1
@@ -35,7 +35,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: porter.sh
+  domain: getporter.org
   kind: CredentialSet
   path: get.porter.sh/operator/api/v1
   version: v1
@@ -43,7 +43,7 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: porter.sh
+  domain: getporter.org
   kind: ParameterSet
   path: get.porter.sh/operator/api/v1
   version: v1

@@ -131,7 +131,7 @@ func createTestNamespace(ctx context.Context) string {
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "ginkgo-tests-",
 			Labels: map[string]string{
-				"porter.sh/testdata": "true",
+				"getporter.org/testdata": "true",
 			},
 		},
 	}
