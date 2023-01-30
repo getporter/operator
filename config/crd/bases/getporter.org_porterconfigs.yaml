@@ -38,23 +38,23 @@ spec:
               Use yaml to convert to Porter's representation of the resource. The
               mapstructure tags are used internally for PorterConfigSpec.MergeConfig."
             properties:
-              buildDriver:
+              build-driver:
                 description: BuildDriver specifies the name of the current build driver.
                   Requires that the build-drivers experimental feature is enabled.
                 type: string
-              defaultSecrets:
+              default-secrets:
                 description: DefaultSecrets is the name of the secrets configuration
                   to use.
                 type: string
-              defaultSecretsPlugin:
+              default-secrets-plugin:
                 description: DefaultSecretsPlugin is the name of the storage plugin
                   to use when DefaultSecrets is unspecified.
                 type: string
-              defaultStorage:
+              default-storage:
                 description: DefaultStorage is the name of the storage configuration
                   to use.
                 type: string
-              defaultStoragePlugin:
+              default-storage-plugin:
                 description: DefaultStoragePlugin is the name of the storage plugin
                   to use when DefaultStorage is unspecified.
                 type: string
