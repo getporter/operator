@@ -5,7 +5,7 @@ metadata:
   name: parameterset-editor-role
 rules:
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets
   verbs:
@@ -17,7 +17,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets/status
   verbs:

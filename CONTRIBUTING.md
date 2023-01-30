@@ -14,7 +14,7 @@
 
 # New Contributor Guide
 
-The [Porter New Contributor Guide](https://porter.sh/src/CONTRIBUTING.md) has information on how to find issues, what
+The [Porter New Contributor Guide](https://getporter.org/src/CONTRIBUTING.md) has information on how to find issues, what
 type of help we are looking for, what to expect in your first pull request and
 more.
 
@@ -30,7 +30,7 @@ We recommend that you start there so that you understand how to use Porter.
 You will need a Porter, KinD, Go, and Docker to work on the operator.
 If you have an Apple M1/M2, see [ARM Support](#arm-support) for additional setup.
 
-[tutorial]: https://porter.sh/contribute/tutorial/
+[tutorial]: https://getporter.org/contribute/tutorial/
 
 ```
 # Install mage
@@ -85,7 +85,7 @@ These are targets that you won't usually run directly, other targets use them as
 * **DeleteTestCluster** deletes the KIND cluster named porter.
 * **Clean** deletes all data from the test cluster.
 * **CleanManual** removes all 
-* **CleanTests** removes any namespaces created by the test suite (with label porter.sh/testdata=true).
+* **CleanTests** removes any namespaces created by the test suite (with label getporter.org/testdata=true).
 
 ## Modify the porter agent
 

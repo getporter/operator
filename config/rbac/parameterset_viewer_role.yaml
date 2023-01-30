@@ -5,7 +5,7 @@ metadata:
   name: parameterset-viewer-role
 rules:
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - porter.sh
+  - getporter.org
   resources:
   - parametersets/status
   verbs:

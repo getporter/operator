@@ -59,12 +59,12 @@ waitForDeployment() {
 }
 
 removeData() {
-  filter="porter.sh/generator=porter-operator-bundle"
+  filter="getporter.org/generator=porter-operator-bundle"
   # This should get anything made by the bundle
   kubectl delete namespace -l $filter --wait
   # Look for any stray data that wasn't in a porter managed namespace, or were missing labels
   kubectl delete jobs,pods,secrets,pvc,pv --all-namespaces $filter --wait
-  kubectl delete installations.porter.sh,agentconfigs.porter.sh,porterconfigs.porter.sh --all-namespaces --wait
+  kubectl delete installations.getporter.org,agentconfigs.getporter.org,porterconfigs.getporter.org --all-namespaces --wait
 }
 
 # Call the requested function and pass the arguments as-is

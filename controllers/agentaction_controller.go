@@ -24,11 +24,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// +kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=agentactions,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=porter.sh,resources=agentactions/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=porter.sh,resources=agentactions/finalizers,verbs=update
+// +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=agentactions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=agentactions/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=getporter.org,resources=agentactions/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete

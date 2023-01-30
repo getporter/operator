@@ -406,7 +406,7 @@ func Bump(sample string) {
 	dataB, err := os.ReadFile(sampleFile)
 	mgx.Must(errors.Wrapf(err, "error reading installation definition %s", sampleFile))
 
-	updateRetry := fmt.Sprintf(`.metadata.annotations."porter.sh/retry" = "%s"`, time.Now().Format(time.RFC3339))
+	updateRetry := fmt.Sprintf(`.metadata.annotations."getporter.org/retry" = "%s"`, time.Now().Format(time.RFC3339))
 	crd, _ := must.Command("yq", "eval", updateRetry, "-").
 		Stdin(bytes.NewReader(dataB)).OutputE()
 
@@ -521,7 +521,7 @@ func Clean() {
 func CleanTestdata() {
 	if useCluster() {
 		// find all test namespaces
-		output, _ := kubectl("get", "ns", "-l", "porter.sh/testdata=true", `--template={{range .items}}{{.metadata.name}},{{end}}`).
+		output, _ := kubectl("get", "ns", "-l", "getporter.org/testdata=true", `--template={{range .items}}{{.metadata.name}},{{end}}`).
 			OutputE()
 		namespaces := strings.Split(output, ",")
 

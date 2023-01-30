@@ -1,4 +1,4 @@
-<img align="right" src="https://porter.sh/images/porter-docs-header.svg" width="300px" />
+<img align="right" src="https://getporter.org/images/porter-docs-header.svg" width="300px" />
 
 [![Build Status](https://github.com/getporter/operator/workflows/build/badge.svg)](https://github.com/getporter/operator/actions?query=workflow:pr)
 
@@ -21,7 +21,7 @@ pipeline with support for GitOps.
 * Create and respond to events on your cluster to integrate bundles into your
   pipeline.
 
-<p align="center">Learn all about Porter at <a href="https://release-v1.porter.sh/operator/">release-v1.porter.sh/operator/</a></p>
+<p align="center">Learn all about Porter at <a href="https://getporter.org/operator/">getporter.org/operator/</a></p>
 
 # Project Status
 
@@ -42,8 +42,8 @@ If you want to build from source, instructions are in the [Contributor's Guide].
 * [Open an Issue] - If you have a bug, feature request or question about Porter, ask on GitHub so that we can prioritize it and make sure you get an answer.
   If you ask on Slack, we will probably turn around and make an issue anyway. 😉
 
-[Mailing List]: https://porter.sh/mailing-list
-[Slack]: https://porter.sh/community/#slack
+[Mailing List]: https://getporter.org/mailing-list
+[Slack]: https://getporter.org/community/#slack
 [Open an Issue]: https://github.com/getporter/operator/issues/new
 
 ---
@@ -54,12 +54,12 @@ Want to work on Porter with us? 💖 We are actively seeking out new contributor
 with the hopes of building up both casual contributors and enticing some of you
 into becoming reviewers and maintainers.
 
-<p align="center">Start with our <a href="https://porter.sh/contribute/">New Contributors Guide</a>
+<p align="center">Start with our <a href="https://getporter.org/contribute/">New Contributors Guide</a>
 
 Porter wouldn't be possible without our [contributors][contributors], carrying
 the load and making it better every day! 🙇‍♀️
 
-[contributors]: https://porter.sh/src/CONTRIBUTORS.md
+[contributors]: https://getporter.org/src/CONTRIBUTORS.md
 
 ---
 
@@ -72,9 +72,9 @@ We use a single [project board][board] across all of our repositories to track o
 The roadmap represents what the core maintainers have said that they are currently working on and plan to work on over the next few months. We use the
 "on-hold" bucket to communicate items of interest that doesn't have a core maintainer who will be working on it.
 
-<p align="center">Check out our <a href="https://porter.sh/roadmap">roadmap</a></p>
+<p align="center">Check out our <a href="https://getporter.org/roadmap">roadmap</a></p>
 
-[board]: https://porter.sh/board
+[board]: https://getporter.org/board
 [Contributor's Guide]: CONTRIBUTING.md
 [connect]: CONTRIBUTING.md#connect-to-the-in-cluster-mongo-database
 [QuickStart]: /docs/content/quickstart/_index.md

@@ -82,14 +82,14 @@ NAMESPACE   NAME   CREATED   MODIFIED   LAST ACTION   LAST STATUS
 For this QuickStart, we will use the [getporter/hello-llama] bundle. It does not allocate any resources or require credentials, and is a demo bundle that prints the specified name to the console.
 
 The Operator uses the concept of **desired state**.
-It watches for installation.porter.sh resources (which will be referred to as just installation in this Quickstart) on the cluster, and compares the desired state of the installation from that resource with Porter's records. If the installation does not already exist, the bundle is installed. If it already exists, and the desired state doesn't match Porter's records, the installation is upgraded. When the installation resource is deleted, the installation is uninstalled.
+It watches for installation.getporter.org resources (which will be referred to as just installation in this Quickstart) on the cluster, and compares the desired state of the installation from that resource with Porter's records. If the installation does not already exist, the bundle is installed. If it already exists, and the desired state doesn't match Porter's records, the installation is upgraded. When the installation resource is deleted, the installation is uninstalled.
 
 Let's create an installation resource that specifies that we want to have the getporter/hello-llama bundle installed.
 
 1. Create a file named [llama.yaml](llama.yaml) with the following contents:
     
     ```yaml
-    apiVersion: porter.sh/v1
+    apiVersion: getporter.org/v1
     kind: Installation
     metadata:
       name: hello-llama
@@ -140,7 +140,7 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
 
 1. Edit llama.yaml and change the name parameter to a different value:
     ```yaml
-    apiVersion: porter.sh/v1
+    apiVersion: getporter.org/v1
     kind: Installation
     metadata:
       name: hello-llama
@@ -198,15 +198,15 @@ Now that our bundle is installed, let's make some changes to trigger an upgrade.
 
 ## Retry the last operation
 
-If your bundle operation failed, you can run it again by changing the `porter.sh/retry` annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
+If your bundle operation failed, you can run it again by changing the `getporter.org/retry` annotation on the installation CRD and then re-applying the file with `kubectl apply -f`:
 
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: Installation
 metadata:
   name: porter-hello
   annotations:
-    porter.sh/retry: "2022-01-01 12:00:00"
+    getporter.org/retry: "2022-01-01 12:00:00"
 ```
 
 Each time you need to repeat the operation without changing the spec, change the annotation value to a different value.
@@ -224,7 +224,7 @@ Let's walk through the second method in detail.
 
 1. Edit llama.yaml and add `uninstalled: true` under the spec:
    ```yaml
-    apiVersion: porter.sh/v1
+    apiVersion: getporter.org/v1
     kind: Installation
     metadata:
       name: hello-llama
@@ -316,7 +316,7 @@ A single secret with authentication for multiple registries can achieved by
 
 Create the `quickstart_agentconfig.yaml` with the following content:
 ```yaml
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: AgentConfig
 metadata:
   name: agentconfig-quickstart

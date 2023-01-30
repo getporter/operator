@@ -1,9 +1,9 @@
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: PorterConfig
 metadata:
   name: default
   labels:
-    porter.sh/generator: "porter-operator-bundle"
+    getporter.org/generator: "porter-operator-bundle"
 spec:
   # Values are supplied by the bundle parameter porter-config
   # If nothing is provided, defaults to the contents of defaults/porter-config-spec.yaml

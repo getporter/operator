@@ -3,7 +3,7 @@ kind: RoleBinding
 metadata:
   name: porter-agent
   labels:
-    porter.sh/generator: "porter-operator-bundle"
+    getporter.org/generator: "porter-operator-bundle"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

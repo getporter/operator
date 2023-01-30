@@ -1,4 +1,4 @@
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: Installation
 metadata:
   name: hello-llama

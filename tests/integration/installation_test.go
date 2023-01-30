@@ -30,7 +30,7 @@ var _ = Describe("Installation Lifecycle", func() {
 			Log("create an installation")
 			inst := &porterv1.Installation{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "porter.sh/v1",
+					APIVersion: "getporter.org/v1",
 					Kind:       "Installation",
 				},
 				ObjectMeta: metav1.ObjectMeta{

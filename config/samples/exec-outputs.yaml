@@ -1,9 +1,9 @@
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: Installation
 metadata:
   name: exec-outputs
   labels:
-    porter.sh/testdata: "true"
+    getporter.org/testdata: "true"
 spec:
   schemaVersion: 1.0.2
   namespace: operator

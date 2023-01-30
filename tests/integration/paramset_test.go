@@ -121,11 +121,11 @@ var _ = Describe("ParameterSet lifecycle", func() {
 	})
 })
 
-//NewTestParamSet minimal ParameterSet CRD for tests
+// NewTestParamSet minimal ParameterSet CRD for tests
 func NewTestParamSet(psName string) *porterv1.ParameterSet {
 	ps := &porterv1.ParameterSet{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "porter.sh/v1",
+			APIVersion: "getporter.org/v1",
 			Kind:       "ParameterSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{

@@ -239,7 +239,7 @@ var _ = Describe("CredentialSet delete", func() {
 func NewTestCredSet(csName string) *porterv1.CredentialSet {
 	cs := &porterv1.CredentialSet{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "porter.sh/v1",
+			APIVersion: "getporter.org/v1",
 			Kind:       "CredentialSet",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -276,7 +276,7 @@ func NewTestSecret(name, value string) *corev1.Secret {
 func NewTestInstallation(iName string) *porterv1.Installation {
 	inst := &porterv1.Installation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "porter.sh/v1",
+			APIVersion: "getporter.org/v1",
 			Kind:       "Installation",
 		},
 		ObjectMeta: metav1.ObjectMeta{

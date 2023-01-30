@@ -1,9 +1,9 @@
-apiVersion: porter.sh/v1
+apiVersion: getporter.org/v1
 kind: PorterConfig
 metadata:
   name: porterconfig-sample
   labels:
-    porter.sh/testdata: "true"
+    getporter.org/testdata: "true"
 spec:
   verbosity: debug
   defaultSecretsPlugin: kubernetes.secrets

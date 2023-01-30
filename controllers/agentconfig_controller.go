@@ -29,10 +29,10 @@ type AgentConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=porter.sh,resources=agentconfigs/finalizers,verbs=update
-//+kubebuilder:rbac:groups=porter.sh,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=getporter.org,resources=agentconfigs/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=getporter.org,resources=agentconfigs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=getporter.org,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=get;list;watch;create;update;patch;delete
