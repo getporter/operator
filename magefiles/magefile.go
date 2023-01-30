@@ -54,7 +54,7 @@ const (
 	operatorNamespace = "porter-operator-system"
 
 	// Porter cli version for running commands
-	porterVersion = "v1.0.5"
+	porterVersion = "v1.0.6"
 )
 
 var (
