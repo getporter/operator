@@ -71,8 +71,11 @@ type AgentConfigSpec struct {
 	// This can be useful for a bundle which is targeting the kubernetes cluster that the operator is installed in.
 	// +optional
 	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
+
+	// PluginConfigFile specifies plugins required to run Porter bundles.
+	// In order to utilize mapstructure omitempty tag with an embedded struct, this field needs to be a pointer
 	// +optional
-	Plugins PluginsSpec `json:"plugins,omitempty" mapstructure:"plugins,omitempty"`
+	PluginConfigFile *PluginFileSpec `json:"pluginConfigFile,omitempty" mapstructure:"pluginsConfigFile,omitempty"`
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
@@ -204,12 +207,12 @@ func init() {
 	SchemeBuilder.Register(&AgentConfig{}, &AgentConfigList{})
 }
 
-type PluginsSpec struct {
+type PluginFileSpec struct {
 	// SchemaVersion is the version of the plugins configuration state schema.
 	SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 
-	// Configs is a map of plugin configuration using plugin name as the key.
-	Configs map[string]Plugin `json:"configs,omitempty" mapstructure:"configs,omitempty"`
+	// Plugins is a map of plugin configuration using plugin name as the key.
+	Plugins map[string]Plugin `json:"configs,omitempty" mapstructure:"configs,omitempty"`
 }
 
 // Plugin represents the plugin configuration.
@@ -229,9 +232,13 @@ type AgentConfigSpecAdapter struct {
 
 // NewAgentConfigSpecAdapter creates a new instance of the AgentConfigSpecAdapter from a AgentConfigSpec.
 func NewAgentConfigSpecAdapter(spec AgentConfigSpec) AgentConfigSpecAdapter {
+	plugins := make(map[string]Plugin)
+	if spec.PluginConfigFile != nil {
+		plugins = spec.PluginConfigFile.Plugins
+	}
 	return AgentConfigSpecAdapter{
 		original: spec,
-		Plugins:  NewPluginsList(spec.Plugins.Configs),
+		Plugins:  NewPluginsList(plugins),
 	}
 }
 
@@ -306,10 +313,12 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 
 func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {
 	raw := struct {
+		SchemaType    string            `yaml:"schemaType"`
 		SchemaVersion string            `yaml:"schemaVersion"`
 		Plugins       map[string]Plugin `yaml:"plugins"`
 	}{
-		SchemaVersion: c.original.Plugins.SchemaVersion,
+		SchemaType:    "Plugins",
+		SchemaVersion: c.original.PluginConfigFile.SchemaVersion,
 		Plugins:       c.Plugins.data,
 	}
 

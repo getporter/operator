@@ -44,7 +44,10 @@ spec:
                   which is targeting the kubernetes cluster that the operator is installed
                   in.
                 type: string
-              plugins:
+              pluginConfigFile:
+                description: PluginConfigFile specifies plugins required to run Porter
+                  bundles. In order to utilize mapstructure omitempty tag with an
+                  embedded struct, this field needs to be a pointer
                 properties:
                   configs:
                     additionalProperties:
@@ -59,7 +62,7 @@ spec:
                         version:
                           type: string
                       type: object
-                    description: Configs is a map of plugin configuration using plugin
+                    description: Plugins is a map of plugin configuration using plugin
                       name as the key.
                     type: object
                   schemaVersion:

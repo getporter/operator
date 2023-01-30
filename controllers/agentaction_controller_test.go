@@ -764,7 +764,7 @@ func testAgentCfgSpec() porterv1.AgentConfigSpecAdapter {
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
-		Plugins:                    porterv1.PluginsSpec{Configs: map[string]porterv1.Plugin{"kubernetes": {}}},
+		PluginConfigFile:           &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
 	}
 
 	return porterv1.NewAgentConfigSpecAdapter(spec)
@@ -904,6 +904,7 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 			PorterVersion: "v2",
 		},
 	}
+
 	actionWithOverride.Spec.AgentConfig = &corev1.LocalObjectReference{Name: overrideCfg.Name}
 	actionWithNoOverride := testAgentAction()
 	actionWithNoOverride.Name = "no override"
@@ -915,6 +916,15 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 	cfg, err := controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithNoOverride)
 	require.NoError(t, err)
 	require.Equal(t, "v1.0", cfg.GetPorterVersion())
+
+	// verify when action is created by AgentConfig controller, the AgentConfig is resolved correctly
+	agentCfgRef := []metav1.OwnerReference{
+		{Kind: porterv1.KindAgentConfig},
+	}
+	actionWithOverride.SetOwnerReferences(agentCfgRef)
+	cfg, err = controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithOverride)
+	require.NoError(t, err)
+	require.Equal(t, "v2", cfg.GetPorterVersion())
 }
 
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {

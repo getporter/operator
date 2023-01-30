@@ -475,7 +475,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			"level", level,
 			"namespace", config.Namespace,
 			"name", config.Name,
-			"plugin", config.Spec.Plugins)
+			"plugin", config.Spec.PluginConfigFile)
 	}
 
 	// Read agent configuration defined at the system level
