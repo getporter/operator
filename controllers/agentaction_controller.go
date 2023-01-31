@@ -475,7 +475,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			"level", level,
 			"namespace", config.Namespace,
 			"name", config.Name,
-			"plugin", config.Spec.Plugins)
+			"plugin", config.Spec.PluginConfigFile)
 	}
 
 	// Read agent configuration defined at the system level
@@ -509,7 +509,7 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 	// for example, if namespace Spec.Plugins is {"azure": {}, "hashicorp": {}} and installation Spec.Plugins is {"kubernetes": {}}
 	// the result of the merge will be {"kubernetes": {}}
 	base := systemCfg
-	cfg, err := base.MergeReadyConfigs(*nsCfg, *instCfg)
+	cfg, err := base.MergeConfigs(*nsCfg, *instCfg)
 	if err != nil {
 		return porterv1.AgentConfigSpecAdapter{}, err
 	}

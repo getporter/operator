@@ -54,7 +54,7 @@ const (
 	operatorNamespace = "porter-operator-system"
 
 	// Porter cli version for running commands
-	porterVersion = "v1.0.1"
+	porterVersion = "v1.0.6"
 )
 
 var (
@@ -64,7 +64,7 @@ var (
 
 var (
 	porterAgentImgRepository = "ghcr.io/getporter/porter-agent"
-	porterAgentImgVersion    = "v1.0.2"
+	porterAgentImgVersion    = porterVersion
 )
 
 // Local porter agent image name to use for local testing
@@ -372,7 +372,7 @@ func PublishImages() {
 func PublishLocalPorterAgent() {
 	// Check if we have a local porter build
 	// TODO: let's move some of these helpers into Porter
-	mg.SerialDeps(BuildLocalPorterAgent, EnsureTestCluster)
+	mg.SerialDeps(EnsureTestCluster)
 	imageExists := func(img string) (bool, error) {
 		out, err := shx.Output("docker", "image", "inspect", img)
 		if err != nil {
@@ -672,27 +672,6 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 		Env("PORTER_DEFAULT_STORAGE=",
 			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
 			fmt.Sprintf("PORTER_HOME=%s", filepath.Join(pwd(), "bin")))
-}
-
-func BuildLocalPorterAgent() {
-	mg.SerialDeps(porter.UseBinForPorterHome, ensurePorterAt)
-	mg.SerialDeps(getMixins)
-	porterRegistry := "ghcr.io/getporter"
-	buildImage := func(img string) error {
-		_, err := shx.Output("docker", "build", "-t", img,
-			"--build-arg", fmt.Sprintf("PORTER_VERSION=%s", porterVersion),
-			"--build-arg", fmt.Sprintf("REGISTRY=%s", porterRegistry),
-			"-f", "tests/integration/testdata/Dockerfile.k8s-plugin-agent", ".")
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
-		localAgentImgName = fmt.Sprintf("%s:%s", os.Getenv("PORTER_AGENT_REPOSITORY"), os.Getenv("PORTER_AGENT_VERSION"))
-	}
-	err := buildImage(localAgentImgName)
-	mgx.Must(err)
 }
 
 // generatedCodeFilter remove generated code files from coverage report

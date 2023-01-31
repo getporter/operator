@@ -1,0 +1,13 @@
+schemaType: Plugins
+schemaVersion: 1.0.0
+plugins:
+    plugin1:
+        feedurl: http://example.com
+        url: test
+        mirror: http://example.com
+        version: v1.0.0
+    plugin2:
+        feedurl: http://example.com
+        url: test
+        mirror: http://example.com
+        version: v2.0.0

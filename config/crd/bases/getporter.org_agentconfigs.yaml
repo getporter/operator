@@ -44,19 +44,33 @@ spec:
                   which is targeting the kubernetes cluster that the operator is installed
                   in.
                 type: string
-              plugins:
-                additionalProperties:
-                  description: Plugin represents the plugin configuration.
-                  properties:
-                    feedURL:
-                      type: string
-                    mirror:
-                      type: string
-                    url:
-                      type: string
-                    version:
-                      type: string
-                  type: object
+              pluginConfigFile:
+                description: PluginConfigFile specifies plugins required to run Porter
+                  bundles. In order to utilize mapstructure omitempty tag with an
+                  embedded struct, this field needs to be a pointer
+                properties:
+                  plugins:
+                    additionalProperties:
+                      description: Plugin represents the plugin configuration.
+                      properties:
+                        feedURL:
+                          type: string
+                        mirror:
+                          type: string
+                        url:
+                          type: string
+                        version:
+                          type: string
+                      type: object
+                    description: Plugins is a map of plugin configuration using plugin
+                      name as the key.
+                    type: object
+                  schemaVersion:
+                    description: SchemaVersion is the version of the plugins configuration
+                      state schema.
+                    type: string
+                required:
+                - schemaVersion
                 type: object
               porterRepository:
                 description: PorterRepository is the repository for the Porter Agent

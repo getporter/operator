@@ -5,7 +5,12 @@ metadata:
   labels:
     getporter.org/generator: "porter-operator-bundle"
 spec:
-  plugins:
-    kubernetes: {}
+  porterRepository: ghcr.io/vinozzz/porter-agent
+  porterVersion: canary-dev
+  pullPolicy: Always
+  pluginConfigFile:
+    schemaVersion: 1.0.0
+    plugins:
+      kubernetes: {}
   # Values are set in helpers.sh based on the bundle parameters which are copied into agentconfig/*
   # where each file is a setting on the spec.

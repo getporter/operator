@@ -3,6 +3,9 @@ package v1
 import (
 	"testing"
 
+	"get.porter.sh/porter/pkg/plugins"
+	portertest "get.porter.sh/porter/pkg/test"
+	portertests "get.porter.sh/porter/tests"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -86,8 +89,10 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 	t.Run("one plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(c)
@@ -96,10 +101,12 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
 		c := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.0.0", URL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", Mirror: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.0.0", URL: "https://test"},
+					"hashicorp":  {Version: "v1.0.0", Mirror: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(c)
@@ -107,10 +114,12 @@ func TestAgentConfigSpecAdapter_GetPVCName(t *testing.T) {
 
 		// change the order of the plugins should not affect the name output.
 		c2 := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
-				"hashicorp":  {Version: "v1.0.0", URL: "https://test"},
-				"kubernetes": {Version: "v1.0.0", Mirror: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"azure":      {Version: "v1.0.0", FeedURL: "https://test"},
+					"hashicorp":  {Version: "v1.0.0", URL: "https://test"},
+					"kubernetes": {Version: "v1.0.0", Mirror: "https://test"},
+				},
 			},
 		}
 		cl2 := NewAgentConfigSpecAdapter(c2)
@@ -127,8 +136,10 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 
 	t.Run("one plugin defined", func(t *testing.T) {
 		onePluginCfg := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		cl := NewAgentConfigSpecAdapter(onePluginCfg)
@@ -137,20 +148,24 @@ func TestAgentConfigSpecAdapter_GetPluginsLabels(t *testing.T) {
 
 	t.Run("multiple plugins defined", func(t *testing.T) {
 		multiplePluginsCfg := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", URL: "https://test1"},
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.2.0", URL: "https://test1"},
+					"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		mcl := NewAgentConfigSpecAdapter(multiplePluginsCfg)
 		assert.Equal(t, map[string]string{LabelManaged: "true", LabelPluginsHash: "d8dbdcb6a9de4e60ef7886f90cbe73f4"}, mcl.Plugins.GetLabels())
 
 		multiplePluginsCfgWithDifferentOrder := AgentConfigSpec{
-			Plugins: map[string]Plugin{
-				"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
-				"azure":      {Version: "v1.2.0", URL: "https://test1"},
-				"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+			PluginConfigFile: &PluginFileSpec{
+				Plugins: map[string]Plugin{
+					"hashicorp":  {Version: "v1.0.0", FeedURL: "https://test"},
+					"azure":      {Version: "v1.2.0", URL: "https://test1"},
+					"kubernetes": {Version: "v1.0.0", FeedURL: "https://test"},
+				},
 			},
 		}
 		mclWithDifferentOrder := NewAgentConfigSpecAdapter(multiplePluginsCfgWithDifferentOrder)
@@ -163,6 +178,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		nsConfig := AgentConfigSpec{
 			ServiceAccount:             "porter-agent",
 			InstallationServiceAccount: "installation-service-account",
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"plugin1": {Version: "1.0.0"}}},
 		}
 
 		instConfig := AgentConfigSpec{}
@@ -182,7 +198,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "1Mi",
 			PullPolicy:                 v1.PullIfNotPresent,
 			InstallationServiceAccount: "base",
-			Plugins:                    map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}},
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}}},
 		}
 
 		instConfig := AgentConfigSpec{
@@ -192,7 +208,7 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 			VolumeSize:                 "2Mi",
 			PullPolicy:                 v1.PullAlways,
 			InstallationServiceAccount: "override",
-			Plugins:                    map[string]Plugin{"azure": {FeedURL: "localhost:6000"}},
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}},
 		}
 
 		config, err := systemConfig.MergeConfig(nsConfig, instConfig)
@@ -203,6 +219,116 @@ func TestAgentConfigSpec_MergeConfig(t *testing.T) {
 		assert.Equal(t, "2Mi", config.VolumeSize)
 		assert.Equal(t, v1.PullAlways, config.PullPolicy)
 		assert.Equal(t, "override", config.InstallationServiceAccount)
-		assert.Equal(t, map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}, config.Plugins)
+		assert.Equal(t, &PluginFileSpec{Plugins: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}}, config.PluginConfigFile)
 	})
+}
+
+func TestAgentConfig_MergeConfigs(t *testing.T) {
+	t.Run("empty is ignored", func(t *testing.T) {
+		nsSpec := AgentConfigSpec{
+			ServiceAccount:             "porter-agent",
+			InstallationServiceAccount: "installation-service-account",
+			PorterVersion:              "v1.0.5",
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"plugin1": {Version: "1.0.0"}}},
+		}
+		nsConfig := AgentConfig{Spec: nsSpec}
+
+		instConfig := AgentConfig{}
+
+		config, err := nsConfig.MergeConfigs(instConfig)
+		require.NoError(t, err)
+		assert.Equal(t, "porter-agent", config.Spec.ServiceAccount)
+		assert.Equal(t, "v1.0.5", config.Spec.PorterVersion)
+		assert.Equal(t, nsSpec.PluginConfigFile, config.Spec.PluginConfigFile)
+	})
+	t.Run("overrides", func(t *testing.T) {
+		systemConfig := AgentConfig{}
+
+		nsSpec := AgentConfigSpec{
+			PorterRepository:           "base",
+			PorterVersion:              "base",
+			ServiceAccount:             "base",
+			VolumeSize:                 "1Mi",
+			PullPolicy:                 v1.PullIfNotPresent,
+			InstallationServiceAccount: "base",
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"test-plugin": {FeedURL: "localhost:5000"}, "kubernetes": {}}},
+		}
+
+		nsConfig := AgentConfig{Spec: nsSpec}
+
+		instSpec := AgentConfigSpec{
+			PorterRepository:           "override",
+			PorterVersion:              "override",
+			ServiceAccount:             "override",
+			VolumeSize:                 "2Mi",
+			PullPolicy:                 v1.PullAlways,
+			InstallationServiceAccount: "override",
+			PluginConfigFile:           &PluginFileSpec{Plugins: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}},
+		}
+		instConfig := AgentConfig{Spec: instSpec}
+
+		config, err := systemConfig.MergeConfigs(nsConfig, instConfig)
+		require.NoError(t, err)
+		assert.Equal(t, "override", config.Spec.PorterRepository)
+		assert.Equal(t, "override", config.Spec.PorterVersion)
+		assert.Equal(t, "override", config.Spec.ServiceAccount)
+		assert.Equal(t, "2Mi", config.Spec.VolumeSize)
+		assert.Equal(t, v1.PullAlways, config.Spec.PullPolicy)
+		assert.Equal(t, "override", config.Spec.InstallationServiceAccount)
+		assert.Equal(t, &PluginFileSpec{Plugins: map[string]Plugin{"azure": {FeedURL: "localhost:6000"}}}, config.Spec.PluginConfigFile)
+	})
+}
+
+func TestAgentConfigSpecAdapter_ToPorterDocument(t *testing.T) {
+	wantGoldenFile := "testdata/plugins.yaml"
+	type fields struct {
+		SchemaVersion string
+		Plugins       map[string]Plugin
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		wantFile   string
+		wantErrMsg string
+	}{
+		{
+			name: "golden file test",
+			fields: fields{
+				SchemaVersion: string(plugins.InstallPluginsSchemaVersion),
+				Plugins: map[string]Plugin{
+					"plugin1": {
+						Version: "v1.0.0",
+						FeedURL: "http://example.com",
+						Mirror:  "http://example.com",
+						URL:     "test",
+					},
+					"plugin2": {
+						Version: "v2.0.0",
+						FeedURL: "http://example.com",
+						Mirror:  "http://example.com",
+						URL:     "test",
+					},
+				},
+			},
+			wantFile:   wantGoldenFile,
+			wantErrMsg: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec := PluginFileSpec{
+				SchemaVersion: tt.fields.SchemaVersion,
+				Plugins:       tt.fields.Plugins,
+			}
+			adapter := NewAgentConfigSpecAdapter(AgentConfigSpec{PluginConfigFile: &spec})
+
+			got, err := adapter.ToPorterDocument()
+			if tt.wantErrMsg == "" {
+				require.NoError(t, err)
+				portertest.CompareGoldenFile(t, tt.wantFile, string(got))
+			} else {
+				portertests.RequireErrorContains(t, err, tt.wantErrMsg)
+			}
+		})
+	}
 }

@@ -10,7 +10,7 @@ const (
 	//
 	// As we test out the operator with new versions of Porter, keep this value
 	// up-to-date so that the default version is guaranteed to work.
-	DefaultPorterAgentVersion = "v1.0.2"
+	DefaultPorterAgentVersion = "v1.0.6"
 
 	// LabelJobType is a label applied to jobs created by the operator. It
 	// indicates the purpose of the job.
