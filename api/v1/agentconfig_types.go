@@ -75,7 +75,7 @@ type AgentConfigSpec struct {
 	// PluginConfigFile specifies plugins required to run Porter bundles.
 	// In order to utilize mapstructure omitempty tag with an embedded struct, this field needs to be a pointer
 	// +optional
-	PluginConfigFile *PluginFileSpec `json:"pluginConfigFile,omitempty" mapstructure:"pluginsConfigFile,omitempty"`
+	PluginConfigFile *PluginFileSpec `json:"pluginConfigFile,omitempty" mapstructure:"pluginConfigFile,omitempty"`
 }
 
 // MergeConfig from another AgentConfigSpec. The values from the override are applied
@@ -212,7 +212,7 @@ type PluginFileSpec struct {
 	SchemaVersion string `json:"schemaVersion" yaml:"schemaVersion"`
 
 	// Plugins is a map of plugin configuration using plugin name as the key.
-	Plugins map[string]Plugin `json:"configs,omitempty" mapstructure:"configs,omitempty"`
+	Plugins map[string]Plugin `json:"plugins,omitempty" mapstructure:"plugins,omitempty"`
 }
 
 // Plugin represents the plugin configuration.

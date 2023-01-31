@@ -322,10 +322,12 @@ metadata:
   name: agentconfig-quickstart
   namespace: quickstart
 spec:
-  plugins:
-    kubernetes:
-      version: v1.0.0
-      feedUrl: https://cdn.porter.sh/plugins/atom.xml
+  pluginConfigFile:
+    schemaVersion: 1.0.0
+    plugins:
+     kubernetes:
+       version: v1.0.0
+       feedUrl: https://cdn.porter.sh/plugins/atom.xml
 ```
 
 Create the `AgentConfig` custom resource by running `kubectl apply -f quickstart_agentconfig.yaml`
@@ -333,8 +335,6 @@ Create the `AgentConfig` custom resource by running `kubectl apply -f quickstart
 The operator will use `porter plugins install` to install defined plugins. Any bundle actions that depend on configured plugins will wait to execute until plugins installation finishes. 
 
 If no plugins are required, this field is optional.
-
-🚨 WARNING: Currently, the operator can only install one plugin per AgentConfig. If more than one plugins are defined in the CRD, it will only install the first plugin in the config file and omit the rest. The plugins are sorted in alphabetical order.
 
 ## Next Steps
 

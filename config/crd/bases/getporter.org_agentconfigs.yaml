@@ -49,7 +49,7 @@ spec:
                   bundles. In order to utilize mapstructure omitempty tag with an
                   embedded struct, this field needs to be a pointer
                 properties:
-                  configs:
+                  plugins:
                     additionalProperties:
                       description: Plugin represents the plugin configuration.
                       properties:

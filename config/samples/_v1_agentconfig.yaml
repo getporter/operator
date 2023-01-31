@@ -11,5 +11,8 @@ spec:
   volumeSize: 64Mi
   pullPolicy: Always
   installationServiceAccount: installation-agent
-  plugins:
-    - name: "kubernetes"
+  pluginConfigFile:
+    schemaVersion: 1.0.0
+    plugins:
+      kubernetes:
+        version: v1.0.1

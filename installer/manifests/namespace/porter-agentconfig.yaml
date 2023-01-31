@@ -8,9 +8,9 @@ spec:
   porterRepository: ghcr.io/vinozzz/porter-agent
   porterVersion: canary-dev
   pullPolicy: Always
-  plugins:
+  pluginConfigFile:
     schemaVersion: 1.0.0
-    configs:
+    plugins:
       kubernetes: {}
   # Values are set in helpers.sh based on the bundle parameters which are copied into agentconfig/*
   # where each file is a setting on the spec.
