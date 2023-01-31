@@ -30,19 +30,19 @@ type PorterConfigSpec struct {
 
 	// BuildDriver specifies the name of the current build driver.
 	// Requires that the build-drivers experimental feature is enabled.
-	BuildDriver *string `json:"buildDriver,omitempty" yaml:"build-driver,omitempty" mapstructure:"build-driver,omitempty"`
+	BuildDriver *string `json:"build-driver,omitempty" yaml:"build-driver,omitempty" mapstructure:"build-driver,omitempty"`
 
 	// DefaultStorage is the name of the storage configuration to use.
-	DefaultStorage *string `json:"defaultStorage,omitempty" yaml:"default-storage,omitempty" mapstructure:"default-storage,omitempty"`
+	DefaultStorage *string `json:"default-storage,omitempty" yaml:"default-storage,omitempty" mapstructure:"default-storage,omitempty"`
 
 	// DefaultSecrets is the name of the secrets configuration to use.
-	DefaultSecrets *string `json:"defaultSecrets,omitempty" yaml:"default-secrets,omitempty" mapstructure:"default-secrets,omitempty"`
+	DefaultSecrets *string `json:"default-secrets,omitempty" yaml:"default-secrets,omitempty" mapstructure:"default-secrets,omitempty"`
 
 	// DefaultStoragePlugin is the name of the storage plugin to use when DefaultStorage is unspecified.
-	DefaultStoragePlugin *string `json:"defaultStoragePlugin,omitempty" yaml:"default-storage-plugin,omitempty" mapstructure:"default-storage-plugin,omitempty"`
+	DefaultStoragePlugin *string `json:"default-storage-plugin,omitempty" yaml:"default-storage-plugin,omitempty" mapstructure:"default-storage-plugin,omitempty"`
 
 	// DefaultSecretsPlugin is the name of the storage plugin to use when DefaultSecrets is unspecified.
-	DefaultSecretsPlugin *string `json:"defaultSecretsPlugin,omitempty" yaml:"default-secrets-plugin,omitempty" mapstructure:"default-secrets-plugin,omitempty"`
+	DefaultSecretsPlugin *string `json:"default-secrets-plugin,omitempty" yaml:"default-secrets-plugin,omitempty" mapstructure:"default-secrets-plugin,omitempty"`
 
 	// Storage is a list of named storage configurations.
 	Storage []StorageConfig `json:"storage,omitempty" yaml:"storage,omitempty" mapstructure:"storage,omitempty"`

@@ -119,10 +119,10 @@ Here is an example of the default configuration used when none is specified:
 
 ```yaml
 # Resolve secrets using secrets on the cluster in the current namespace.
-defaultSecretsPlugin: "kubernetes.secrets"
+default-secrets-plugin: "kubernetes.secrets"
 
 # Use the mongodb server that was deployed with the operator
-defaultStorage: "in-cluster-mongodb"
+default-storage: "in-cluster-mongodb"
 storage:
   - name: "in-cluster-mongodb"
     plugin: "mongodb"
