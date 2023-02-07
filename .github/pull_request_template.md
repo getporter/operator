@@ -18,7 +18,4 @@ _Put any questions or notes for the reviewer here._
 - [ ] Did you write documentation?
 - [ ] Did you make any API changes? Update the corresponding API documentation.
 
-# Reviewer Checklist
-* Comment with /azp run porter-integration if it's a non-trivial PR
-
 [contributors]: https://getporter.org/src/CONTRIBUTORS.md
