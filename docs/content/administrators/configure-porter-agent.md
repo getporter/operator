@@ -3,7 +3,7 @@ title: Configuring the Porter Agent
 description: How to customize Porter Agent
 ---
 
-The Porter Agent is a critical component in executing Porter commands in a controlled and reliable manner. With the AgentConfig Custom Resource Definition (CRD), you can customize the Porter Agent to meet your specific needs and requirements.
+The Porter Agent is a containerized version of the Porter CLI that is optimized for running Porter commands on a Kubernetes cluster. With the AgentConfig Custom Resource Definition (CRD), you can customize how the Porter Agent is run to meet your specific needs and requirements. For example, you can specify the version of Porter to use, install additional Porter plugins, or provide a custom Porter config file.
 
 This guide will show some ways to configure the Porter Agent through the [AgentConfig CRD](/operator/file-format/#agentconfig).
 
@@ -44,21 +44,22 @@ spec:
   installationServiceAccount: <service-account-for-the-installation>
 ```
 
+The porter operator ships two pre-defined ClusterRole, editor role and viewer role, for AgentConfig resources to help you to properly assign permissions to a custom service account.
+
 For more information on working with private registry images, see [this section of the Porter Operator Quickstart Guide](/quickstart/#private-bundle-registries).
 
 
 
 ## Configuring Porter Plugins
 
-In addition to specifying the version of Porter, you can also specify the plugins you need to install before bundle executions. For example, if you want to use the Kubernetes and Azure plugins, you can configure the AgentConfig like this:
+You can also specify any required plugins necessary for your installation of Porter. For example, if you want to use the Kubernetes and Azure plugins, you can configure the AgentConfig like this:
+
 ```yaml
 apiVersion: getporter.org/v1
 kind: AgentConfig
 metadata:
   name: customAgent
 spec:
-  porterRepository: <your-own-repository>
-  porterVersion: v1.2.3
   pluginConfigFile:
     schemaVersion: 1.0.0
     plugins:
@@ -71,6 +72,4 @@ spec:
 
 The schema for the pluginConfigFile field is defined [in the Porter reference documentation](/reference/file-formats/#plugins).
 
-🚨 WARNING: By default, the plugin version is set to `latest`. However, it is recommended to specify the plugin version to avoid any unexpected behavior that could result from an outdated plugin.
-
-
+🚨 WARNING: By default, the plugin version is set to `latest`. We recommend pinning to specific version of any plugins used to avoid undesired behavior caused by a stale plugin cache. Porter currently does not expire cached installations of plugins, so installing "latest" will not pick up new versions of plugins when they are released.
