@@ -27,4 +27,4 @@ lots of output
 ```
 
 ## Version
-Please provide the porter-agent and the operator version number that's used to reproduce the bug
+Please provide the AgentConfig for the porter-agent and the operator version number that's used to reproduce the bug
