@@ -44,7 +44,7 @@ spec:
   installationServiceAccount: <service-account-for-the-installation>
 ```
 
-The porter operator ships two pre-defined ClusterRole, editor role and viewer role, for AgentConfig resources to help you to properly assign permissions to a custom service account.
+The porter operator ships two pre-defined ClusterRole, agentconfigs-editor-role and agentconfigs-viewer-role, for AgentConfig resources to help you to properly assign permissions to a custom service account.
 
 For more information on working with private registry images, see [this section of the Porter Operator Quickstart Guide](/quickstart/#private-bundle-registries).
 
