@@ -185,6 +185,7 @@ func createTestNamespace(ctx context.Context) string {
 		// We can switch this back to latest when 1.0.0 of porter releases
 		agentVersion = porterv1.DefaultPorterAgentVersion
 	}
+	retryLimit := 0
 	// Tweak porter agent config for testing
 	agentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -195,6 +196,7 @@ func createTestNamespace(ctx context.Context) string {
 			PullPolicy:                 v1.PullAlways,
 			PorterRepository:           agentRepo,
 			PorterVersion:              agentVersion,
+			RetryLimit:                 &retryLimit,
 			ServiceAccount:             svc.Name,
 			InstallationServiceAccount: "installation-agent",
 			PluginConfigFile:           &porterv1.PluginFileSpec{SchemaVersion: "1.0.0", Plugins: map[string]porterv1.Plugin{"kubernetes": {FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.1"}}},

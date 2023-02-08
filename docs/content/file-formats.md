@@ -168,6 +168,7 @@ spec:
 | installationServiceAccount | false | (none) | The service account to run the Kubernetes pod/job for the installation image. |
 | volumeSize | false | 64Mi | The size of the persistent volume that Porter will request when running the Porter Agent. It is used to share data between the Porter Agent and the bundle invocation image. It must be large enough to store any files used by the bundle including credentials, parameters and outputs. |
 | pullPolicy | false | PullAlways when the tag is canary or latest, otherwise PullIfNotPresent. | Specifies when to pull the Porter Agent image |
+| retryLimit | false | (none) | Specifies the number of tries an agent job will run until it's marked as failure |
 | pluginConfigFile | false | (none) ] | The plugins that porter operator needs to install before bundle runs |
 | pluginConfigFile.schemaVersion | false | (none) | The schema version of the plugin config file |
 | pluginConfigFile.plugins.<plugin>.version | false | latest | The version of the plugin |

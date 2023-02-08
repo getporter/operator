@@ -87,6 +87,12 @@ spec:
                   The default is to use PullAlways when the tag is canary or latest,
                   and PullIfNotPresent otherwise.
                 type: string
+              retryLimit:
+                description: RetryLimit specifies the maximum number of retries that
+                  a failed agent job will run before being marked as failure. The
+                  default is set to 6 the same as the `BackoffLimit` on a kubernetes
+                  job.
+                type: integer
               serviceAccount:
                 description: ServiceAccount is the service account to run the Porter
                   Agent under.

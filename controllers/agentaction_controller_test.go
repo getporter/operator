@@ -696,7 +696,6 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertContains(t, job.Labels, porterv1.LabelJobType, porterv1.JobTypeAgent, "incorrect label")
 	assertContains(t, job.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Equal(t, pointer.Int32Ptr(1), job.Spec.Completions, "incorrect job completions")
-	assert.Equal(t, pointer.Int32Ptr(0), job.Spec.BackoffLimit, "incorrect job back off limit")
 
 	// Verify the job pod template
 	podTemplate := job.Spec.Template

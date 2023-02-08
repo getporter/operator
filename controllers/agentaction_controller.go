@@ -398,6 +398,11 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 	labels := r.getAgentJobLabels(action)
 	env, envFrom := r.getAgentEnv(action, agentCfg, pvc)
 	volumes, volumeMounts := r.getAgentVolumes(ctx, log, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
+	var backoffLimit *int32
+	backoffLimitValue, exist := agentCfg.GetRetryLimit()
+	if exist {
+		backoffLimit = pointer.Int32Ptr(int32(backoffLimitValue))
+	}
 
 	porterJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -417,7 +422,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 		},
 		Spec: batchv1.JobSpec{
 			Completions:  pointer.Int32Ptr(1),
-			BackoffLimit: pointer.Int32Ptr(0),
+			BackoffLimit: backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
@@ -439,7 +444,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 						},
 					},
 					Volumes:            volumes,
-					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
+					RestartPolicy:      "Never",
 					ServiceAccountName: agentCfg.GetServiceAccount(),
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 					SecurityContext: &corev1.PodSecurityContext{
