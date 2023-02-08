@@ -74,6 +74,14 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	_, ok := agentCfg.Spec.Plugins.GetByName("kubernetes")
 	require.True(t, ok)
 
+	// Verify only one empty plugin volume will be created for a agentCfg when `createEmptyPluginVolume` is called multiple times
+	_, _, err := controller.createEmptyPluginVolume(ctx, controller.Log, agentCfg)
+	require.NoError(t, err)
+	results := &corev1.PersistentVolumeClaimList{}
+	err = controller.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))
+	require.NoError(t, err)
+	require.Equal(t, 1, len(results.Items))
+
 	triggerReconcile()
 
 	// Verify an AgentAction was created and set on the status
@@ -260,7 +268,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// this trigger will then remove the agent config's finalizer
 	triggerReconcile()
 	// Verify that the agent config was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
+	err = controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
 	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
 
 	// Verify that reconcile doesn't error out after it's deleted

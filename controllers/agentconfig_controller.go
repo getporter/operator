@@ -187,17 +187,17 @@ func (r *AgentConfigReconciler) applyAgentConfig(ctx context.Context, log logr.L
 // createEmptyPluginVolume returns a volume resources that will be used to install plugins on.
 // it returns the a volume claim and whether it's newly created.
 func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (*corev1.PersistentVolumeClaim, bool, error) {
-	pvc, exists, err := r.getPersistentVolumeClaim(ctx, agentCfg.Namespace, agentCfg.GetPluginsPVCName())
+	pluginPVC, tempPVC, err := r.getExistingPluginPVCs(ctx, log, agentCfg)
 	if err != nil {
 		return nil, false, err
 	}
 
-	if exists {
-		return pvc, false, nil
+	if pluginPVC != nil || tempPVC != nil {
+		return tempPVC, false, nil
 	}
 
 	labels := agentCfg.Spec.Plugins.GetLabels()
-	pvc = &corev1.PersistentVolumeClaim{
+	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: agentCfg.Name + "-",
 			Namespace:    agentCfg.Namespace,
@@ -228,7 +228,6 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 		return nil, false, errors.Wrap(err, "error creating the agent volume (pvc)")
 	}
 
-	log.V(Log4Debug).Info("Created PersistentVolumeClaim for the Porter agent", "name", pvc.Name)
 	return pvc, true, nil
 }
 
