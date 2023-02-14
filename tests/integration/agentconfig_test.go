@@ -74,7 +74,7 @@ var _ = Describe("AgentConfig delete", func() {
 
 // NewTestAgentCfg minimal AgentConfig CRD for tests
 func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
-	retryLimit := 2
+	var retryLimit int32 = 2
 	cs := porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "getporter.org/v1",
