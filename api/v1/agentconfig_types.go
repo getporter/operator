@@ -316,11 +316,8 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 }
 
 // SetRetryAnnotation flags the resource to retry its last operation.
-func (c *AgentConfigSpecAdapter) GetRetryLimit() (int32, bool) {
-	if c.original.RetryLimit == nil {
-		return 0, false
-	}
-	return *c.original.RetryLimit, true
+func (c *AgentConfigSpecAdapter) GetRetryLimit() *int32 {
+	return c.original.RetryLimit
 }
 
 func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {

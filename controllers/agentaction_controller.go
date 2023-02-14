@@ -398,11 +398,6 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 	labels := r.getAgentJobLabels(action)
 	env, envFrom := r.getAgentEnv(action, agentCfg, pvc)
 	volumes, volumeMounts := r.getAgentVolumes(ctx, log, action, agentCfg, pvc, configSecret, workdirSecret, imgPullSecret)
-	var backoffLimit *int32
-	backoffLimitValue, exist := agentCfg.GetRetryLimit()
-	if exist {
-		backoffLimit = pointer.Int32Ptr(backoffLimitValue)
-	}
 
 	porterJob := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -422,7 +417,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 		},
 		Spec: batchv1.JobSpec{
 			Completions:  pointer.Int32Ptr(1),
-			BackoffLimit: backoffLimit,
+			BackoffLimit: agentCfg.GetRetryLimit(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
