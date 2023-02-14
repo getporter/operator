@@ -334,15 +334,15 @@ func TestAgentConfigSpecAdapter_ToPorterDocument(t *testing.T) {
 }
 
 func TestAgentConfigSpecAdapter_GetRetryLimit(t *testing.T) {
-	testdataNonZero := 2
-	testdataZero := 0
+	var testdataNonZero int32 = 2
+	var testdataZero int32 = 0
 	type expectedResult struct {
 		exist bool
-		value int
+		value int32
 	}
 	testcases := []struct {
 		name       string
-		retryLimit *int
+		retryLimit *int32
 		expected   expectedResult
 	}{
 		{name: "non-zero value", retryLimit: &testdataNonZero, expected: expectedResult{exist: true, value: testdataNonZero}},

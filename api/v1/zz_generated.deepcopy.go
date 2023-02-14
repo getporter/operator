@@ -256,7 +256,7 @@ func (in *AgentConfigSpec) DeepCopyInto(out *AgentConfigSpec) {
 	*out = *in
 	if in.RetryLimit != nil {
 		in, out := &in.RetryLimit, &out.RetryLimit
-		*out = new(int)
+		*out = new(int32)
 		**out = **in
 	}
 	if in.PluginConfigFile != nil {

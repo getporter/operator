@@ -185,7 +185,7 @@ func createTestNamespace(ctx context.Context) string {
 		// We can switch this back to latest when 1.0.0 of porter releases
 		agentVersion = porterv1.DefaultPorterAgentVersion
 	}
-	retryLimit := 0
+	var retryLimit int32 = 2
 	// Tweak porter agent config for testing
 	agentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{

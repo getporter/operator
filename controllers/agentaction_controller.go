@@ -401,7 +401,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 	var backoffLimit *int32
 	backoffLimitValue, exist := agentCfg.GetRetryLimit()
 	if exist {
-		backoffLimit = pointer.Int32Ptr(int32(backoffLimitValue))
+		backoffLimit = pointer.Int32Ptr(backoffLimitValue)
 	}
 
 	porterJob := batchv1.Job{
@@ -443,7 +443,10 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 							WorkingDir:      porterv1.VolumePorterWorkDirPath,
 						},
 					},
-					Volumes:            volumes,
+					Volumes: volumes,
+					// If a Job is marked as failure, the pod has to be deleted when RestartPolicy is set to OnFailure to prevent the pod keeps restarting.
+					// To preserve the failed pods, the RestartPolicy needs to be set as Never. The AgentAction job will create a  new pod on retry and leave the failed ones alone.
+					// For more details, see the github issue: https://github.com/kubernetes/kubernetes/issues/74848#issuecomment-971487582
 					RestartPolicy:      "Never",
 					ServiceAccountName: agentCfg.GetServiceAccount(),
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible

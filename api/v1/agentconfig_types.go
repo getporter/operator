@@ -74,7 +74,7 @@ type AgentConfigSpec struct {
 
 	// RetryLimit specifies the maximum number of retries that a failed agent job will run before being marked as failure.
 	// The default is set to 6 the same as the `BackoffLimit` on a kubernetes job.
-	RetryLimit *int `json:"retryLimit,omitempty" mapstructure:"retryLimit,omitempty"`
+	RetryLimit *int32 `json:"retryLimit,omitempty" mapstructure:"retryLimit,omitempty"`
 
 	// PluginConfigFile specifies plugins required to run Porter bundles.
 	// In order to utilize mapstructure omitempty tag with an embedded struct, this field needs to be a pointer
@@ -316,7 +316,7 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 }
 
 // SetRetryAnnotation flags the resource to retry its last operation.
-func (c *AgentConfigSpecAdapter) GetRetryLimit() (int, bool) {
+func (c *AgentConfigSpecAdapter) GetRetryLimit() (int32, bool) {
 	if c.original.RetryLimit == nil {
 		return 0, false
 	}
