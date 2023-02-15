@@ -160,6 +160,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	// long test is long
 	// Run through a full resource lifecycle: create, update, delete
 	ctx := context.Background()
+	var retryLimit int32 = 2
 
 	namespace := "test"
 	name := "mybuns-install"
@@ -178,6 +179,9 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default", Generation: 1},
 			Status: porterv1.AgentConfigStatus{
 				Ready: true,
+			},
+			Spec: porterv1.AgentConfigSpec{
+				RetryLimit: &retryLimit,
 			},
 		},
 	}
@@ -244,10 +248,22 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, porterv1.PhaseSucceeded, action.Status.Phase, "incorrect Phase")
 	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)))
 
-	// Fail the job
+	// Fail the pod once
 	job.Status.Active = 0
 	job.Status.Succeeded = 0
 	job.Status.Failed = 1
+	job.Status.Conditions = []batchv1.JobCondition{}
+	require.NoError(t, controller.Status().Update(ctx, &job))
+
+	triggerReconcile()
+
+	// Verify that the action status shows the job is still running
+	require.NotNil(t, action.Status.Job, "expected Job to still be set")
+	assert.Equal(t, porterv1.PhaseRunning, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionStarted)))
+
+	// Fail the pod running the job second time should result the job to fail
+	job.Status.Failed += 1
 	job.Status.Conditions = []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}}
 	require.NoError(t, controller.Status().Update(ctx, &job))
 
@@ -696,7 +712,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertContains(t, job.Labels, porterv1.LabelJobType, porterv1.JobTypeAgent, "incorrect label")
 	assertContains(t, job.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Equal(t, pointer.Int32Ptr(1), job.Spec.Completions, "incorrect job completions")
-	assert.Equal(t, pointer.Int32Ptr(0), job.Spec.BackoffLimit, "incorrect job back off limit")
+	assert.Nil(t, job.Spec.BackoffLimit, "incorrect job back off limit")
 
 	// Verify the job pod template
 	podTemplate := job.Spec.Template

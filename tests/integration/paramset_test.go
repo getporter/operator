@@ -48,7 +48,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			validateResourceConditions(ps)
 
 			Log("verify it's created")
-			jsonOut := runAgentAction(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			jsonOut := runAgentActionWithDefaultAgentCfg(ctx, "create-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
 			firstName := gjson.Get(jsonOut, "0.name").String()
 			numParamSets := gjson.Get(jsonOut, "#").Int()
 			numParams := gjson.Get(jsonOut, "0.parameters.#").Int()
@@ -68,7 +68,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			validateResourceConditions(inst)
 
 			// Validate that the correct parameter set was used by the installation
-			instJsonOut := runAgentAction(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
+			instJsonOut := runAgentActionWithDefaultAgentCfg(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
 			outDelayValue := gjson.Get(instJsonOut, `#(name=="outDelay").value`).String()
 			Expect(outDelayValue).To(Equal(delayValue))
 
@@ -91,7 +91,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			patchPS(ps)
 			Expect(waitForPorter(ctx, ps, 2, "waiting for parameters update to apply")).Should(Succeed())
 			Log("verify it's updated")
-			jsonOut = runAgentAction(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			jsonOut = runAgentActionWithDefaultAgentCfg(ctx, "update-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
 			updatedFirstName := gjson.Get(jsonOut, "0.name").String()
 			updatedNumParamSets := gjson.Get(jsonOut, "#").Int()
 			updatedNumParams := gjson.Get(jsonOut, "0.parameters.#").Int()
@@ -108,7 +108,7 @@ var _ = Describe("ParameterSet lifecycle", func() {
 			Expect(waitForResourceDeleted(ctx, ps)).Should(Succeed())
 
 			Log("verify parameter set is gone from porter data store")
-			delJsonOut := runAgentAction(ctx, "delete-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
+			delJsonOut := runAgentActionWithDefaultAgentCfg(ctx, "delete-check-parameters-list", ns, []string{"parameters", "list", "-n", ns, "-o", "json"})
 			delNumParams := gjson.Get(delJsonOut, "#").Int()
 			Expect(int64(0)).To(Equal(delNumParams))
 

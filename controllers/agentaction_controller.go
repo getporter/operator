@@ -417,7 +417,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 		},
 		Spec: batchv1.JobSpec{
 			Completions:  pointer.Int32Ptr(1),
-			BackoffLimit: pointer.Int32Ptr(0),
+			BackoffLimit: agentCfg.GetRetryLimit(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
@@ -438,8 +438,11 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 							WorkingDir:      porterv1.VolumePorterWorkDirPath,
 						},
 					},
-					Volumes:            volumes,
-					RestartPolicy:      "Never", // TODO: Make the retry policy configurable on the Installation
+					Volumes: volumes,
+					// If a Job is marked as failure, the pod has to be deleted when RestartPolicy is set to OnFailure to prevent the pod keeps restarting.
+					// To preserve the failed pods, the RestartPolicy needs to be set as Never. The AgentAction job will create a  new pod on retry and leave the failed ones alone.
+					// For more details, see the github issue: https://github.com/kubernetes/kubernetes/issues/74848#issuecomment-971487582
+					RestartPolicy:      "Never",
 					ServiceAccountName: agentCfg.GetServiceAccount(),
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 					SecurityContext: &corev1.PodSecurityContext{

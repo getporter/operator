@@ -72,6 +72,10 @@ type AgentConfigSpec struct {
 	// +optional
 	InstallationServiceAccount string `json:"installationServiceAccount,omitempty" mapstructure:"installationServiceAccount,omitempty"`
 
+	// RetryLimit specifies the maximum number of retries that a failed agent job will run before being marked as failure.
+	// The default is set to 6 the same as the `BackoffLimit` on a kubernetes job.
+	RetryLimit *int32 `json:"retryLimit,omitempty" mapstructure:"retryLimit,omitempty"`
+
 	// PluginConfigFile specifies plugins required to run Porter bundles.
 	// In order to utilize mapstructure omitempty tag with an embedded struct, this field needs to be a pointer
 	// +optional
@@ -309,6 +313,11 @@ func (c AgentConfigSpecAdapter) GetServiceAccount() string {
 // GetInstallationServiceAccount returns the config value of installation service account.
 func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 	return c.original.InstallationServiceAccount
+}
+
+// SetRetryAnnotation flags the resource to retry its last operation.
+func (c *AgentConfigSpecAdapter) GetRetryLimit() *int32 {
+	return c.original.RetryLimit
 }
 
 func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {

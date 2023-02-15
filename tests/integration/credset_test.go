@@ -56,7 +56,7 @@ var _ = Describe("CredentialSet create", func() {
 				validateResourceConditions(inst)
 
 				// Validate that the correct credential set was used by the installation
-				jsonOut := runAgentAction(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
+				jsonOut := runAgentActionWithDefaultAgentCfg(ctx, "show-outputs", ns, []string{"installation", "outputs", "list", "-n", ns, "-i", inst.Spec.Name, "-o", "json"})
 				credsValue := gjson.Get(jsonOut, `#(name=="outInsecureValue").value`).String()
 				Expect(credsValue).To(Equal(testSecret))
 			})
@@ -134,7 +134,7 @@ var _ = Describe("CredentialSet update", func() {
 				validateResourceConditions(cs)
 
 				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
+				jsonOut := runAgentActionWithDefaultAgentCfg(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
 				firstName := gjson.Get(jsonOut, "0.name").String()
 				numCredSets := gjson.Get(jsonOut, "#").Int()
 				numCreds := gjson.Get(jsonOut, "0.credentials.#").Int()
@@ -161,7 +161,7 @@ var _ = Describe("CredentialSet update", func() {
 				patchCS(cs)
 				Expect(waitForPorter(ctx, cs, 2, "waiting for credential update to apply")).Should(Succeed())
 				Log("verify it's updated")
-				jsonOut = runAgentAction(ctx, "update-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
+				jsonOut = runAgentActionWithDefaultAgentCfg(ctx, "update-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
 				updatedFirstName := gjson.Get(jsonOut, "0.name").String()
 				updatedNumCredSets := gjson.Get(jsonOut, "#").Int()
 				updatedNumCreds := gjson.Get(jsonOut, "0.credentials.#").Int()
@@ -209,7 +209,7 @@ var _ = Describe("CredentialSet delete", func() {
 				validateResourceConditions(cs)
 
 				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
+				jsonOut := runAgentActionWithDefaultAgentCfg(ctx, "create-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
 				firstName := gjson.Get(jsonOut, "0.name").String()
 				numCreds := gjson.Get(jsonOut, "#").Int()
 				firstCredName := gjson.Get(jsonOut, "0.credentials.0.name").String()
@@ -222,7 +222,7 @@ var _ = Describe("CredentialSet delete", func() {
 				Expect(waitForResourceDeleted(ctx, cs)).Should(Succeed())
 
 				Log("verify credential set is gone from porter data store")
-				delJsonOut := runAgentAction(ctx, "delete-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
+				delJsonOut := runAgentActionWithDefaultAgentCfg(ctx, "delete-check-credentials-list", ns, []string{"credentials", "list", "-n", ns, "-o", "json"})
 				delNumCreds := gjson.Get(delJsonOut, "#").Int()
 				Expect(int64(0)).To(Equal(delNumCreds))
 
@@ -292,16 +292,4 @@ func NewTestInstallation(iName string) *porterv1.Installation {
 		},
 	}
 	return inst
-}
-
-func newAgentAction(namespace string, name string, cmd []string) *porterv1.AgentAction {
-	return &porterv1.AgentAction{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
-		},
-		Spec: porterv1.AgentActionSpec{
-			Args: cmd,
-		},
-	}
 }

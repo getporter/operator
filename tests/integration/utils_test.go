@@ -226,17 +226,9 @@ func validateResourceConditions(resource controllers.PorterResource) {
 
 // Get the pod logs associated to the job created by the agent action
 func getAgentActionJobOutput(ctx context.Context, agentActionName string, namespace string) (string, error) {
-	actionKey := client.ObjectKey{Name: agentActionName, Namespace: namespace}
-	action := &porterv1.AgentAction{}
-	if err := k8sClient.Get(ctx, actionKey, action); err != nil {
-		Log(errors.Wrap(err, "could not retrieve the Resource's AgentAction to troubleshoot").Error())
-		return "", err
-	}
-	// Find the job associated with the agent action
-	jobKey := client.ObjectKey{Name: action.Status.Job.Name, Namespace: action.Namespace}
-	job := &batchv1.Job{}
-	if err := k8sClient.Get(ctx, jobKey, job); err != nil {
-		Log(errors.Wrap(err, "could not retrieve the Job to troubleshoot").Error())
+	job, err := getAgentActionJob(ctx, agentActionName, namespace)
+	if err != nil {
+		Log(err.Error())
 		return "", err
 	}
 	// Create a new k8s client that's use for fetching pod logs. This is not implemented on the controller-runtime client
@@ -279,6 +271,22 @@ func getAgentActionJobOutput(ctx context.Context, agentActionName string, namesp
 	return outputLog, nil
 }
 
+func getAgentActionJob(ctx context.Context, actionName string, namespace string) (*batchv1.Job, error) {
+	actionKey := client.ObjectKey{Name: actionName, Namespace: namespace}
+	action := &porterv1.AgentAction{}
+	if err := k8sClient.Get(ctx, actionKey, action); err != nil {
+		return nil, errors.Wrap(err, "could not retrieve the Resource's AgentAction to troubleshoot")
+	}
+	// Find the job associated with the agent action
+	jobKey := client.ObjectKey{Name: action.Status.Job.Name, Namespace: action.Namespace}
+	job := &batchv1.Job{}
+	if err := k8sClient.Get(ctx, jobKey, job); err != nil {
+		return nil, errors.Wrap(err, "could not retrieve the Job to troubleshoot")
+	}
+
+	return job, nil
+}
+
 func getAgentActionCmdOut(action *porterv1.AgentAction, aaOut string) string {
 	return strings.SplitAfterN(strings.Replace(aaOut, "\n", "", -1), strings.Join(action.Spec.Args, " "), 2)[1]
 }
@@ -289,11 +297,29 @@ func getAgentActionCmdOut(action *porterv1.AgentAction, aaOut string) string {
 that does "porter credentials list" will return just the result of the porter command from the job logs. This can be
 used to run porter commands inside the cluster to validate porter state
 */
-func runAgentAction(ctx context.Context, actionName string, namespace string, cmd []string) string {
-	aa := newAgentAction(namespace, actionName, cmd)
+func runAgentActionWithDefaultAgentCfg(ctx context.Context, actionName string, namespace string, cmd []string) string {
+	return runAgentAction(ctx, actionName, namespace, "", cmd)
+}
+
+func runAgentAction(ctx context.Context, actionName string, namespace string, agentCfgName string, cmd []string) string {
+	aa := newAgentAction(namespace, actionName, agentCfgName, cmd)
 	Expect(k8sClient.Create(ctx, aa)).Should(Succeed())
 	Expect(waitForPorter(ctx, aa, 1, fmt.Sprintf("waiting for action %s to run", actionName))).Should(Succeed())
 	aaOut, err := getAgentActionJobOutput(ctx, aa.Name, namespace)
 	Expect(err).Error().ShouldNot(HaveOccurred())
 	return getAgentActionCmdOut(aa, aaOut)
+}
+
+func newAgentAction(namespace string, name string, agentCfgName string, cmd []string) *porterv1.AgentAction {
+	agentCfg := &corev1.LocalObjectReference{Name: agentCfgName}
+	return &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: porterv1.AgentActionSpec{
+			AgentConfig: agentCfg,
+			Args:        cmd,
+		},
+	}
 }

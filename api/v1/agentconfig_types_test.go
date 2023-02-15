@@ -332,3 +332,27 @@ func TestAgentConfigSpecAdapter_ToPorterDocument(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentConfigSpecAdapter_GetRetryLimit(t *testing.T) {
+	var testdataNonZero int32 = 2
+	var testdataZero int32 = 0
+	testcases := []struct {
+		name       string
+		retryLimit *int32
+		expected   *int32
+	}{
+		{name: "non-zero value", retryLimit: &testdataNonZero, expected: &testdataNonZero},
+		{name: "set to 0", retryLimit: &testdataZero, expected: &testdataZero},
+		{name: "not defined", retryLimit: nil, expected: nil},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter := NewAgentConfigSpecAdapter(AgentConfigSpec{
+				RetryLimit: tc.retryLimit,
+			})
+			result := adapter.GetRetryLimit()
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}

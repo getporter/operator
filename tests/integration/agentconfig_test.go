@@ -31,12 +31,17 @@ var _ = Describe("AgentConfig delete", func() {
 				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
 
 				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, []string{"plugins", "list", "-o", "json"})
+				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, agentCfg.Name, []string{"plugins", "list", "-o", "json"})
 				firstName := gjson.Get(jsonOut, "0.name").String()
 				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
 				Expect(int64(1)).To(Equal(numPluginsInstalled))
 				_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
 				Expect(ok).To(BeTrue())
+
+				Log("verify retry limit is correctly set")
+				job, err := getAgentActionJob(ctx, "create-check-plugins-list", ns)
+				Expect(err).Should(BeNil())
+				Expect(*job.Spec.BackoffLimit).To(Equal(int32(2)))
 
 				Log("delete a agent config")
 				Expect(k8sClient.Delete(ctx, &agentCfg.AgentConfig)).Should(Succeed())
@@ -67,8 +72,9 @@ var _ = Describe("AgentConfig delete", func() {
 	})
 })
 
-// NewTestCredSet minimal CredentialSet CRD for tests
+// NewTestAgentCfg minimal AgentConfig CRD for tests
 func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
+	var retryLimit int32 = 2
 	cs := porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "getporter.org/v1",
@@ -78,6 +84,7 @@ func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.AgentConfigSpec{
+			RetryLimit: &retryLimit,
 			PluginConfigFile: &porterv1.PluginFileSpec{
 				SchemaVersion: "1.0.0",
 				Plugins: map[string]porterv1.Plugin{
