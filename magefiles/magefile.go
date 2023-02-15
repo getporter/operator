@@ -198,7 +198,7 @@ func getMixins() error {
 
 // Publish the operator and its bundle.
 func Publish() {
-	mg.Deps(PublishImages, PublishBundle)
+	mg.Deps(PublishMultiArchImages, PublishBundle)
 }
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
@@ -367,6 +367,16 @@ func PublishImages() {
 
 	log.Println("Pushing", imgPermalink)
 	must.RunV("docker", "push", imgPermalink)
+}
+
+func PublishMultiArchImages() {
+	meta := releases.LoadMetadata()
+	img := Env.ManagerImagePrefix + meta.Version
+	imgPermalink := Env.ManagerImagePrefix + meta.Permalink
+
+	log.Printf("Multi-arch build and push of %s and %s\n", img, imgPermalink)
+	must.RunV("docker", "buildx", "create", "--use")
+	must.RunV("docker", "buildx", "bake", "-f", "docker-bake.json", "--push", "--set", "porter.tags="+img, "--set", "porter.tags="+imgPermalink, "porter")
 }
 
 func PublishLocalPorterAgent() {

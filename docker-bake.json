@@ -1,0 +1,15 @@
+
+{
+  "group": {
+    "default": {
+      "targets": ["porter"]
+    }
+  },
+  "target": {
+    "porter": {
+      "platforms": ["linux/amd64", "linux/arm64"],
+      "dockerfile": "Dockerfile",
+      "context": "./"
+    }
+  }
+}
