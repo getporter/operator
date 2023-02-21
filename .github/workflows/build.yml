@@ -1,5 +1,5 @@
 name: build
-on: 
+on:
   workflow_dispatch: {}
   push: {}
   pull_request: {}
@@ -54,6 +54,14 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
       - name: Publish
         if: ${{ github.event_name != 'pull_request' }}
-        run: mage -v Publish
+        run: |
+          if [[ "${GITHUB_REPOSITORY}" != "getporter/operator" ]]; then
+          # If publishing from fork PORTER_OPERATOR_REGISTRY
+          # must be set as a CI env variable and GHCR_USER and GHCR_TOKEN set
+          # as secrets with permissions to publish images
+          export PORTER_ENV=fork
+          export PORTER_OPERATOR_REGISTRY=${{ vars.PORTER_OPERATOR_REGISTRY }}
+          fi
+          mage -v Publish
         env:
           PORTER_ENV: production
