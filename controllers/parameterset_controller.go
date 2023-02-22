@@ -178,7 +178,7 @@ func (r *ParameterSetReconciler) runPorter(ctx context.Context, log logr.Logger,
 // Only update the status with a PATCH, don't clobber the entire installation
 func (r *ParameterSetReconciler) saveStatus(ctx context.Context, log logr.Logger, ps *porterv1.ParameterSet) error {
 	log.V(Log5Trace).Info("Patching parameter set status")
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, ps, func() client.Object {
+	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, ps, func() client.Object {
 		return &porterv1.ParameterSet{}
 	})
 }

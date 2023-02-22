@@ -38,7 +38,7 @@ var _ = Describe("Installation Lifecycle", func() {
 					Namespace: ns,
 				},
 				Spec: porterv1.InstallationSpec{
-					SchemaVersion: string(storage.InstallationSchemaVersion),
+					SchemaVersion: string(storage.DefaultInstallationSchemaVersion),
 					Name:          "hello",
 					Namespace:     "operator-tests",
 					Bundle: porterv1.OCIReferenceParts{

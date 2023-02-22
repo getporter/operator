@@ -135,10 +135,12 @@ func (r *AgentActionReconciler) syncStatus(ctx context.Context, log logr.Logger,
 	return nil
 }
 
+type patchSubResource func(ctx context.Context, obj client.Object, patch client.Patch, _ ...client.SubResourcePatchOption) error
+
 // Only update the status with a PATCH, don't clobber the entire resource
 func (r *AgentActionReconciler) saveStatus(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) error {
 	log.V(Log5Trace).Info("Patching agent action status")
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, action, func() client.Object {
+	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, action, func() client.Object {
 		return &porterv1.AgentAction{}
 	})
 }

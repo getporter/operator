@@ -156,7 +156,7 @@ func (r *CredentialSetReconciler) syncStatus(ctx context.Context, log logr.Logge
 // Only update the status with a PATCH, don't clobber the entire installation
 func (r *CredentialSetReconciler) saveStatus(ctx context.Context, log logr.Logger, cs *porterv1.CredentialSet) error {
 	log.V(Log5Trace).Info("Patching credential set status")
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, cs, func() client.Object {
+	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, cs, func() client.Object {
 		return &porterv1.CredentialSet{}
 	})
 }

@@ -16,7 +16,7 @@ func TestInstallationSpec_ToPorterDocument(t *testing.T) {
 	// Validate the special handling for the arbitrary parameters
 	// which the CRD can't directly represent as map[string]interface{}
 	spec := InstallationSpec{
-		SchemaVersion: string(storage.InstallationSchemaVersion),
+		SchemaVersion: string(storage.DefaultInstallationSchemaVersion),
 		Name:          "mybuns",
 		Namespace:     "dev",
 		Bundle: OCIReferenceParts{

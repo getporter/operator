@@ -31,7 +31,7 @@ func TestParameterSetSpec_ToPorterDocument(t *testing.T) {
 	}{
 		{
 			name: "golden file test",
-			fields: fields{SchemaVersion: string(storage.ParameterSetSchemaVersion),
+			fields: fields{SchemaVersion: string(storage.DefaultParameterSetSchemaVersion),
 				Name:      "porter-test-me",
 				Namespace: "dev",
 				Parameters: []Parameter{

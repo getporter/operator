@@ -248,7 +248,7 @@ func NewTestCredSet(csName string) *porterv1.CredentialSet {
 		Spec: porterv1.CredentialSetSpec{
 			//TODO: get schema version from porter version?
 			// https://github.com/getporter/porter/pull/2052
-			SchemaVersion: string(storage.CredentialSetSchemaVersion),
+			SchemaVersion: string(storage.DefaultCredentialSetSchemaVersion),
 			Name:          csName,
 		},
 	}
@@ -283,7 +283,7 @@ func NewTestInstallation(iName string) *porterv1.Installation {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.InstallationSpec{
-			SchemaVersion: string(storage.InstallationSchemaVersion),
+			SchemaVersion: string(storage.DefaultInstallationSchemaVersion),
 			Name:          iName,
 			Bundle: porterv1.OCIReferenceParts{
 				Repository: "ghcr.io/bdegeeter/porter-test-me",

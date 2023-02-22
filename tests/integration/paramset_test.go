@@ -132,7 +132,7 @@ func NewTestParamSet(psName string) *porterv1.ParameterSet {
 			GenerateName: "porter-test-me-",
 		},
 		Spec: porterv1.ParameterSetSpec{
-			SchemaVersion: string(storage.ParameterSetSchemaVersion),
+			SchemaVersion: string(storage.DefaultParameterSetSchemaVersion),
 			Name:          psName,
 		},
 	}

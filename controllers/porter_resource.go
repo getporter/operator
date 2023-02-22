@@ -25,9 +25,10 @@ type PorterResource interface {
 	SetStatus(value porterv1.PorterResourceStatus)
 }
 
-type patchFunc func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
+type patchFunc func(ctx context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error
+type patchStatusFunc func(ctx context.Context, obj client.Object, patch client.Patch, _ ...client.SubResourcePatchOption) error
 
-func PatchObjectWithRetry(ctx context.Context, log logr.Logger, clnt client.Client, patch patchFunc, obj client.Object, newObj func() client.Object) error {
+func PatchObjectWithRetry(ctx context.Context, log logr.Logger, clnt client.Client, patchFn patchFunc, obj client.Object, newObj func() client.Object) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
@@ -41,7 +42,7 @@ func PatchObjectWithRetry(ctx context.Context, log logr.Logger, clnt client.Clie
 		}
 
 		patchObj := client.MergeFrom(latest)
-		err := patch(ctx, obj, patchObj)
+		err := patchFn(ctx, obj, patchObj)
 		if err != nil {
 			if apierrors.IsConflict(err) {
 				continue // try again
@@ -55,6 +56,16 @@ func PatchObjectWithRetry(ctx context.Context, log logr.Logger, clnt client.Clie
 		}
 		return nil
 	}
+}
+
+func PatchStatusWithRetry(ctx context.Context, log logr.Logger, clnt client.Client, patchStatusFn patchStatusFunc, obj client.Object, newObj func() client.Object) error {
+	convert := func(patchStatusFn patchStatusFunc) patchFunc {
+		return func(ctx context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error {
+			return patchStatusFn(ctx, obj, patch)
+		}
+	}
+	patchFn := convert(patchStatusFn)
+	return PatchObjectWithRetry(ctx, log, clnt, patchFn, obj, newObj)
 }
 
 func applyAgentAction(log logr.Logger, resource PorterResource, action *porterv1.AgentAction) {

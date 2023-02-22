@@ -18,6 +18,8 @@ import (
 	. "get.porter.sh/magefiles/docker"
 	"get.porter.sh/magefiles/porter"
 	"get.porter.sh/magefiles/releases"
+	"github.com/carolynvs/aferox"
+	"github.com/spf13/afero"
 
 	//mage:import
 	. "get.porter.sh/magefiles/tests"
@@ -25,7 +27,6 @@ import (
 	. "get.porter.sh/operator/mage"
 	"get.porter.sh/operator/mage/docs"
 	"get.porter.sh/porter/pkg/cnab"
-	"get.porter.sh/porter/pkg/portercontext"
 	porteryaml "get.porter.sh/porter/pkg/yaml"
 	"github.com/carolynvs/magex/ci"
 	"github.com/carolynvs/magex/mgx"
@@ -54,7 +55,7 @@ const (
 	operatorNamespace = "porter-operator-system"
 
 	// Porter cli version for running commands
-	porterVersion = "v1.0.6"
+	porterVersion = "v1.0.9"
 )
 
 var (
@@ -507,7 +508,7 @@ func applyHackParameters(cmd shx.PreparedCommand) {
 // EditYaml applies a set of yq transformations to a file.
 func EditYaml(path string, transformations ...func(yq *porteryaml.Editor) error) error {
 	log.Println("Editing", path)
-	yq := porteryaml.NewEditor(portercontext.New())
+	yq := porteryaml.NewEditor(aferox.NewAferox("", afero.NewOsFs()))
 
 	if err := yq.ReadFile(path); err != nil {
 		return err

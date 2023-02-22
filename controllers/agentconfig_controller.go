@@ -322,7 +322,7 @@ func (r *AgentConfigReconciler) syncStatus(ctx context.Context, log logr.Logger,
 func (r *AgentConfigReconciler) saveStatus(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) error {
 	log.V(Log5Trace).Info("Patching agent config status")
 	cfg := &agentCfg.AgentConfig
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, cfg, func() client.Object {
+	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, cfg, func() client.Object {
 		return &porterv1.AgentConfig{}
 	})
 }
