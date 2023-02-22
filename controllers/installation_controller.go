@@ -217,8 +217,8 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 					Kind:               inst.Kind,
 					Name:               inst.Name,
 					UID:                inst.UID,
-					Controller:         pointer.BoolPtr(true),
-					BlockOwnerDeletion: pointer.BoolPtr(true),
+					Controller:         pointer.Bool(true),
+					BlockOwnerDeletion: pointer.Bool(true),
 				},
 			},
 		},
@@ -256,7 +256,7 @@ func (r *InstallationReconciler) syncStatus(ctx context.Context, log logr.Logger
 // Only update the status with a PATCH, don't clobber the entire installation
 func (r *InstallationReconciler) saveStatus(ctx context.Context, log logr.Logger, inst *porterv1.Installation) error {
 	log.V(Log5Trace).Info("Patching installation status")
-	return PatchObjectWithRetry(ctx, log, r.Client, r.Client.Status().Patch, inst, func() client.Object {
+	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, inst, func() client.Object {
 		return &porterv1.Installation{}
 	})
 }

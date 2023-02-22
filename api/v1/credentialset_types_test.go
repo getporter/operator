@@ -31,7 +31,7 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 	}{
 		{
 			name: "golden file test",
-			fields: fields{SchemaVersion: string(storage.CredentialSetSchemaVersion),
+			fields: fields{SchemaVersion: string(storage.DefaultCredentialSetSchemaVersion),
 				Name:      "porter-test-me",
 				Namespace: "dev",
 				Credentials: []Credential{{
