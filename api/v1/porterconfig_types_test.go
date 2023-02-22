@@ -12,28 +12,28 @@ import (
 func TestPorterConfigSpec_MergeConfig(t *testing.T) {
 	t.Run("empty is ignored", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Verbosity: pointer.StringPtr("info"),
+			Verbosity: pointer.String("info"),
 		}
 
 		instConfig := PorterConfigSpec{}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.StringPtr("info"), config.Verbosity)
+		assert.Equal(t, pointer.String("info"), config.Verbosity)
 	})
 
 	t.Run("override", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Verbosity: pointer.StringPtr("info"),
+			Verbosity: pointer.String("info"),
 		}
 
 		instConfig := PorterConfigSpec{
-			Verbosity: pointer.StringPtr("debug"),
+			Verbosity: pointer.String("debug"),
 		}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.StringPtr("debug"), config.Verbosity)
+		assert.Equal(t, pointer.String("debug"), config.Verbosity)
 	})
 }
 
@@ -47,14 +47,14 @@ func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 		{
 			name: "All fields set",
 			cfg: PorterConfigSpec{
-				Verbosity:            pointer.StringPtr("debug"),
-				Namespace:            pointer.StringPtr("test"),
+				Verbosity:            pointer.String("debug"),
+				Namespace:            pointer.String("test"),
 				Experimental:         []string{"build-drivers"},
-				BuildDriver:          pointer.StringPtr("buildkit"),
-				DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
-				DefaultSecrets:       pointer.StringPtr("keyvault"),
-				DefaultStoragePlugin: pointer.StringPtr("mongodb"),
-				DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
+				BuildDriver:          pointer.String("buildkit"),
+				DefaultStorage:       pointer.String("in-cluster-mongodb"),
+				DefaultSecrets:       pointer.String("keyvault"),
+				DefaultStoragePlugin: pointer.String("mongodb"),
+				DefaultSecretsPlugin: pointer.String("kubernetes.secrets"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -94,8 +94,8 @@ secrets:
 		{
 			name: "Storage config not provided",
 			cfg: PorterConfigSpec{
-				DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
-				DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
+				DefaultSecretsPlugin: pointer.String("kubernetes.secrets"),
+				DefaultStorage:       pointer.String("in-cluster-mongodb"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -113,8 +113,8 @@ storage:
 		{
 			name: "Secrets config not provided",
 			cfg: PorterConfigSpec{
-				DefaultStorage: pointer.StringPtr("in-cluster-mongodb"),
-				DefaultSecrets: pointer.StringPtr("kubernetes-secrets"),
+				DefaultStorage: pointer.String("in-cluster-mongodb"),
+				DefaultSecrets: pointer.String("kubernetes-secrets"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",

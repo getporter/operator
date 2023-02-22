@@ -315,8 +315,8 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 					Kind:               agentCfg.Kind,
 					Name:               agentCfg.Name,
 					UID:                agentCfg.UID,
-					Controller:         pointer.BoolPtr(true),
-					BlockOwnerDeletion: pointer.BoolPtr(true),
+					Controller:         pointer.Bool(true),
+					BlockOwnerDeletion: pointer.Bool(true),
 				},
 			},
 		},
@@ -361,8 +361,8 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 		Kind:               "AgentConfig",
 		Name:               "myblog",
 		UID:                "random-uid",
-		Controller:         pointer.BoolPtr(true),
-		BlockOwnerDeletion: pointer.BoolPtr(true),
+		Controller:         pointer.Bool(true),
+		BlockOwnerDeletion: pointer.Bool(true),
 	}
 	assert.Equal(t, wantOwnerRef, action.OwnerReferences[0], "incorrect owner reference")
 

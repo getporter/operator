@@ -135,8 +135,6 @@ func (r *AgentActionReconciler) syncStatus(ctx context.Context, log logr.Logger,
 	return nil
 }
 
-type patchSubResource func(ctx context.Context, obj client.Object, patch client.Patch, _ ...client.SubResourcePatchOption) error
-
 // Only update the status with a PATCH, don't clobber the entire resource
 func (r *AgentActionReconciler) saveStatus(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) error {
 	log.V(Log5Trace).Info("Patching agent action status")
@@ -302,7 +300,7 @@ func (r *AgentActionReconciler) createConfigSecret(ctx context.Context, log logr
 			Labels:       labels,
 		},
 		Type:      corev1.SecretTypeOpaque,
-		Immutable: pointer.BoolPtr(true),
+		Immutable: pointer.Bool(true),
 		Data: map[string][]byte{
 			"config.yaml": porterCfgB,
 		},
@@ -338,7 +336,7 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 			Labels:       labels,
 		},
 		Type:      corev1.SecretTypeOpaque,
-		Immutable: pointer.BoolPtr(true),
+		Immutable: pointer.Bool(true),
 		Data:      action.Spec.Files,
 	}
 
@@ -412,13 +410,13 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 					Kind:               action.Kind,
 					Name:               action.Name,
 					UID:                action.UID,
-					Controller:         pointer.BoolPtr(true),
-					BlockOwnerDeletion: pointer.BoolPtr(true),
+					Controller:         pointer.Bool(true),
+					BlockOwnerDeletion: pointer.Bool(true),
 				},
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  pointer.Int32Ptr(1),
+			Completions:  pointer.Int32(1),
 			BackoffLimit: agentCfg.GetRetryLimit(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -449,11 +447,11 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 					ImagePullSecrets:   nil, // TODO: Make pulling from a private registry possible
 					SecurityContext: &corev1.PodSecurityContext{
 						// Run as the well-known nonroot user that Porter uses for the invocation image and the agent
-						RunAsUser: pointer.Int64Ptr(65532),
+						RunAsUser: pointer.Int64(65532),
 						// Porter builds the bundles with the root group having the same permissions as the owner
 						// So make sure that we are running as the root group
-						RunAsGroup: pointer.Int64Ptr(0),
-						FSGroup:    pointer.Int64Ptr(0),
+						RunAsGroup: pointer.Int64(0),
+						FSGroup:    pointer.Int64(0),
 					},
 				},
 			},
@@ -550,8 +548,8 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 
 	// Provide a safe default config in case nothing is defined anywhere
 	defaultCfg := porterv1.PorterConfigSpec{
-		DefaultStorage:       pointer.StringPtr("in-cluster-mongodb"),
-		DefaultSecretsPlugin: pointer.StringPtr("kubernetes.secrets"),
+		DefaultStorage:       pointer.String("in-cluster-mongodb"),
+		DefaultSecretsPlugin: pointer.String("kubernetes.secrets"),
 		Storage: []porterv1.StorageConfig{
 			{PluginConfig: porterv1.PluginConfig{
 				Name:         "in-cluster-mongodb",
@@ -650,7 +648,7 @@ func (r *AgentActionReconciler) getAgentEnv(action *porterv1.AgentAction, agentC
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: "porter-env",
 				},
-				Optional: pointer.BoolPtr(true),
+				Optional: pointer.Bool(true),
 			},
 		},
 	}
@@ -675,7 +673,7 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: configSecret.Name,
-					Optional:   pointer.BoolPtr(false),
+					Optional:   pointer.Bool(false),
 				},
 			},
 		},
@@ -684,7 +682,7 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: workdirSecret.Name,
-					Optional:   pointer.BoolPtr(false),
+					Optional:   pointer.Bool(false),
 				},
 			},
 		},
@@ -711,7 +709,7 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 				Secret: &corev1.SecretVolumeSource{
 					Items:      []corev1.KeyToPath{{Key: ".dockerconfigjson", Path: ".docker/config.json"}},
 					SecretName: imgPullSecret.Name,
-					Optional:   pointer.BoolPtr(false),
+					Optional:   pointer.Bool(false),
 				},
 			},
 		})

@@ -226,8 +226,8 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 				Kind:               "ParameterSet",
 				Name:               "myParams",
 				UID:                "random-uid",
-				Controller:         pointer.BoolPtr(true),
-				BlockOwnerDeletion: pointer.BoolPtr(true),
+				Controller:         pointer.Bool(true),
+				BlockOwnerDeletion: pointer.Bool(true),
 			}
 			assert.Equal(t, wantOwnerRef, action.OwnerReferences[0], "incorrect owner reference")
 			assertContains(t, action.Annotations, porterv1.AnnotationRetry, cs.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
