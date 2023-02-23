@@ -186,6 +186,8 @@ The configureNamespace action of the porter operator bundle creates a service ac
 
 See the glossary for more information about the [PorterConfig] resource.
 
+ℹ️ The PorterConfig resource uses the same naming convention as the [Porter Configuration File](/configuration/#config-file), hyphenated instead of camelCase, so that you can copy/paste between the two without changing the field names.
+
 ```yaml
 apiVersion: getporter.org/v1
 kind: PorterConfig
@@ -193,8 +195,8 @@ metadata:
   name: customPorterConfig
 spec:
   verbosity: debug
-  defaultSecretsPlugin: kubernetes.secrets
-  defaultStorage: in-cluster-mongodb
+  default-secrets-plugin: kubernetes.secrets
+  default-storage: in-cluster-mongodb
   storage:
     - name: in-cluster-mongodb
       plugin: mongodb
@@ -203,17 +205,17 @@ spec:
 
 ```
 
-| Field        | Required    | Default | Description |
-| -----------  | ----------- | ------- | ----------- |
-| verbosity    | false       | info | Threshold for printing messages to the console. Available values are: debug, info, warning, error. (default "info") |
-| namespace    | false       | (empty) | The default Porter namespace. Used when a resource is defined without the namespace set in the spec. |
-| experimental | false       | (empty) | Specifies which experimental features are enabled. See Porter Feature Flags for more information. |
-| defaultStorage | false     | in-cluster-mongodb | The name of the storage configuration to use. |
-| defaultSecrets | false     | (empty) | The name of the secrets configuration to use. |
-| defaultStoragePlugin | false | (empty) | The name of the storage plugin to use when defaultStorage is unspecified. |
-| defaultSecretsPlugin | false | kubernetes.secrets | The name of the storage plugin to use when defaultSecrets is unspecified. |
-| storage | false | The mongodb server installed with the operator. | A list of named storage configurations. |
-| secrets | false | (empty) | A list of named secrets configurations. |
+| Field                  | Required | Default                                         | Description                                                                                                         |
+|------------------------|----------|-------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| verbosity              | false    | info                                            | Threshold for printing messages to the console. Available values are: debug, info, warning, error. (default "info") |
+| namespace              | false    | (empty)                                         | The default Porter namespace. Used when a resource is defined without the namespace set in the spec.                |
+| experimental           | false    | (empty)                                         | Specifies which experimental features are enabled. See Porter Feature Flags for more information.                   |
+| default-storage        | false    | in-cluster-mongodb                              | The name of the storage configuration to use.                                                                       |
+| default-secrets        | false    | (empty)                                         | The name of the secrets configuration to use.                                                                       |
+| default-storage-plugin | false    | (empty)                                         | The name of the storage plugin to use when default-storage is unspecified.                                          |
+| default-secrets-plugin | false    | kubernetes.secrets                              | The name of the storage plugin to use when defaultSecrets is unspecified.                                           |
+| storage                | false    | The mongodb server installed with the operator. | A list of named storage configurations.                                                                             |
+| secrets                | false    | (empty)                                         | A list of named secrets configurations.                                                                             |
 
 [PorterConfig]: /operator/glossary/#porterconfig
 
