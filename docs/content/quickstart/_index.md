@@ -24,13 +24,13 @@ The commands below use the v0.7.1 release, but there may be a more recent releas
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
 
 ```
-porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.7.2
+porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.8.0
 ```
 
 Now that Porter knows which cluster to target, install the Operator with the following command:
 
 ```
-porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.7.2
+porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.8.0
 ```
 
 Before you use the operator, you need to configure a Kubernetes namespace with the necessary configuration.
