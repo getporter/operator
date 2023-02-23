@@ -6,7 +6,7 @@ metadata:
     getporter.org/testdata: "true"
 spec:
   verbosity: debug
-  default-secretsPlugin: kubernetes.secrets
+  default-secrets-plugin: kubernetes.secrets
   default-storage: in-cluster-mongodb
   storage:
     - name: in-cluster-mongodb
