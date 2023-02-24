@@ -900,6 +900,32 @@ func TestAgentActionReconciler_getAgentVolumes_agentconfigaction(t *testing.T) {
 	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
 }
 
+// Ensure that we can create a valid AgentAction when no plugins were specified for the AgentConfig
+// In which case we should not mount porter-plugins into the agent
+func TestAgentActionReconciler_NoPluginsSpecified(t *testing.T) {
+	controller := setupAgentActionController()
+	action := testAgentAction()
+	agentCfg := testAgentCfgSpec()
+
+	// Do not set any plugins on the agent config
+	agentCfg.Plugins = porterv1.PluginsConfigList{}
+
+	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "mypvc"}}
+	configSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-agent-config"}}
+	workDirSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "myagentconfig"}}
+	volumes, volumeMounts := controller.getAgentVolumes(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, nil)
+
+	assert.Len(t, volumes, 3, "incorrect pod volumes")
+	for _, v := range volumes {
+		assert.NotEqual(t, porterv1.VolumePorterPluginsName, v.Name, "the porter-plugins volume should not be present when no plugins are specified")
+	}
+
+	assert.Len(t, volumeMounts, 3)
+	for _, v := range volumeMounts {
+		assert.NotEqual(t, porterv1.VolumePorterPluginsName, v.Name, "the porter-plugins volume mount should not be present when no plugins are specified")
+	}
+}
+
 func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 	systemCfg := porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: operatorNamespace},
