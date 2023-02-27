@@ -52,6 +52,11 @@ type AgentConfigSpec struct {
 	// +optional
 	ServiceAccount string `json:"serviceAccount,omitempty" mapstructure:"serviceAccount,omitempty"`
 
+	// StorageClassName is the name of the storage class that Porter will request
+	// when running the Porter Agent. It is used to determine what the storage class
+	// will be for the volume requested
+	StorageClassName string `json:"storageClassName,omitempty" mapstructure:"storageClassName,omitempty"`
+
 	// VolumeSize is the size of the persistent volume that Porter will
 	// request when running the Porter Agent. It is used to share data
 	// between the Porter Agent and the bundle invocation image. It must
@@ -284,6 +289,12 @@ func (c AgentConfigSpecAdapter) GetPullPolicy() v1.PullPolicy {
 		return v1.PullAlways
 	}
 	return v1.PullIfNotPresent
+}
+
+// GetStorageClassName returns the name of the storage class to request for the
+// volume.
+func (c AgentConfigSpecAdapter) GetStorageClassName() string {
+	return c.original.StorageClassName
 }
 
 // GetVolumeSize returns the size of the shared volume to mount between the

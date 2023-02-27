@@ -98,6 +98,13 @@ spec:
                 description: ServiceAccount is the service account to run the Porter
                   Agent under.
                 type: string
+              storageClassName:
+                description: StorageClassName is the name of the storage class that
+                  Porter will request when running the Porter Agent. It is used to
+                  determine what the storage class will be for the volume requested.
+                  The storage class must support ReadWriteOnce and ReadOnlyMany access modes
+                  as well as allow for 'chmod' to be executed.
+                type: string
               volumeSize:
                 description: VolumeSize is the size of the persistent volume that
                   Porter will request when running the Porter Agent. It is used to

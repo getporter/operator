@@ -247,7 +247,7 @@ func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.
 	if len(results.Items) > 0 {
 		return &results.Items[0], nil
 	}
-
+	storageClassName := agentCfg.GetStorageClassName()
 	// Create a volume to share data between porter and the invocation image
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -263,6 +263,9 @@ func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.
 				},
 			},
 		},
+	}
+	if storageClassName != "" {
+		pvc.Spec.StorageClassName = &storageClassName
 	}
 
 	if err := r.Create(ctx, pvc); err != nil {

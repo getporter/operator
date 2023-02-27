@@ -196,6 +196,7 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 		return tempPVC, false, nil
 	}
 
+	storageClassName := agentCfg.Spec.GetStorageClassName()
 	labels := agentCfg.Spec.Plugins.GetLabels()
 	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
@@ -222,6 +223,9 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 				},
 			},
 		},
+	}
+	if storageClassName != "" {
+		pvc.Spec.StorageClassName = &storageClassName
 	}
 
 	if err := r.Create(ctx, pvc); err != nil {
@@ -250,7 +254,6 @@ func (r *AgentConfigReconciler) runPorterPluginInstall(ctx context.Context, log 
 // createAgentAction creates an AgentAction with the temporary volumes that's used for plugin installation.
 func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, agentCfg *porterv1.AgentConfigAdapter, args []string) (*porterv1.AgentAction, error) {
 	log.V(Log5Trace).Info("Creating porter agent action")
-
 	labels := getActionLabels(agentCfg)
 	for k, v := range agentCfg.Labels {
 		labels[k] = v
@@ -376,6 +379,7 @@ func (r *AgentConfigReconciler) createHashPVC(
 	log.V(Log4Debug).Info("Creating new pvc using the hash of all plugins metadata", "new persistentvolumeclaim", agentCfg.GetPluginsPVCName())
 	labels := agentCfg.Spec.Plugins.GetLabels()
 	labels[porterv1.LabelResourceName] = agentCfg.Name
+	storageClassName := agentCfg.Spec.GetStorageClassName()
 
 	selector := &metav1.LabelSelector{
 		MatchLabels: labels,
@@ -406,6 +410,9 @@ func (r *AgentConfigReconciler) createHashPVC(
 				},
 			},
 		},
+	}
+	if storageClassName != "" {
+		pvc.Spec.StorageClassName = &storageClassName
 	}
 
 	if err := r.Create(ctx, pvc); err != nil {
@@ -509,8 +516,12 @@ func (r *AgentConfigReconciler) bindPVWithPluginPVC(ctx context.Context, log log
 	if _, exist := pv.Labels[porterv1.LabelPluginsHash]; !exist {
 		labels := agentCfg.Spec.Plugins.GetLabels()
 		labels[porterv1.LabelResourceName] = agentCfg.Name
+		storageClassName := agentCfg.Spec.GetStorageClassName()
 		pv.Labels = labels
 		pv.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+		if storageClassName != "" {
+			pv.Spec.StorageClassName = storageClassName
+		}
 		pv.Spec.ClaimRef = &corev1.ObjectReference{
 			Kind:       tempPVC.Kind,
 			Namespace:  tempPVC.Namespace,
