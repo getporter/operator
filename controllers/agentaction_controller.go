@@ -10,6 +10,7 @@ import (
 	porterv1 "get.porter.sh/operator/api/v1"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -459,6 +460,16 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 	}
 
 	if err := r.Create(ctx, &porterJob); err != nil {
+		// If we can't create the job, try to log the job's yaml to help with troubleshooting
+		// It will be base64 encoded because logs are all output on a single line.
+		// You can pipe the value to base64 --decode to see the yaml, e.g. copy the value to a file, then `cat RESULT | base64 --decode`
+		badJobYaml, yamlErr := yaml.Marshal(porterJob)
+		if yamlErr != nil {
+			log.Error(yamlErr, "error marshaling job to yaml to trace in logs")
+		} else {
+			log.V(Log0Error).Error(err, "error creating Porter agent job", "base64EncodedJob", badJobYaml)
+		}
+
 		return batchv1.Job{}, errors.Wrap(err, "error creating Porter agent job")
 	}
 
@@ -722,21 +733,25 @@ func (r *AgentActionReconciler) getAgentVolumes(ctx context.Context, log logr.Lo
 	}
 	// Only add the plugin volume if the action is not created to configure porter itself
 	if !action.CreatedByAgentConfig() {
-		claimName := agentCfg.GetPluginsPVCName(action.Namespace)
-		log.V(Log4Debug).Info("mounting porter plugin volume", "claim name", claimName)
-		volumes = append(volumes, corev1.Volume{
-			Name: porterv1.VolumePorterPluginsName,
-			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-					ClaimName: claimName,
+		pluginsPVCName := agentCfg.GetPluginsPVCName(action.Namespace)
+
+		// Check if we should mount a PVC for plugins, it will be an empty string if no plugins are used
+		if pluginsPVCName != "" {
+			log.V(Log4Debug).Info("mounting porter plugin volume", "claim name", pluginsPVCName)
+			volumes = append(volumes, corev1.Volume{
+				Name: porterv1.VolumePorterPluginsName,
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: pluginsPVCName,
+					},
 				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      porterv1.VolumePorterPluginsName,
-			MountPath: porterv1.VolumePorterPluginsPath,
-			SubPath:   "plugins",
-		})
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      porterv1.VolumePorterPluginsName,
+				MountPath: porterv1.VolumePorterPluginsPath,
+				SubPath:   "plugins",
+			})
+		}
 	}
 
 	volumes = append(volumes, action.Spec.Volumes...)

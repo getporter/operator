@@ -247,6 +247,7 @@ func NewAgentConfigSpecAdapter(spec AgentConfigSpec) AgentConfigSpecAdapter {
 }
 
 // GetPluginsPVCName returns a name used for this agent config plugin persistent volume claim.
+// Returns an empty string when no plugins are specified, in which case the PVC should not be mounted
 func (c AgentConfigSpecAdapter) GetPluginsPVCName(namespace string) string {
 	return c.Plugins.GetPVCName(namespace)
 }
