@@ -65,6 +65,19 @@ func TestAgentConfigSpecAdapter_GetPullPolicy(t *testing.T) {
 	}
 }
 
+func TestAgentConfigSpecAdapter_GetStorageClassName(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		c := AgentConfigSpec{}
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "", cl.GetStorageClassName())
+	})
+	t.Run("azureblob-nfs-premium", func(t *testing.T) {
+		c := AgentConfigSpec{StorageClassName: "azureblob-nfs-premium"}
+		cl := NewAgentConfigSpecAdapter(c)
+		assert.Equal(t, "azureblob-nfs-premium", cl.GetStorageClassName())
+	})
+}
+
 func TestAgentConfigSpecAdapter_GetVolumeSize(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		c := AgentConfigSpec{}
