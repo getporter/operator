@@ -928,7 +928,7 @@ func TestAgentActionReconciler_NoPluginsSpecified(t *testing.T) {
 
 func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 	systemCfg := porterv1.AgentConfig{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: operatorNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: operatorNamespaceDefault},
 		Status: porterv1.AgentConfigStatus{
 			Ready: true,
 		},

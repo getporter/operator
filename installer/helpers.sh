@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+OPNAMESPACE="porter-operator-system"
+
+setCustomNamespaceForOperator() {
+  if [ -z "$1" ]; then
+    echo "No namespace specified, using default $OPNAMESPACE"
+  else
+    OPNAMESPACE=$1
+    echo "Using custom namespace $OPNAMESPACE"
+  fi
+
+  # Replace the namespace in the operator.yaml
+  echo "Setting namespace to $OPNAMESPACE"
+  cd manifests
+  kustomize edit set namespace $OPNAMESPACE
+  kustomize build -o operator.yaml
+}
+
 setControllerImage() {
   # Replace the manager image with the image packaged with the bundle
   echo "Setting manager image to $1"
@@ -46,11 +63,15 @@ configureNamespace() {
 }
 
 waitForDeployment() {
+  if [ ! -z "$1" ]; then
+    OPNAMESPACE=$1
+  fi
+
   set +e # allow this next command to fail
-  kubectl rollout status deploy/porter-operator-controller-manager --namespace porter-operator-system --timeout 30s
+  kubectl rollout status deploy/porter-operator-controller-manager --namespace $OPNAMESPACE --timeout 30s
   if [[ $? != 0 ]]; then
     echo "Deployment failed, retrieving logs to troubleshoot"
-    kubectl logs deploy/porter-operator-controller-manager --namespace porter-operator-system -c manager
+    kubectl logs deploy/porter-operator-controller-manager --namespace $OPNAMESPACE -c manager
   fi
 }
 

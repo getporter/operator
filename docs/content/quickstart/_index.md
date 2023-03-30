@@ -40,7 +40,7 @@ The bundle includes a custom action that prepares a namespace for you:
 porter invoke porterops --action configureNamespace --param namespace=quickstart -c porterops
 ```
 
-The Porter Operator is now installed on your cluster in the porter-operator-system namespace, along with a Mongodb server.
+The Porter Operator is now installed on your cluster in the porter-operator-system (or your custom namespace) namespace, along with a Mongodb server.
 This database is not secured with a username/password, so do not use this default installation configuration with production secrets!
 The cluster has a namespace, quickstart, where we will create resources and Porter will create jobs to run Porter.
 
@@ -50,6 +50,7 @@ Let's update your local porter CLI to read the data from the operator's datastor
 This isn't necessary for the operator to work, but will allow us to see what's happening and understand how the operator works.
 
 Run the following command to expose the operator's mongodb server to your localhost:
+* NOTE: Use your custom namespace if you have installed with the non-default one (porter-operator-system)
 ```
 kubectl port-forward --namespace porter-operator-system svc/mongodb 27020:27017 >/dev/null &
 ```

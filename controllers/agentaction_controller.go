@@ -483,6 +483,8 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) (porterv1.AgentConfigSpecAdapter, error) {
 	log.V(Log5Trace).Info("Resolving porter agent configuration")
 
+	operatorNamespace := operatorNamespaceDefault
+
 	logConfig := func(level string, config *porterv1.AgentConfig) {
 		if config == nil || config.Name == "" {
 			return
@@ -493,6 +495,8 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 			"namespace", config.Namespace,
 			"name", config.Name,
 			"plugin", config.Spec.PluginConfigFile)
+
+		operatorNamespace = config.Namespace
 	}
 
 	// Read agent configuration defined at the system level
@@ -550,6 +554,8 @@ func (r *AgentActionReconciler) resolveAgentConfig(ctx context.Context, log logr
 func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log logr.Logger, action *porterv1.AgentAction) (porterv1.PorterConfigSpec, error) {
 	log.V(Log5Trace).Info("Resolving porter configuration file")
 
+	operatorNamespace := operatorNamespaceDefault
+
 	logConfig := func(level string, config *porterv1.PorterConfig) {
 		if config == nil || config.Name == "" {
 			return
@@ -558,6 +564,8 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 			"level", level,
 			"namespace", config.Namespace,
 			"name", config.Name)
+
+		operatorNamespace = config.Namespace
 	}
 
 	// Provide a safe default config in case nothing is defined anywhere
@@ -568,7 +576,7 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 			{PluginConfig: porterv1.PluginConfig{
 				Name:         "in-cluster-mongodb",
 				PluginSubKey: "mongodb",
-				Config:       runtime.RawExtension{Raw: []byte(`{"url":"mongodb://mongodb.porter-operator-system.svc.cluster.local"}`)},
+				Config:       runtime.RawExtension{Raw: []byte(`{"url":"mongodb://mongodb.` + operatorNamespace + `.svc.cluster.local"}`)},
 			}},
 		},
 	}

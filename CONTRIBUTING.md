@@ -136,6 +136,7 @@ It runs on the default Mongodb port (27017) and authentication is not required t
 With your local Porter configuration file pointed to the in-cluster mongodb server, you can use Porter to query and interact with installations created by the operator.
 
 Expose the in-cluster mongodb server on the default mongo porter: 27017.
+* NOTE: Use your custom namespace if you have installed with the non-default one (porter-operator-system)
 ```
 kubectl port-forward --namespace porter-operator-system svc/mongodb 27017:27017 >/dev/null &
 ```

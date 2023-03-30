@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	operatorNamespace = "porter-operator-system"
+	operatorNamespaceDefault = "porter-operator-system"
 )
 
 // InstallationReconciler calls porter to execute changes made to an Installation CRD
