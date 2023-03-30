@@ -95,7 +95,7 @@ porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.8.
 ```
 
 Install the operator into the porter-operator-system namespace:
-* NOTE: Use your custom namespace if you want to install to a different one by adding **--param operatorNamespace=your-namespace-name**
+* NOTE: Use your alternate namespace if you want to install to a different one by adding **--param operatorNamespace=your-namespace-name**
 ```
 porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.8.0
 ```

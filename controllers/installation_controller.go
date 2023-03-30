@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"os"
 	"reflect"
 
 	porterv1 "get.porter.sh/operator/api/v1"
@@ -17,8 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	operatorNamespaceDefault = "porter-operator-system"
+var (
+	operatorNamespace = os.Getenv("POD_NAMESPACE")
 )
 
 // InstallationReconciler calls porter to execute changes made to an Installation CRD

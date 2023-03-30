@@ -40,7 +40,7 @@ The bundle includes a custom action that prepares a namespace for you:
 porter invoke porterops --action configureNamespace --param namespace=quickstart -c porterops
 ```
 
-The Porter Operator is now installed on your cluster in the porter-operator-system (or your custom namespace) namespace, along with a Mongodb server.
+The Porter Operator is now installed on your cluster in the porter-operator-system namespace, along with a Mongodb server.
 This database is not secured with a username/password, so do not use this default installation configuration with production secrets!
 The cluster has a namespace, quickstart, where we will create resources and Porter will create jobs to run Porter.
 
