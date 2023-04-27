@@ -111,7 +111,7 @@ porter invoke porterops --action configureNamespace --param namespace=TODO -c po
 * A PorterConfig resource named default is created in the specified namespace configuring Porter to use
   the kubernetes.secrets and mongodb plugin.
 
-# Configuration
+## Configuration
 
 The bundle accepts a parameter, porterConfig, that should be a YAML-formatted [Porter configuration file](/configuration/).
 
@@ -149,10 +149,15 @@ The bundle also has parameters defined that control how the [Porter Agent] is co
 | volumeSize  | Size of the volume shared between Porter and the bundles it executes.<br/><br/>Defaults to 64Mi.  |
 
 
-# Inspect the installation
+## Inspect the installation
 
 You can use the porter CLI to query and interact with installations created by the operator.
 Follow the instructions in [Connect to the in-cluster mongo database][connect] to point porter at the Mongodb server that was installed with the operator.
 
+## Next Steps
+
+* [Configure the Porter Agent](/operator/administrators/configure-porter-agent.md)
+
 [install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
 [Porter Agent]: /operator/glossary/#porter-agent
+

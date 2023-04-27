@@ -25,6 +25,6 @@ The operator is still under development, but it is ready for you to try out and 
 * [Porter Operator Glossary](/operator/glossary/)
 * [QuickStart: Using the Porter Operator](/operator/quickstart/)
 * [Porter Operator File Formats](/operator/file-formats/)
-
+* [Configure the Porter Agent]
 [porter installation apply]: /cli/porter_installations_apply/
 [Desired State QuickStart]: /quickstart/desired-state/

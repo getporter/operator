@@ -1,9 +1,9 @@
 ---
-title: Configuring the Porter Agent
-description: How to customize Porter Agent
+title: Configure the Porter Agent
+description: Customize how Porter runs on Kubernetes
 ---
 
-The Porter Agent is a containerized version of the Porter CLI that is optimized for running Porter commands on a Kubernetes cluster. With the AgentConfig Custom Resource Definition (CRD), you can customize how the Porter Agent is run to meet your specific needs and requirements. For example, you can specify the version of Porter to use, install additional Porter plugins, or provide a custom Porter config file.
+The [Porter Agent] is a containerized version of the Porter CLI that is optimized for running Porter commands on a Kubernetes cluster. With the AgentConfig Custom Resource Definition (CRD), you can customize how the Porter Agent is run to meet your specific needs and requirements. For example, you can specify the version of Porter to use, install additional Porter plugins, or provide a custom Porter config file.
 
 This guide will show some ways to configure the Porter Agent through the [AgentConfig CRD](/operator/file-format/#agentconfig).
 
@@ -109,3 +109,5 @@ This matrix will be updated as more clusters and CSI drivers are determined to b
 | ------------ | -------------------------- | --------------- |
 | AKS          | azureblob-nfs-premium      | v1.25.4         |
 | KinD         | default                    | v1.23.4         |
+
+[Porter Agent]: /operator/glossary/#porter-agent
