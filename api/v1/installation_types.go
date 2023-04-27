@@ -28,9 +28,6 @@ type InstallationSpec struct {
 	// +optional
 	AgentConfig *corev1.LocalObjectReference `json:"agentConfig,omitempty" yaml:"-"`
 
-	// PorterConfig is the name of a PorterConfig to use instead of the PorterConfig defined at the namespace or system level.
-	PorterConfig *corev1.LocalObjectReference `json:"porterConfig,omitempty" yaml:"-"`
-
 	//
 	// These are fields from the Porter installation resource.
 	// Your goal is that someone can copy/paste a resource from Porter into the

@@ -78,11 +78,6 @@ func (in *AgentActionSpec) DeepCopyInto(out *AgentActionSpec) {
 		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}
-	if in.PorterConfig != nil {
-		in, out := &in.PorterConfig, &out.PorterConfig
-		*out = new(corev1.LocalObjectReference)
-		**out = **in
-	}
 	if in.Command != nil {
 		in, out := &in.Command, &out.Command
 		*out = make([]string, len(*in))
@@ -392,11 +387,6 @@ func (in *CredentialSetSpec) DeepCopyInto(out *CredentialSetSpec) {
 		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}
-	if in.PorterConfig != nil {
-		in, out := &in.PorterConfig, &out.PorterConfig
-		*out = new(corev1.LocalObjectReference)
-		**out = **in
-	}
 	if in.Credentials != nil {
 		in, out := &in.Credentials, &out.Credentials
 		*out = make([]Credential, len(*in))
@@ -509,11 +499,6 @@ func (in *InstallationSpec) DeepCopyInto(out *InstallationSpec) {
 	*out = *in
 	if in.AgentConfig != nil {
 		in, out := &in.AgentConfig, &out.AgentConfig
-		*out = new(corev1.LocalObjectReference)
-		**out = **in
-	}
-	if in.PorterConfig != nil {
-		in, out := &in.PorterConfig, &out.PorterConfig
 		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}
@@ -659,11 +644,6 @@ func (in *ParameterSetSpec) DeepCopyInto(out *ParameterSetSpec) {
 	*out = *in
 	if in.AgentConfig != nil {
 		in, out := &in.AgentConfig, &out.AgentConfig
-		*out = new(corev1.LocalObjectReference)
-		**out = **in
-	}
-	if in.PorterConfig != nil {
-		in, out := &in.PorterConfig, &out.PorterConfig
 		*out = new(corev1.LocalObjectReference)
 		**out = **in
 	}

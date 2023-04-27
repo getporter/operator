@@ -589,20 +589,10 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 	}
 	logConfig("namespace", nsCfg)
 
-	// Read agent configuration defines on the installation
-	instCfg := &porterv1.PorterConfig{}
-	if action.Spec.PorterConfig != nil {
-		err = r.Get(ctx, types.NamespacedName{Name: action.Spec.PorterConfig.Name, Namespace: action.Namespace}, instCfg)
-		if err != nil && !apierrors.IsNotFound(err) {
-			return porterv1.PorterConfigSpec{}, errors.Wrapf(err, "cannot retrieve agent configuration %s specified by the agent action", action.Spec.AgentConfig.Name)
-		}
-		logConfig("instance", instCfg)
-	}
-
 	// Resolve final configuration
 	// We don't log the final config because we haven't yet added the feature to enable not having sensitive data in porter's config files
 	base := &defaultCfg
-	cfg, err := base.MergeConfig(systemCfg.Spec, nsCfg.Spec, instCfg.Spec)
+	cfg, err := base.MergeConfig(systemCfg.Spec, nsCfg.Spec)
 	if err != nil {
 		return porterv1.PorterConfigSpec{}, err
 	}

@@ -48,7 +48,6 @@ func TestCredentialSetSpec_ToPorterDocument(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cs := CredentialSetSpec{
 				AgentConfig:   tt.fields.AgentConfig,
-				PorterConfig:  tt.fields.PorterConfig,
 				SchemaVersion: tt.fields.SchemaVersion,
 				Name:          tt.fields.Name,
 				Namespace:     tt.fields.Namespace,
