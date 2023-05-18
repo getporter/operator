@@ -5,6 +5,7 @@ package integration_test
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo"
 	"github.com/tidwall/gjson"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	porterv1 "get.porter.sh/operator/api/v1"
+	"get.porter.sh/operator/controllers"
 	. "github.com/onsi/gomega"
 )
 
@@ -67,6 +69,48 @@ var _ = Describe("AgentConfig delete", func() {
 						}
 					}
 				}
+			})
+		})
+	})
+})
+
+var _ = Describe("AgentConfig update", func() {
+	Context("when an existing AgentConfig is updated", func() {
+		It("should update the plugin volumes associated with the AgentConfig", func() {
+			By("creating an agent action", func() {
+				ctx := context.Background()
+				ns := createTestNamespace(ctx)
+
+				agentCfg := NewTestAgentCfg()
+				agentCfg.Namespace = ns
+
+				Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
+				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 1, "waiting for plugins to be installed")).Should(Succeed())
+				validateResourceConditions(agentCfg)
+				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
+
+				Log("verify it's created")
+				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, agentCfg.Name, []string{"plugins", "list", "-o", "json"})
+				firstName := gjson.Get(jsonOut, "0.name").String()
+				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
+				Expect(int64(1)).To(Equal(numPluginsInstalled))
+				_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
+				Expect(ok).To(BeTrue())
+
+				// Update the AgentConfig and patch it
+				patchAC := func(ac *porterv1.AgentConfig) {
+					controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ac, func() client.Object {
+						return &porterv1.AgentConfig{}
+					})
+				}
+				agentCfg.AgentConfig.Spec.PluginConfigFile.Plugins = map[string]porterv1.Plugin{"azure": {}}
+				patchAC(&agentCfg.AgentConfig)
+				// Verify that the new job is created
+				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 2, "waiting for agent config to update")).Should(Succeed())
+				// Verify that the AgentConfig reports as "ready"
+				validateResourceConditions(agentCfg)
+				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
+				// Verify that the AgentConfig can be used by an installation
 			})
 		})
 	})
