@@ -275,6 +275,424 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	triggerReconcile()
 }
 
+// This tests the following AgentConfig update scenarios:
+/*
+* AgentConfig is created and the plugins are installed
+* The existing AgentConfig plugins are changed, a new pv is created and associated with AgentConfig
+* The existing AgentConfig spec changes outside of the plugins. The existing volume should be still be used
+ */
+func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
+	ctx := context.Background()
+
+	namespace := "test"
+	name := "mybuns"
+	testAgentCfg := &porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
+		Spec: porterv1.AgentConfigSpec{
+			PluginConfigFile: &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
+		},
+	}
+	testdata := []client.Object{
+		testAgentCfg,
+	}
+	controller := setupAgentConfigController(testdata...)
+
+	var (
+		agentCfg     *porterv1.AgentConfigAdapter
+		agentCfgData porterv1.AgentConfig
+	)
+
+	triggerReconcile := func() {
+		fullname := types.NamespacedName{Namespace: namespace, Name: testAgentCfg.Name}
+		key := client.ObjectKey{Namespace: namespace, Name: testAgentCfg.Name}
+
+		request := controllerruntime.Request{
+			NamespacedName: fullname,
+		}
+		result, err := controller.Reconcile(ctx, request)
+		require.NoError(t, err)
+		require.True(t, result.IsZero())
+
+		err = controller.Get(ctx, key, &agentCfgData)
+		if !apierrors.IsNotFound(err) {
+			require.NoError(t, err)
+		}
+		agentCfg = porterv1.NewAgentConfigAdapter(agentCfgData)
+	}
+
+	triggerReconcile()
+
+	/*
+		Initially setup an AgentConfig and install plugins for it
+	*/
+
+	// Verify the agent config was picked up and the status initialized
+	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
+
+	triggerReconcile()
+	_, ok := agentCfg.Spec.Plugins.GetByName("kubernetes")
+	require.True(t, ok)
+
+	triggerReconcile()
+
+	// Verify an AgentAction was created and set on the status
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to be set")
+	var action porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &action))
+	assert.Equal(t, "1", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+
+	// Mark the action as scheduled
+	action.Status.Phase = porterv1.PhasePending
+	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action))
+
+	triggerReconcile()
+
+	// Verify the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhasePending, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionScheduled)))
+
+	// Mark the action as started
+	action.Status.Phase = porterv1.PhaseRunning
+	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhaseRunning, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionStarted)))
+
+	// Complete the action
+	action.Status.Phase = porterv1.PhaseSucceeded
+	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action))
+	require.False(t, agentCfg.Status.Ready)
+
+	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
+	pvc := &corev1.PersistentVolumeClaim{}
+	key := client.ObjectKey{Namespace: agentCfg.Namespace, Name: action.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName}
+	require.NoError(t, controller.Get(ctx, key, pvc))
+	pv1 := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-pv-agent-config-1",
+			Namespace:       agentCfg.Namespace,
+			OwnerReferences: pvc.OwnerReferences,
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			ClaimRef: &corev1.ObjectReference{
+				Kind:            pvc.Kind,
+				Namespace:       pvc.Namespace,
+				Name:            pvc.Name,
+				UID:             pvc.UID,
+				APIVersion:      pvc.APIVersion,
+				ResourceVersion: pvc.ResourceVersion,
+			},
+		},
+	}
+	require.NoError(t, controller.Create(ctx, pv1))
+	pvc.Spec.VolumeName = pv1.Name
+	pvc.Status.Phase = corev1.ClaimBound
+	// the pvc controller should have updated the pvc with the pvc-protection finalizer
+	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
+	require.NoError(t, controller.Update(ctx, pvc))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was synced with the action
+	var actionList porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &actionList))
+	assert.Equal(t, "1", actionList.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
+	assert.Equal(t, porterv1.PhaseSucceeded, agentCfg.Status.Phase, "incorrect Phase")
+	require.False(t, agentCfg.Status.Ready)
+
+	require.NotEmpty(t, actionList.Spec.Volumes)
+
+	// // verify that the pv that has plugins installed has been updated with the expected labels and claim reference
+	pluginsPV := &corev1.PersistentVolume{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv1.Name}, pluginsPV))
+	pluginLabels, exists := pluginsPV.Labels[porterv1.LabelPluginsHash]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPluginsHash], pluginLabels)
+	rn, exists := pluginsPV.Labels[porterv1.LabelResourceName]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Name, rn)
+	require.Equal(t, agentCfg.GetPluginsPVCName(), pluginsPV.Spec.ClaimRef.Name)
+
+	triggerReconcile()
+
+	// // verify that the tmp pvc's finalizer is deleted
+	tmpPVC := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC))
+	require.Empty(t, tmpPVC.GetFinalizers())
+
+	triggerReconcile()
+
+	tmpPVC = &corev1.PersistentVolumeClaim{}
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
+
+	triggerReconcile()
+	require.False(t, agentCfg.Status.Ready)
+
+	// the renamed pvc should be created with label selector set and correct access mode
+	renamedPVC := &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
+	readonlyMany := []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
+	matchLables := agentCfg.Spec.Plugins.GetLabels()
+	matchLables[porterv1.LabelResourceName] = agentCfg.Name
+	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
+
+	// the renamed pvc should eventually be bounded the to pv
+	renamedPVC.Spec.VolumeName = pv1.Name
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Update(ctx, renamedPVC))
+
+	triggerReconcile()
+	require.True(t, agentCfg.Status.Ready)
+
+	// Complete the action
+	action.Status.Phase = porterv1.PhaseSucceeded
+	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action))
+
+	triggerReconcile()
+
+	/*
+		Now update the AgentConfig plugins so that new plugins will need to be installed for that config
+	*/
+
+	// Edit the agent config plugins spec
+	agentCfgData.Generation = 2
+	agentCfgData.Spec.PluginConfigFile = &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"azure": {}}}
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was re-initialized
+	assert.Equal(t, int64(2), agentCfg.Status.ObservedGeneration)
+	assert.Equal(t, porterv1.PhaseUnknown, agentCfg.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Empty(t, agentCfg.Status.Conditions, "Conditions should have been reset")
+	assert.False(t, agentCfg.Status.Ready)
+
+	triggerReconcile()
+
+	// Verify that a new agent action was created
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to be set")
+	require.NotEqual(t, agentCfg.Status.Action.Name, action.Name, "expected a new Action to be set")
+	var actionNew porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &actionNew))
+	assert.Equal(t, "2", actionNew.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+
+	// Mark the action as scheduled
+	actionNew.Status.Phase = porterv1.PhasePending
+	actionNew.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &actionNew))
+
+	triggerReconcile()
+
+	// Verify the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhasePending, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionScheduled)))
+
+	// Mark the action as started
+	actionNew.Status.Phase = porterv1.PhaseRunning
+	actionNew.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &actionNew))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhaseRunning, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionStarted)))
+
+	// Complete the action
+	actionNew.Status.Phase = porterv1.PhaseSucceeded
+	actionNew.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &actionNew))
+	require.False(t, agentCfg.Status.Ready)
+
+	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
+	pvc = &corev1.PersistentVolumeClaim{}
+	key = client.ObjectKey{Namespace: agentCfg.Namespace, Name: actionNew.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName}
+	require.NoError(t, controller.Get(ctx, key, pvc))
+	pv2 := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-pv-agent-config-2",
+			Namespace:       agentCfg.Namespace,
+			OwnerReferences: pvc.OwnerReferences,
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			ClaimRef: &corev1.ObjectReference{
+				Kind:            pvc.Kind,
+				Namespace:       pvc.Namespace,
+				Name:            pvc.Name,
+				UID:             pvc.UID,
+				APIVersion:      pvc.APIVersion,
+				ResourceVersion: pvc.ResourceVersion,
+			},
+		},
+	}
+	require.NoError(t, controller.Create(ctx, pv2))
+	pvc.Spec.VolumeName = pv2.Name
+	pvc.Status.Phase = corev1.ClaimBound
+	// the pvc controller should have updated the pvc with the pvc-protection finalizer
+	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
+	require.NoError(t, controller.Update(ctx, pvc))
+
+	triggerReconcile()
+	// Verify that the agent config status was synced with the action
+	var actionListNew porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &actionListNew))
+	assert.Equal(t, "2", actionListNew.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
+	assert.Equal(t, porterv1.PhaseSucceeded, agentCfg.Status.Phase, "incorrect Phase")
+	require.False(t, agentCfg.Status.Ready)
+
+	require.NotEmpty(t, actionListNew.Spec.Volumes)
+
+	// verify that the pv that has plugins installed has been updated with the expected labels and claim reference
+	pluginsPV = &corev1.PersistentVolume{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv2.Name}, pluginsPV))
+	pluginLabels, exists = pluginsPV.Labels[porterv1.LabelPluginsHash]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPluginsHash], pluginLabels)
+	rn, exists = pluginsPV.Labels[porterv1.LabelResourceName]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Name, rn)
+	require.Equal(t, agentCfg.GetPluginsPVCName(), pluginsPV.Spec.ClaimRef.Name)
+
+	triggerReconcile()
+
+	// verify that the tmp pvc's finalizer is deleted
+	tmpPVC = &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC))
+	require.Empty(t, tmpPVC.GetFinalizers())
+
+	triggerReconcile()
+
+	tmpPVC = &corev1.PersistentVolumeClaim{}
+	require.True(t, apierrors.IsNotFound(controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pvc.Name}, tmpPVC)))
+
+	triggerReconcile()
+	require.False(t, agentCfg.Status.Ready)
+
+	// the renamed pvc should be created with label selector set and correct access mode
+	renamedPVC = &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
+	readonlyMany = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
+	matchLables = agentCfg.Spec.Plugins.GetLabels()
+	matchLables[porterv1.LabelResourceName] = agentCfg.Name
+	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
+
+	// the renamed pvc should eventually be bounded the to pv
+	renamedPVC.Spec.VolumeName = pv2.Name
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Update(ctx, renamedPVC))
+
+	triggerReconcile()
+	require.True(t, agentCfg.Status.Ready)
+
+	/*
+		Update a part of the Agent Configs spec besides the plugins. This will result in the hash not changing so we should find an already existing volume that can be used
+	*/
+
+	// Edit the agent config spec with a non plugins change
+	agentCfgData.Generation = 3
+	agentCfgData.Spec.StorageClassName = "foo"
+	require.NoError(t, controller.Update(ctx, &agentCfgData))
+
+	triggerReconcile()
+
+	// Verify an AgentAction was created and set on the status
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to be set")
+	var action3 porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &action3))
+	assert.Equal(t, "3", action3.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+
+	// Mark the action as scheduled
+	action3.Status.Phase = porterv1.PhasePending
+	action3.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action3))
+
+	triggerReconcile()
+
+	// Verify the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhasePending, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionScheduled)))
+
+	// Mark the action as started
+	action3.Status.Phase = porterv1.PhaseRunning
+	action3.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action3))
+
+	triggerReconcile()
+
+	// Verify that the agent config status was synced with the action
+	assert.Equal(t, porterv1.PhaseRunning, agentCfg.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(agentCfg.Status.Conditions, string(porterv1.ConditionStarted)))
+
+	// Complete the action
+	action3.Status.Phase = porterv1.PhaseSucceeded
+	action3.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
+	require.NoError(t, controller.Status().Update(ctx, &action3))
+	require.False(t, agentCfg.Status.Ready)
+
+	// once the agent action is completed, the PVC should have been bound to a PV created by kubernetes
+	pvc = &corev1.PersistentVolumeClaim{}
+	key = client.ObjectKey{Namespace: agentCfg.Namespace, Name: action3.Spec.Volumes[0].VolumeSource.PersistentVolumeClaim.ClaimName}
+	require.NoError(t, controller.Get(ctx, key, pvc))
+	pvc.Spec.VolumeName = pv2.Name
+	pvc.Status.Phase = corev1.ClaimBound
+	// the pvc controller should have updated the pvc with the pvc-protection finalizer
+	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
+	require.NoError(t, controller.Update(ctx, pvc))
+
+	triggerReconcile()
+	// Verify that the agent config status was synced with the action
+	var actionList3 porterv1.AgentAction
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.Status.Action.Name}, &actionList3))
+	assert.Equal(t, "3", actionList3.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	require.NotNil(t, agentCfg.Status.Action, "expected Action to still be set")
+	assert.Equal(t, porterv1.PhaseSucceeded, agentCfg.Status.Phase, "incorrect Phase")
+	require.True(t, agentCfg.Status.Ready)
+
+	require.NotEmpty(t, actionListNew.Spec.Volumes)
+
+	// Verify that a new volume was not created, that the previous volume being used
+	pluginsPV = &corev1.PersistentVolume{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: pv2.Name}, pluginsPV))
+	pluginLabels, exists = pluginsPV.Labels[porterv1.LabelPluginsHash]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Spec.Plugins.GetLabels()[porterv1.LabelPluginsHash], pluginLabels)
+	rn, exists = pluginsPV.Labels[porterv1.LabelResourceName]
+	require.True(t, exists)
+	require.Equal(t, agentCfg.Name, rn)
+	require.Equal(t, agentCfg.GetPluginsPVCName(), pluginsPV.Spec.ClaimRef.Name)
+
+	triggerReconcile()
+
+	// the reused pvc should be still have label selector set and correct access mode
+	renamedPVC = &corev1.PersistentVolumeClaim{}
+	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
+	readonlyMany = []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany}
+	require.Equal(t, readonlyMany, renamedPVC.Spec.AccessModes)
+	matchLables = agentCfg.Spec.Plugins.GetLabels()
+	matchLables[porterv1.LabelResourceName] = agentCfg.Name
+	require.Equal(t, matchLables, renamedPVC.Spec.Selector.MatchLabels)
+
+	// the reused pvc should eventually be bounded the to pv
+	renamedPVC.Spec.VolumeName = pv2.Name
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Update(ctx, renamedPVC))
+
+	triggerReconcile()
+	require.True(t, agentCfg.Status.Ready)
+
+}
+
 func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	ctx := context.Background()
 

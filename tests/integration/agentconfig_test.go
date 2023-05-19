@@ -33,12 +33,7 @@ var _ = Describe("AgentConfig delete", func() {
 				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
 
 				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, agentCfg.Name, []string{"plugins", "list", "-o", "json"})
-				firstName := gjson.Get(jsonOut, "0.name").String()
-				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
-				Expect(int64(1)).To(Equal(numPluginsInstalled))
-				_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
-				Expect(ok).To(BeTrue())
+				verifyAgentConfigPlugins(ctx, agentCfg, "create-check-plugins-list")
 
 				Log("verify retry limit is correctly set")
 				job, err := getAgentActionJob(ctx, "create-check-plugins-list", ns)
@@ -90,36 +85,89 @@ var _ = Describe("AgentConfig update", func() {
 				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
 
 				Log("verify it's created")
-				jsonOut := runAgentAction(ctx, "create-check-plugins-list", ns, agentCfg.Name, []string{"plugins", "list", "-o", "json"})
-				firstName := gjson.Get(jsonOut, "0.name").String()
-				numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
-				Expect(int64(1)).To(Equal(numPluginsInstalled))
-				_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
-				Expect(ok).To(BeTrue())
+				verifyAgentConfigPlugins(ctx, agentCfg, "create-check-plugins-list")
 
 				// Update the AgentConfig and patch it
-				patchAC := func(ac *porterv1.AgentConfig) {
-					controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ac, func() client.Object {
+				patchAC := func(ac *porterv1.AgentConfig) error {
+					return controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ac, func() client.Object {
 						return &porterv1.AgentConfig{}
 					})
 				}
-				agentCfg.AgentConfig.Spec.PluginConfigFile.Plugins = map[string]porterv1.Plugin{"azure": {}}
-				patchAC(&agentCfg.AgentConfig)
+				k8sClient.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
+				// Update the plugins
+				agentCfg.AgentConfig.Spec.PluginConfigFile = &porterv1.PluginFileSpec{
+					SchemaVersion: "1.0.0",
+					Plugins: map[string]porterv1.Plugin{
+						"azure": {},
+					},
+				}
+				agentCfg.Spec = porterv1.NewAgentConfigSpecAdapter(agentCfg.AgentConfig.Spec)
+				Expect(patchAC(&agentCfg.AgentConfig)).Should(Succeed())
 				// Verify that the new job is created
 				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 2, "waiting for agent config to update")).Should(Succeed())
-				// Verify that the AgentConfig reports as "ready"
 				validateResourceConditions(agentCfg)
 				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
-				// Verify that the AgentConfig can be used by an installation
+				// Verify its been updated
+				Log("verify it's updated")
+				verifyAgentConfigPlugins(ctx, agentCfg, "update-check-plugins-list")
+				// Verify that the AgentConfig is ready
+				k8sClient.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
+				Expect(agentCfg.AgentConfig.Status.Ready).To(BeTrue())
+
+				// Update a spec value outside of the plugins
+				agentCfg.AgentConfig.Spec.VolumeSize = "50M"
+				agentCfg.Spec = porterv1.NewAgentConfigSpecAdapter(agentCfg.AgentConfig.Spec)
+				Expect(patchAC(&agentCfg.AgentConfig)).Should(Succeed())
+				// Verify that the new job is created
+				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 3, "waiting for agent config to update")).Should(Succeed())
+				validateResourceConditions(agentCfg)
+				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
+				// Verify the plugins are the same
+				Log("verify it's updated")
+				verifyAgentConfigPlugins(ctx, agentCfg, "update-check-plugins-list-2")
+				// Verify that the AgentConfig is ready
+				k8sClient.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
+				Expect(agentCfg.AgentConfig.Status.Ready).To(BeTrue())
+				Expect(agentCfg.AgentConfig.Spec.VolumeSize).To(Equal("50M"))
+
+				// Revert back to a previously installed plugin
+				agentCfg.AgentConfig.Spec.PluginConfigFile = &porterv1.PluginFileSpec{
+					SchemaVersion: "1.0.0",
+					Plugins: map[string]porterv1.Plugin{
+						"kubernetes": {},
+					},
+				}
+				agentCfg.Spec = porterv1.NewAgentConfigSpecAdapter(agentCfg.AgentConfig.Spec)
+				Expect(patchAC(&agentCfg.AgentConfig)).Should(Succeed())
+				// Verify that the new job is created
+				Expect(waitForPorter(ctx, &agentCfg.AgentConfig, 4, "waiting for agent config to update")).Should(Succeed())
+				validateResourceConditions(agentCfg)
+				Expect(len(agentCfg.Spec.Plugins.GetNames())).To(Equal(1))
+				// Verify its been updated
+				Log("verify it's updated")
+				verifyAgentConfigPlugins(ctx, agentCfg, "revert-check-plugins-list")
+				// Verify that the AgentConfig is ready
+				k8sClient.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
+				Expect(agentCfg.AgentConfig.Status.Ready).To(BeTrue())
+
 			})
 		})
 	})
 })
 
+func verifyAgentConfigPlugins(ctx context.Context, agentCfg *porterv1.AgentConfigAdapter, actionName string) {
+	jsonOut := runAgentAction(ctx, actionName, agentCfg.Namespace, agentCfg.Name, []string{"plugins", "list", "-o", "json"})
+	firstName := gjson.Get(jsonOut, "0.name").String()
+	numPluginsInstalled := gjson.Get(jsonOut, "#").Int()
+	Expect(int64(1)).To(Equal(numPluginsInstalled))
+	_, ok := agentCfg.Spec.Plugins.GetByName(firstName)
+	Expect(ok).To(BeTrue())
+}
+
 // NewTestAgentCfg minimal AgentConfig CRD for tests
 func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
 	var retryLimit int32 = 2
-	cs := porterv1.AgentConfig{
+	ac := porterv1.AgentConfig{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "getporter.org/v1",
 			Kind:       "AgentConfig",
@@ -137,5 +185,5 @@ func NewTestAgentCfg() *porterv1.AgentConfigAdapter {
 			},
 		},
 	}
-	return porterv1.NewAgentConfigAdapter(cs)
+	return porterv1.NewAgentConfigAdapter(ac)
 }
