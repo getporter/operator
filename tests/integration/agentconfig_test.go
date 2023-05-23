@@ -72,7 +72,7 @@ var _ = Describe("AgentConfig delete", func() {
 var _ = Describe("AgentConfig update", func() {
 	Context("when an existing AgentConfig is updated", func() {
 		It("should update the plugin volumes associated with the AgentConfig", func() {
-			By("creating an agent action", func() {
+			By("creating an agent action each time the config is updated", func() {
 				ctx := context.Background()
 				ns := createTestNamespace(ctx)
 
