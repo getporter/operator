@@ -191,8 +191,12 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 	if err != nil {
 		return nil, false, err
 	}
-
-	if pluginPVC != nil || tempPVC != nil {
+	// If there is an exising claim then return it. This can be either the pluginPVC or a tempPVC depending on where in the process
+	// we are. If the final plugin PVC exists then return that otherwise return the temp one.
+	if pluginPVC != nil {
+		return pluginPVC, false, nil
+	}
+	if tempPVC != nil {
 		return tempPVC, false, nil
 	}
 
