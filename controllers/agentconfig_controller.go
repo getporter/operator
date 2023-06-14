@@ -584,7 +584,7 @@ func (r *AgentConfigReconciler) isReadyToBeDeleted(ctx context.Context, log logr
 func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (readyPVC *corev1.PersistentVolumeClaim, tempPVC *corev1.PersistentVolumeClaim, err error) {
 	results := &corev1.PersistentVolumeClaimList{}
 	err = r.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) || len(results.Items) < 1 {
 		return nil, nil, err
 	}
 	hashedName := agentCfg.Spec.Plugins.GetPVCName(agentCfg.Namespace)
