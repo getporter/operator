@@ -11,9 +11,6 @@ type AgentActionSpec struct {
 	// +optional
 	AgentConfig *corev1.LocalObjectReference `json:"agentConfig,omitempty"`
 
-	// PorterConfig is the name of a PorterConfig to use instead of the PorterConfig defined at the namespace or system level.
-	PorterConfig *corev1.LocalObjectReference `json:"porterConfig,omitempty"`
-
 	// Command to run inside the Porter Agent job. Defaults to running the agent.
 	Command []string `json:"command,omitempty"`
 

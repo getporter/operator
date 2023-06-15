@@ -3,9 +3,6 @@ package mage
 import (
 	"os"
 	"path"
-
-	"github.com/carolynvs/magex/mgx"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -34,7 +31,7 @@ func getAmbientEnvironment() Environment {
 	default:
 		registry := os.Getenv("PORTER_OPERATOR_REGISTRY")
 		if registry == "" {
-			mgx.Must(errors.New("environment variable PORTER_OPERATOR_REGISTRY must be set to push to a custom registry"))
+			registry = "localhost:5000"
 		}
 		return buildEnvironment(name, registry)
 	}

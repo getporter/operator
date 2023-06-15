@@ -193,10 +193,9 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 			},
 		},
 		Spec: porterv1.InstallationSpec{
-			Namespace:    "dev",
-			Name:         "wordpress",
-			AgentConfig:  &corev1.LocalObjectReference{Name: "myAgentConfig"},
-			PorterConfig: &corev1.LocalObjectReference{Name: "myPorterConfig"},
+			Namespace:   "dev",
+			Name:        "wordpress",
+			AgentConfig: &corev1.LocalObjectReference{Name: "myAgentConfig"},
 		},
 	}
 	action, err := controller.createAgentAction(context.Background(), logr.Discard(), inst)

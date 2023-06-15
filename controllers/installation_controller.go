@@ -223,9 +223,8 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 			},
 		},
 		Spec: porterv1.AgentActionSpec{
-			AgentConfig:  inst.Spec.AgentConfig,
-			PorterConfig: inst.Spec.PorterConfig,
-			Args:         []string{"installation", "apply", "installation.yaml"},
+			AgentConfig: inst.Spec.AgentConfig,
+			Args:        []string{"installation", "apply", "installation.yaml"},
 			Files: map[string][]byte{
 				"installation.yaml": installationResourceB,
 			},

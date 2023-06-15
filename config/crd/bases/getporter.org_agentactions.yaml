@@ -202,15 +202,6 @@ spec:
                 description: Files that should be present in the working directory
                   where the command is run.
                 type: object
-              porterConfig:
-                description: PorterConfig is the name of a PorterConfig to use instead
-                  of the PorterConfig defined at the namespace or system level.
-                properties:
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
-                    type: string
-                type: object
               volumeMounts:
                 description: VolumeMounts that should be defined on the Porter Agent
                   job.
@@ -803,7 +794,8 @@ spec:
                                         defined in spec.resourceClaims, that are used
                                         by this container. \n This is an alpha field
                                         and requires enabling the DynamicResourceAllocation
-                                        feature gate. \n This field is immutable."
+                                        feature gate. \n This field is immutable.
+                                        It can only be set for containers."
                                       items:
                                         description: ResourceClaim references one
                                           entry in PodSpec.ResourceClaims.
