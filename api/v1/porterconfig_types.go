@@ -49,6 +49,9 @@ type PorterConfigSpec struct {
 
 	// Secrets is a list of named secrets configurations.
 	Secrets []SecretsConfig `json:"secrets,omitempty" yaml:"secrets,omitempty" mapstructure:"secrets,omitempty"`
+
+	// Telemetry is settings related to Porter's tracing with open telemetry.
+	Telemetry TelemetryConfig `json:"telemetry,omitempty" yaml:"telemetry,omitempty" mapstructure:"telemetry,omitempty"`
 }
 
 // ToPorterDocument converts from the Kubernetes representation of the Installation into Porter's resource format.
@@ -128,6 +131,21 @@ func (in PluginConfig) MarshalYAML() (interface{}, error) {
 	}
 
 	return raw, nil
+}
+
+// TelemetryConfig specifies how to connect to an open telemetry collector.
+// See https://github.com/open-telemetry/opentelemetry-go/tree/main/exporters/otlp/otlptrace
+type TelemetryConfig struct {
+	Enabled        *bool              `json:"enabled,omitempty" yaml:"enabled,omitempty" mapstructure:"enabled,"`
+	Endpoint       *string            `json:"endpoint,omitempty" yaml:"endpoint,omitempty" mapstructure:"endpoint,"`
+	Protocol       *string            `json:"protocol,omitempty" yaml:"protocol,omitempty" mapstructure:"protocol,"`
+	Insecure       *bool              `json:"insecure,omitempty" yaml:"insecure,omitempty" mapstructure:"insecure,"`
+	Certificate    *string            `json:"certificate,omitempty" yaml:"certificate,omitempty" mapstructure:"certificate,"`
+	Headers        *map[string]string `json:"headers,omitempty" yaml:"headers,omitempty" mapstructure:"headers,"`
+	Timeout        *string            `json:"timeout,omitempty" yaml:"timeout,omitempty" mapstructure:"timeout,"`
+	Compression    *string            `json:"compression,omitempty" yaml:"compression,omitempty" mapstructure:"compression,"`
+	StartTimeout   *string            `json:"start-timeout,omitempty" yaml:"start-timeout,omitempty" mapstructure:"start-timeout,"`
+	RedirectToFile *string            `json:"redirect-to-file,omitempty" yaml:"redirect-to-file,omitempty" mapstructure:"redirect-to-file,"`
 }
 
 // +kubebuilder:object:root=true
