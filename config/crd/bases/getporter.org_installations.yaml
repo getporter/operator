@@ -15,7 +15,26 @@ spec:
     singular: installation
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.Namespace
+      name: Namespace
+      type: string
+    - jsonPath: .spec.Namespace
+      name: Porter Namespace
+      type: string
+    - jsonPath: .spec.Name
+      name: Name
+      type: string
+    - jsonPath: .status.PorterResourceStatus.Action
+      name: Last Action
+      type: string
+    - jsonPath: .status.PorterResourceStatus.Phase
+      name: Last Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: Installation is the Schema for the installations API
