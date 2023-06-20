@@ -511,7 +511,8 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 					sharedLabels[porterv1.LabelSecretType] = porterv1.SecretTypeConfig
 				}
 				porterCfg := porterv1.PorterConfigSpec{}
-				porterCfgB, _ := porterCfg.ToPorterDocument()
+				porterCfgB, err := porterCfg.ToPorterDocument()
+				require.NoError(t, err)
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "existing-",
@@ -524,7 +525,7 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 						"config.yaml": porterCfgB,
 					},
 				}
-				err := controller.Client.Create(context.Background(), secret)
+				err = controller.Client.Create(context.Background(), secret)
 				require.NoError(t, err)
 			}
 			porterCfg := porterv1.PorterConfigSpec{}
