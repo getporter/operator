@@ -35,7 +35,7 @@ installer/porter.yaml
 *~
 coverage/coverage.html
 
-# Helm
+# Helm ignore
 *.tgz
 !charts/operator
 charts/operator/templates/*.yaml
