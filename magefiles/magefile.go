@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ const (
 	operatorNamespace = "porter-operator-system"
 
 	// Porter cli version for running commands
-	porterVersion = "v1.0.14"
+	porterVersion = "v1.0.9"
 )
 
 var (
@@ -199,7 +200,7 @@ func getMixins() error {
 
 // Publish the operator and its bundle.
 func Publish() {
-	mg.Deps(PublishMultiArchImages, PublishBundle)
+	mg.Deps(PublishMultiArchImages, PublishBundle, PublishHelmChart)
 }
 
 // Push the porter-operator bundle to a registry. Defaults to the local test registry.
@@ -638,6 +639,10 @@ func kustomize(args ...string) shx.PreparedCommand {
 	return must.Command("kustomize", args...)
 }
 
+func helm(args ...string) shx.PreparedCommand {
+	return must.Command("helm", args...)
+}
+
 // Ensure yq is installed.
 func EnsureYq() {
 	mgx.Must(pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", ""))
@@ -658,6 +663,19 @@ func EnsureKustomize() {
 		},
 		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
 		TargetFileTemplate: "kustomize{{.EXT}}",
+	}
+	mgx.Must(archive.DownloadToGopathBin(opts))
+}
+
+func EnsureHelm() {
+	opts := archive.DownloadArchiveOptions{
+		DownloadOptions: downloads.DownloadOptions{
+			UrlTemplate: "https://get.helm.sh/helm-{{.VERSION}}-{{.GOOS}}-{{.GOARCH}}.tar.gz",
+			Name:        "helm",
+			Version:     "v3.10.0",
+		},
+		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
+		TargetFileTemplate: "{{.GOOS}}-{{.GOARCH}}/helm{{.EXT}}",
 	}
 	mgx.Must(archive.DownloadToGopathBin(opts))
 }
@@ -683,6 +701,200 @@ func buildPorterCmd(args ...string) shx.PreparedCommand {
 		Env("PORTER_DEFAULT_STORAGE=",
 			"PORTER_DEFAULT_STORAGE_PLUGIN=mongodb-docker",
 			fmt.Sprintf("PORTER_HOME=%s", filepath.Join(pwd(), "bin")))
+}
+
+func PublishHelmChart() {
+	mg.Deps(EnsureHelm, BuildHelmChart)
+	os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
+	helm("dependency", "update", "./charts/operator").RunV()
+	helm("package", "./charts/operator").RunV()
+	meta := releases.LoadMetadata()
+	chartPath := fmt.Sprintf("porter-operator-%s.tgz", meta.Version)
+	helmChartPath := fmt.Sprintf("oci://%s", Env.HelmChartPrefix)
+	helm("push", chartPath, helmChartPath).RunV()
+}
+
+// Generate k8s helmchart for the operator.
+func BuildHelmChart() {
+
+	mg.Deps(EnsureKustomize, EnsureControllerGen, EnsureYq, StartDockerRegistry, PublishImages)
+
+	//create directory for generated files
+	os.RemoveAll("./charts/operator/crds")
+	//os.RemoveAll("./charts/operator/templates")
+	os.Mkdir("./charts/operator/crds", 0666)
+	deleteFilesNamesWithPattern("./charts/operator/templates", "*.yaml")
+
+	// set image reference
+	managerRef := resolveManagerImage()
+	meta := releases.LoadMetadata()
+	chartAppVersion := fmt.Sprintf(`.appVersion = "%s"`, meta.Version)
+	chartVersion := fmt.Sprintf(`.version = "%s"`, meta.Version)
+
+	must.Command("yq", "eval", chartAppVersion, "-i", "charts/operator/Chart.yaml").RunV()
+	must.Command("yq", "eval", chartVersion, "-i", "charts/operator/Chart.yaml").RunV()
+
+	managerImage := fmt.Sprintf(`.images.manager = "%s@%s"`, managerRef.Repository(), managerRef.Digest())
+	must.Command("yq", "eval", managerImage, "-i", "charts/operator/values.yaml").RunV()
+	kustomize("build", "config/default", "-o", "./charts/operator/templates").RunV()
+
+	// move crds
+	moveFilesNamesWithPattern("./charts/operator/templates", "./charts/operator/crds/", "*_customresourcedefinition_*")
+
+	// replace hard coded namespace with Helm templating
+	replaceStringsinDirectory("./charts/operator/templates/", map[string]string{
+		"porter-operator-system": "{{ .Release.Namespace }}",
+	})
+
+	replaceStringsinDirectoryMatchingFilesNamesWithPattern("./charts/operator/templates/", "*_deployment_*", map[string]string{
+		"image: manager": "image: \"{{ .Values.images.manager }}\"",
+		"image: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0": "image: \"{{ .Values.images.kubeRBACProxy }}\"",
+	})
+
+	os.Mkdir("./charts/operator/templates/namespace/", 0666)
+
+	// Copy Manifests
+	copyFilesNamesWithPattern("./installer/manifests/namespace/", "./charts/operator/templates/namespace/", "*.yaml")
+
+	// Populate Porter Config
+	defaultSpec := "./installer/manifests/namespace/defaults/porter-config-spec.yaml"
+	if _, err := os.Stat(defaultSpec); err != nil {
+		panic(fmt.Errorf("error defaults/porter-config-spec.yaml from installer directory, error: %s", err.Error()))
+	}
+	must.Command("yq", "eval-all", `select(fileIndex==0).spec = select(fileIndex==1) | select(fileIndex==0)`, "-i", "./charts/operator/templates/namespace/porter-config.yaml", defaultSpec).RunV()
+
+	// Yaml templating for Mongo db Url
+	must.Command("yq", "eval", `.spec.storage[] |= select(.plugin == "mongodb").config.url="_REPLACE_URI"`, "-i", "./charts/operator/templates/namespace/porter-config.yaml").RunV()
+
+	// TODO: Populate K8s Plugin version from values.yaml
+	// Agent config
+	//must.Command("yq", "eval", `del(.spec.pluginConfigFile.plugins.kubernetes | select(length==0))`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	//defaultAgentConfig := fmt.Sprintf(`.spec.pluginConfigFile.plugins.kubernetes.version = "%s"`, "1.0")
+	//must.Command("yq", "eval", defaultAgentConfig, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.porterRepository = "{{ .Values.agentconfig.porterRepository }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.porterVersion = "{{ .Values.agentconfig.porterVersion }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.serviceAccount = "{{ .Values.agentconfig.serviceAccount }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.installationServiceAccount = "{{ .Values.agentconfig.installationServiceAccount }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.pullPolicy = "{{ .Values.agentconfig.pullPolicy }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.volumeSize = "{{ .Values.agentconfig.volumeSize }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+	must.Command("yq", "eval", `.spec.storageClassName = "{{ .Values.agentconfig.storageClassName }}"`, "-i", "./charts/operator/templates/namespace/porter-agentconfig.yaml").RunV()
+
+	// Replace namespace in all namespace yaml
+	must.Command("yq", "eval", `.subjects[].namespace = "{{ .Release.Namespace }}"`, "-i", "./charts/operator/templates/namespace/porter-agent-binding.yaml").RunV()
+	must.Command("yq", "eval", `.metadata.name = "{{ .Release.Namespace }}"`, "-i", "./charts/operator/templates/namespace/namespace.yaml").RunV()
+	replacePatternInYamlFiles("./charts/operator/templates/namespace", `.metadata.namespace = "{{ .Release.Namespace }}"`)
+
+	// Replace text after all yq transformations.
+	replaceTextInFile("./charts/operator/templates/namespace/porter-config.yaml", map[string]string{
+		"_REPLACE_URI": "{{ template \"mongodb.url\" . }}",
+	})
+
+	// Copy from /charts/operator/templates/namespace to /charts/operator/templates and remove namespace.
+	copyFilesNamesWithPattern("./charts/operator/templates/namespace", "./charts/operator/templates/", "*.yaml")
+
+	// Remove namespace directory
+	mgx.Must(os.RemoveAll("./charts/operator/templates/namespace/"))
+
+	// Cleanup namespace yaml as helm is going to take care of it.
+	deleteFilesNamesWithPattern("./charts/operator/templates", "*namespace*")
+}
+
+// Move files with names matching pattern
+func moveFilesNamesWithPattern(src string, dst string, pattern string) {
+	files, err := filepath.Glob(filepath.Join(src, pattern))
+	if err != nil {
+		panic(fmt.Errorf("error getting files from src directory: %s with pattern: %s, error: %s", src, pattern, err.Error()))
+	}
+
+	for _, f := range files {
+		if err := shx.Move(f, dst); err != nil {
+			panic(fmt.Errorf("error moving file from src directory: %s to dest: %s, error: %s", src, dst, err.Error()))
+		}
+	}
+}
+
+// Move files with names matching pattern
+func replacePatternInYamlFiles(src string, pattern string) {
+	files, err := filepath.Glob(filepath.Join(src, "*.yaml"))
+	if err != nil {
+		panic(fmt.Errorf("error getting files from src directory: %s with pattern: %s, error: %s", src, pattern, err.Error()))
+	}
+
+	for _, f := range files {
+		must.Command("yq", "eval", pattern, "-i", f).RunV()
+	}
+}
+
+// Copy files with names matching pattern
+func copyFilesNamesWithPattern(src string, dst string, pattern string) {
+	files, err := filepath.Glob(filepath.Join(src, pattern))
+	if err != nil {
+		panic(fmt.Errorf("error getting files from src directory: %s with pattern: %s, error: %s", src, pattern, err.Error()))
+	}
+
+	for _, f := range files {
+		if err := shx.Copy(f, dst); err != nil {
+			panic(fmt.Errorf("error moving file from src directory: %s to dest: %s, error: %s", src, dst, err.Error()))
+		}
+	}
+}
+
+// Delte files with names matching pattern
+func deleteFilesNamesWithPattern(src string, pattern string) {
+	files, err := filepath.Glob(filepath.Join(src, pattern))
+	if err != nil {
+		panic(fmt.Errorf("error getting files from src directory: %s with pattern: %s, error: %s", src, pattern, err.Error()))
+	}
+
+	for _, f := range files {
+		if err := os.Remove(f); err != nil {
+			panic(fmt.Errorf("error deleting file from src directory: %s, error: %s", src, err.Error()))
+		}
+	}
+}
+
+// Replace file content in directory of files with replacements.
+func replaceStringsinDirectory(src string, replacements map[string]string) {
+
+	files, err := ioutil.ReadDir(src)
+	if err != nil {
+		panic(fmt.Errorf("error reading src: %s", src))
+	}
+
+	for _, file := range files {
+		if !file.IsDir() {
+			replaceTextInFile(filepath.Join(src, file.Name()), replacements)
+		}
+	}
+}
+
+// Replace file content in directory of files with replacements. matching pattern
+func replaceStringsinDirectoryMatchingFilesNamesWithPattern(src string, pattern string, replacements map[string]string) {
+
+	files, err := filepath.Glob(filepath.Join(src, pattern))
+	if err != nil {
+		panic(fmt.Errorf("error reading src: %s", src))
+	}
+
+	for _, file := range files {
+		replaceTextInFile(file, replacements)
+	}
+}
+
+func replaceTextInFile(file string, replacements map[string]string) {
+
+	input, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(fmt.Errorf("error reading file: %s, error: %s", file, err.Error()))
+	}
+
+	for key, value := range replacements {
+		input = bytes.Replace(input, []byte(key), []byte(value), -1)
+	}
+
+	if err = ioutil.WriteFile(file, input, 0666); err != nil {
+		panic(fmt.Errorf("error writing file: %s, error: %s", file, err.Error()))
+	}
 }
 
 // generatedCodeFilter remove generated code files from coverage report

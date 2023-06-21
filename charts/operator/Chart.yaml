@@ -1,0 +1,13 @@
+apiVersion: v2
+name: porter-operator
+version: v0.0.0
+appVersion: v0.0.0
+description: Deploy components and dependencies of Porter Operator
+home: https://porter.sh
+sources:
+  - https://github.com/getporter/operator
+dependencies:
+  - name: mongodb
+    version: 13.6.2
+    repository: https://charts.bitnami.com/bitnami
+    condition: mongodb.enabled

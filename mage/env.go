@@ -3,6 +3,9 @@ package mage
 import (
 	"os"
 	"path"
+
+	"github.com/carolynvs/magex/mgx"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -19,6 +22,7 @@ type Environment struct {
 	Registry           string
 	ManagerImagePrefix string
 	BundlePrefix       string
+	HelmChartPrefix    string
 }
 
 func getAmbientEnvironment() Environment {
@@ -31,7 +35,7 @@ func getAmbientEnvironment() Environment {
 	default:
 		registry := os.Getenv("PORTER_OPERATOR_REGISTRY")
 		if registry == "" {
-			registry = "localhost:5000"
+			mgx.Must(errors.New("environment variable PORTER_OPERATOR_REGISTRY must be set to push to a custom registry"))
 		}
 		return buildEnvironment(name, registry)
 	}
@@ -59,5 +63,6 @@ func buildEnvironment(name string, registry string) Environment {
 		Registry:           registry,
 		ManagerImagePrefix: path.Join(registry, "porter-operator-manager:"),
 		BundlePrefix:       path.Join(registry, "porter-operator:"),
+		HelmChartPrefix:    path.Join(registry, "charts"),
 	}
 }

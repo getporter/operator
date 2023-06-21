@@ -34,3 +34,9 @@ installer/porter.yaml
 *.swo
 *~
 coverage/coverage.html
+
+# Helm
+*.tgz
+!charts/operator
+charts/operator/templates/*.yaml
+charts/operator/crds/*

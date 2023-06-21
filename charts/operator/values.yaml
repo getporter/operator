@@ -1,0 +1,27 @@
+# image defines the container image the Porter Operator pod should run
+# Note: This should use the latest released tag number explicitly. If
+# it's ':latest' and someone deploys the chart after a new version has
+# been released but before the the chart is updated, they could get
+# errors, eg. due to types in the operator binary that have no
+# corresponding CRD yaml in the cart (and so no CRD in the k8s
+# repository).
+images:
+  manager: localhost:5000/porter-operator-manager@sha256:f4d242064ddd04f6423175a071f9a9894e1efacddc3b2744cfe8eb11c092c09e
+  kubeRBACProxy: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
+# Mongo DB
+# Set Mongo Db 
+mongodb:
+  enabled: true
+  url: ""
+  auth:
+    enabled: false
+# Porter Agent Config
+# storageClassName needs to set for AKS for properly mounting storage
+agentconfig:
+  porterRepository: ghcr.io/getporter/porter-agent
+  porterVersion: v1.0.14
+  serviceAccount: porter-agent
+  installationServiceAccount: porter-agent
+  pullPolicy: Always
+  volumeSize: 64Mi
+  storageClassName: ""
