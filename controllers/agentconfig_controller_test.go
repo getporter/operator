@@ -761,7 +761,7 @@ func TestRenamePluginVolume(t *testing.T) {
 				Spec: actionspec,
 			}
 			logger := logr.Discard()
-			r := &AgentConfigReconciler{}
+			var r *AgentConfigReconciler
 			if test.pvc != nil {
 				r = setupAgentConfigController(test.pvc)
 			} else {
