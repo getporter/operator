@@ -212,8 +212,7 @@ func newAgentAction(cs *porterv1.CredentialSet) *porterv1.AgentAction {
 			},
 		},
 		Spec: porterv1.AgentActionSpec{
-			AgentConfig:  cs.Spec.AgentConfig,
-			PorterConfig: cs.Spec.PorterConfig,
+			AgentConfig: cs.Spec.AgentConfig,
 		},
 	}
 	return action

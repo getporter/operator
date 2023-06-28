@@ -205,10 +205,9 @@ func TestCredentialSetReconciler_createAgentAction(t *testing.T) {
 					},
 				},
 				Spec: porterv1.CredentialSetSpec{
-					Namespace:    "dev",
-					Name:         "credset",
-					AgentConfig:  &corev1.LocalObjectReference{Name: "myAgentConfig"},
-					PorterConfig: &corev1.LocalObjectReference{Name: "myPorterConfig"},
+					Namespace:   "dev",
+					Name:        "credset",
+					AgentConfig: &corev1.LocalObjectReference{Name: "myAgentConfig"},
 				},
 			}
 			controllerutil.AddFinalizer(cs, porterv1.FinalizerName)

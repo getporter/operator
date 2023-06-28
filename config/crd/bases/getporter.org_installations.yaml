@@ -15,7 +15,26 @@ spec:
     singular: installation
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.Namespace
+      name: Namespace
+      type: string
+    - jsonPath: .spec.Namespace
+      name: Porter Namespace
+      type: string
+    - jsonPath: .spec.Name
+      name: Name
+      type: string
+    - jsonPath: .status.PorterResourceStatus.Action
+      name: Last Action
+      type: string
+    - jsonPath: .status.PorterResourceStatus.Phase
+      name: Last Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: Installation is the Schema for the installations API
@@ -94,15 +113,6 @@ spec:
                   not include defaults, or values resolved from parameter sources.
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
-              porterConfig:
-                description: PorterConfig is the name of a PorterConfig to use instead
-                  of the PorterConfig defined at the namespace or system level.
-                properties:
-                  name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
-                    type: string
-                type: object
               schemaVersion:
                 description: SchemaVersion is the version of the installation state
                   schema.

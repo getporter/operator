@@ -29,11 +29,15 @@ func TestPorterConfigSpec_MergeConfig(t *testing.T) {
 
 		instConfig := PorterConfigSpec{
 			Verbosity: pointer.String("debug"),
+			Telemetry: TelemetryConfig{
+				Enabled: pointer.Bool(true),
+			},
 		}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
 		assert.Equal(t, pointer.String("debug"), config.Verbosity)
+		assert.Equal(t, pointer.Bool(true), config.Telemetry.Enabled)
 	})
 }
 
@@ -139,6 +143,56 @@ storage:
 secrets:
     - name: kubernetes-secrets
       plugin: kubernetes.secrets
+`),
+		},
+		{
+			name: "All Telemetry config provided",
+			cfg: PorterConfigSpec{
+				DefaultStorage: pointer.String("in-cluster-mongodb"),
+				DefaultSecrets: pointer.String("kubernetes-secrets"),
+				Storage: []StorageConfig{
+					{PluginConfig{
+						Name:         "in-cluster-mongodb",
+						PluginSubKey: "mongodb",
+						Config:       runtime.RawExtension{Raw: []byte(`{"url": "mongodb://..."}`)},
+					}},
+				},
+				Secrets: []SecretsConfig{
+					{PluginConfig{
+						Name:         "kubernetes-secrets",
+						PluginSubKey: "kubernetes.secrets",
+					}},
+				},
+				Telemetry: TelemetryConfig{
+					Enabled:        pointer.Bool(true),
+					Protocol:       pointer.String("grpc"),
+					Endpoint:       pointer.String("127.0.0.1:4317"),
+					Insecure:       pointer.Bool(true),
+					Compression:    pointer.String("gzip"),
+					Timeout:        pointer.String("3s"),
+					StartTimeout:   pointer.String("100ms"),
+					RedirectToFile: pointer.String("foo"),
+				},
+			},
+			expDocument: []byte(`default-storage: in-cluster-mongodb
+default-secrets: kubernetes-secrets
+storage:
+    - config:
+        url: mongodb://...
+      name: in-cluster-mongodb
+      plugin: mongodb
+secrets:
+    - name: kubernetes-secrets
+      plugin: kubernetes.secrets
+telemetry:
+    enabled: true
+    endpoint: 127.0.0.1:4317
+    protocol: grpc
+    insecure: true
+    timeout: 3s
+    compression: gzip
+    start-timeout: 100ms
+    redirect-to-file: foo
 `),
 		},
 	}

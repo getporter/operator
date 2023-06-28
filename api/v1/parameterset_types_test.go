@@ -53,7 +53,6 @@ func TestParameterSetSpec_ToPorterDocument(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cs := ParameterSetSpec{
 				AgentConfig:   tt.fields.AgentConfig,
-				PorterConfig:  tt.fields.PorterConfig,
 				SchemaVersion: tt.fields.SchemaVersion,
 				Name:          tt.fields.Name,
 				Namespace:     tt.fields.Namespace,

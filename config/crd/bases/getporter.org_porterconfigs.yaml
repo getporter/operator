@@ -101,6 +101,33 @@ spec:
                   - plugin
                   type: object
                 type: array
+              telemetry:
+                description: Telemetry is settings related to Porter's tracing with
+                  open telemetry.
+                properties:
+                  certificate:
+                    type: string
+                  compression:
+                    type: string
+                  enabled:
+                    type: boolean
+                  endpoint:
+                    type: string
+                  headers:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  insecure:
+                    type: boolean
+                  protocol:
+                    type: string
+                  redirect-to-file:
+                    type: string
+                  start-timeout:
+                    type: string
+                  timeout:
+                    type: string
+                type: object
               verbosity:
                 description: 'Threshold for printing messages to the console Allowed
                   values are: debug, info, warn, error'

@@ -265,8 +265,7 @@ func newPSAgentAction(ps *porterv1.ParameterSet) *porterv1.AgentAction {
 			},
 		},
 		Spec: porterv1.AgentActionSpec{
-			AgentConfig:  ps.Spec.AgentConfig,
-			PorterConfig: ps.Spec.PorterConfig,
+			AgentConfig: ps.Spec.AgentConfig,
 		},
 	}
 	return action

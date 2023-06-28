@@ -28,9 +28,6 @@ type InstallationSpec struct {
 	// +optional
 	AgentConfig *corev1.LocalObjectReference `json:"agentConfig,omitempty" yaml:"-"`
 
-	// PorterConfig is the name of a PorterConfig to use instead of the PorterConfig defined at the namespace or system level.
-	PorterConfig *corev1.LocalObjectReference `json:"porterConfig,omitempty" yaml:"-"`
-
 	//
 	// These are fields from the Porter installation resource.
 	// Your goal is that someone can copy/paste a resource from Porter into the
@@ -116,6 +113,12 @@ type InstallationStatus struct {
 // +kubebuilder:subresource:status
 
 // Installation is the Schema for the installations API
+// +kubebuilder:printcolumn:name="Namespace",type="string",JSONPath=".metadata.Namespace"
+// +kubebuilder:printcolumn:name="Porter Namespace",type="string",JSONPath=".spec.Namespace"
+// +kubebuilder:printcolumn:name="Name",type="string",JSONPath=".spec.Name"
+// +kubebuilder:printcolumn:name="Last Action",type="string",JSONPath=".status.PorterResourceStatus.Action"
+// +kubebuilder:printcolumn:name="Last Status",type="string",JSONPath=".status.PorterResourceStatus.Phase"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type Installation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

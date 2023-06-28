@@ -205,10 +205,9 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 					},
 				},
 				Spec: porterv1.ParameterSetSpec{
-					Namespace:    "dev",
-					Name:         "paramset",
-					AgentConfig:  &corev1.LocalObjectReference{Name: "myAgentConfig"},
-					PorterConfig: &corev1.LocalObjectReference{Name: "myPorterConfig"},
+					Namespace:   "dev",
+					Name:        "paramset",
+					AgentConfig: &corev1.LocalObjectReference{Name: "myAgentConfig"},
 				},
 			}
 			controllerutil.AddFinalizer(cs, porterv1.FinalizerName)

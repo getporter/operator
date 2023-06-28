@@ -28,7 +28,6 @@ In addition to the normal fields available on a [Porter Installation document](/
 | Field        | Required | Default                             | Description                                                 |
 |--------------|----------|-------------------------------------|-------------------------------------------------------------|
 | agentConfig  | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
-| porterConfig | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
 
 [Installation]: /operator/glossary/#installation
 
@@ -59,7 +58,6 @@ spec:
 | Field                     | Required | Default                            | Description                                                 |
 |---------------------------|----------|------------------------------------|-------------------------------------------------------------|
 | agentConfig               | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
-| porterConfig              | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
 | credentials               | true     |                                    | List of credential sources for the set |
 | credentials.name          | true     |                                    | The name of the credential for the bundle |
 | credentials.source        | true     |                                    | The credential type. Currently `secret` is the only supported source |
@@ -98,7 +96,6 @@ spec:
 | Field                     | Required | Default                            | Description                                                 |
 |---------------------------|----------|------------------------------------|-------------------------------------------------------------|
 | agentConfig               | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
-| porterConfig              | false    | See [Porter Config](#porterconfig) | Reference to a PorterConfig resource in the same namespace. |
 | parameters                | true     |                                    | List of parameter sources for the set |
 | parameters.name           | true     |                                    | The name of the parameter for the bundle |
 | parameters.source         | true     |                                    | The parameters type. Currently `vaule` and `secret` are the only supported sources |
@@ -126,7 +123,6 @@ spec:
 | Field        | Required | Default                                | Description                                                                                                                           |
 |--------------|----------|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------|
 | agentConfig  | false    | See [Agent Config](#agentconfig)       | Reference to an AgentConfig resource in the same namespace.                                                                           |
-| porterConfig | false    | See [Porter Config](#porterconfig)     | Reference to a PorterConfig resource in the same namespace.                                                                           |
 | command      | false    | /app/.porter/agent                     | Overrides the entrypoint of the Porter Agent image.                                                                                   |
 | args         | true     | None.                                  | Arguments to pass to the porter command. Do not include "porter" in the arguments. For example, use ["help"], not ["porter", "help"]. |
 | files        | false    | None.                                  | Files that should be present in the working directory where the command is run.                                                       |
