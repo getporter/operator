@@ -26,8 +26,6 @@ const (
 	DefaultPorterSourceDir = "../porter"
 )
 
-var must = shx.CommandBuilder{StopOnError: true}
-
 // DeployWebsite triggers a Netlify build for the website.
 func DeployWebsite() error {
 	// Put up a page on the preview that redirects to the live site
