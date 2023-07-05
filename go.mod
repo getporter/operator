@@ -1,6 +1,6 @@
 module get.porter.sh/operator
 
-go 1.19
+go 1.20
 
 replace (
 	// See https://github.com/hashicorp/go-plugin/pull/127 and
