@@ -1024,7 +1024,7 @@ func setupAgentActionController(objs ...client.Object) AgentActionReconciler {
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)
-	fakeBuilder.WithObjects(objs...)
+	fakeBuilder.WithObjects(objs...).WithStatusSubresource(objs...)
 	fakeClient := fakeBuilder.Build()
 
 	return AgentActionReconciler{

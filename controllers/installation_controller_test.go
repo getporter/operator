@@ -30,11 +30,10 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
-	testdata := []client.Object{
-		&porterv1.Installation{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}},
-	}
-	controller := setupInstallationController(testdata...)
+	testdata := &porterv1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}}
+
+	controller := setupInstallationController(testdata)
 
 	var inst porterv1.Installation
 	triggerReconcile := func() {
@@ -70,8 +69,9 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	// Mark the action as scheduled
 	action.Status.Phase = porterv1.PhasePending
 	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
+	action.ResourceVersion = ""
+	controller = setupInstallationController(testdata, &action)
+	assert.NoError(t, controller.Client.Status().Update(ctx, &action))
 	triggerReconcile()
 
 	// Verify the installation status was synced with the action
@@ -108,6 +108,7 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
+	actionName := inst.Status.Action.Name
 	// Verify that the installation status shows the action is failed
 	require.NotNil(t, inst.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseFailed, inst.Status.Phase, "incorrect Phase")
@@ -125,7 +126,7 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	assert.Empty(t, inst.Status.Conditions, "Conditions should have been reset")
 
 	// Retry the last action
-	lastAction := inst.Status.Action.Name
+	lastAction := actionName
 	inst.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
 	require.NoError(t, controller.Update(ctx, &inst))
 
@@ -133,7 +134,7 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	// Verify that action has retry set on it now
 	require.NotNil(t, inst.Status.Action, "Expected the action to still be set")
-	assert.Equal(t, lastAction, inst.Status.Action.Name, "Expected the action to be the same")
+	assert.Equal(t, lastAction, actionName, "Expected the action to be the same")
 	// get the latest version of the action
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
 	assert.NotEmpty(t, action.Annotations[porterv1.AnnotationRetry], "Expected the action to have its retry annotation set")
@@ -145,17 +146,18 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	// Delete the installation (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
 	// The fake client doesn't really follow finalizer logic
+	// metadata.Timestamp is immutable and not allowed to be set  by the client
 	now := metav1.NewTime(time.Now())
 	inst.Generation = 3
 	inst.DeletionTimestamp = &now
-	require.NoError(t, controller.Update(ctx, &inst))
+	require.NoError(t, controller.Delete(ctx, &inst))
 
 	triggerReconcile()
 
 	// Verify that an action was created to uninstall it
 	require.NotNil(t, inst.Status.Action, "expected Action to be set")
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
-	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
 
 	// Complete the uninstall action
 	action.Status.Phase = porterv1.PhaseSucceeded
@@ -233,17 +235,17 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	assert.Empty(t, action.Spec.VolumeMounts, "incorrect VolumeMounts")
 }
 
-func setupInstallationController(objs ...client.Object) InstallationReconciler {
+func setupInstallationController(objs ...client.Object) *InstallationReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(porterv1.AddToScheme(scheme))
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)
-	fakeBuilder.WithObjects(objs...)
+	fakeBuilder.WithObjects(objs...).WithStatusSubresource(objs...)
 	fakeClient := fakeBuilder.Build()
 
-	return InstallationReconciler{
+	return &InstallationReconciler{
 		Log:    logr.Discard(),
 		Client: fakeClient,
 		Scheme: scheme,

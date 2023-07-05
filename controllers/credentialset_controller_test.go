@@ -29,12 +29,10 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
-	testdata := []client.Object{
-		&porterv1.CredentialSet{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
-		},
+	testdata := &porterv1.CredentialSet{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 	}
-	controller := setupCredentialSetController(testdata...)
+	controller := setupCredentialSetController(testdata)
 
 	var cs porterv1.CredentialSet
 	triggerReconcile := func() {
@@ -68,6 +66,7 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 	// Mark the action as scheduled
 	action.Status.Phase = porterv1.PhasePending
 	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	controller = setupCredentialSetController(testdata, &action)
 	require.NoError(t, controller.Status().Update(ctx, &action))
 
 	triggerReconcile()
@@ -106,6 +105,7 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
+	actionName := cs.Status.Action.Name
 	// Verify that the credential set status shows the action is failed
 	require.NotNil(t, cs.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseFailed, cs.Status.Phase, "incorrect Phase")
@@ -123,7 +123,7 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 	assert.Empty(t, cs.Status.Conditions, "Conditions should have been reset")
 
 	// Retry the last action
-	lastAction := cs.Status.Action.Name
+	lastAction := actionName
 	cs.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
 	require.NoError(t, controller.Update(ctx, &cs))
 
@@ -131,7 +131,7 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 
 	// Verify that action has retry set on it now
 	require.NotNil(t, cs.Status.Action, "Expected the action to still be set")
-	assert.Equal(t, lastAction, cs.Status.Action.Name, "Expected the action to be the same")
+	assert.Equal(t, lastAction, actionName, "Expected the action to be the same")
 	// get the latest version of the action
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: cs.Namespace, Name: cs.Status.Action.Name}, &action))
 	assert.NotEmpty(t, action.Annotations[porterv1.AnnotationRetry], "Expected the action to have its retry annotation set")
@@ -143,17 +143,18 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 
 	// Delete the credential set (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
 	// The fake client doesn't really follow finalizer logic
+	// NOTE: metadata.Timestamp is immutable and not allowed to be set  by the client
 	now := metav1.NewTime(time.Now())
 	cs.Generation = 3
 	cs.DeletionTimestamp = &now
-	require.NoError(t, controller.Update(ctx, &cs))
+	require.NoError(t, controller.Delete(ctx, &cs))
 
 	triggerReconcile()
 
 	// Verify that an action was created to delete it
 	require.NotNil(t, cs.Status.Action, "expected Action to be set")
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: cs.Namespace, Name: cs.Status.Action.Name}, &action))
-	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
 
 	// Complete the delete action
 	action.Status.Phase = porterv1.PhaseSucceeded
@@ -256,17 +257,17 @@ func TestCredentialSetReconciler_createAgentAction(t *testing.T) {
 	}
 }
 
-func setupCredentialSetController(objs ...client.Object) CredentialSetReconciler {
+func setupCredentialSetController(objs ...client.Object) *CredentialSetReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(porterv1.AddToScheme(scheme))
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)
-	fakeBuilder.WithObjects(objs...)
+	fakeBuilder.WithObjects(objs...).WithStatusSubresource(objs...)
 	fakeClient := fakeBuilder.Build()
 
-	return CredentialSetReconciler{
+	return &CredentialSetReconciler{
 		Log:    logr.Discard(),
 		Client: fakeClient,
 		Scheme: scheme,
