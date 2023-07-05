@@ -143,7 +143,6 @@ func (r *InstallationReconciler) isHandled(ctx context.Context, log logr.Logger,
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "could not query for the current agent action")
 	}
-
 	if len(results.Items) == 0 {
 		log.V(Log4Debug).Info("No existing agent action was found")
 		return nil, false, nil
