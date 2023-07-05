@@ -525,7 +525,6 @@ func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
 	require.NotEmpty(t, actionListNew.Spec.Volumes)
 
 	// verify that the pv that has plugins installed has been updated with the expected labels and claim reference
-	pluginsPV = &corev1.PersistentVolume{}
 	triggerReconcile()
 
 	// verify that the tmp pvc's finalizer is deleted
@@ -534,9 +533,6 @@ func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
 
 	triggerReconcile()
 
-	tmpPVC = &corev1.PersistentVolumeClaim{}
-
-	triggerReconcile()
 	require.False(t, agentCfg.Status.Ready)
 
 	// the renamed pvc should be created with label selector set and correct access mode

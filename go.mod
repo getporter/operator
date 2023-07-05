@@ -14,7 +14,7 @@ replace (
 )
 
 require (
-	get.porter.sh/magefiles v0.5.1
+	get.porter.sh/magefiles v0.6.0
 	get.porter.sh/porter v1.0.14
 	github.com/carolynvs/aferox v0.3.0
 	github.com/carolynvs/magex v0.9.0
@@ -74,7 +74,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -94,7 +93,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
-	github.com/kr/pretty v0.3.1 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -127,6 +125,7 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/qri-io/jsonpointer v0.1.1 // indirect
 	github.com/qri-io/jsonschema v0.2.2-0.20210831022256-780655b2ba0e // indirect
+	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/smartystreets/assertions v1.0.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
