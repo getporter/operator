@@ -29,12 +29,10 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
-	testdata := []client.Object{
-		&porterv1.ParameterSet{
-			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
-		},
+	testdata := &porterv1.ParameterSet{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 	}
-	controller := setupParameterSetController(testdata...)
+	controller := setupParameterSetController(testdata)
 
 	var ps porterv1.ParameterSet
 	triggerReconcile := func() {
@@ -68,6 +66,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	// Mark the action as scheduled
 	action.Status.Phase = porterv1.PhasePending
 	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	controller = setupParameterSetController(testdata, &action)
 	require.NoError(t, controller.Status().Update(ctx, &action))
 
 	triggerReconcile()
@@ -106,6 +105,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	triggerReconcile()
 
+	actionName := ps.Status.Action.Name
 	// Verify that the parameter set status shows the action is failed
 	require.NotNil(t, ps.Status.Action, "expected Action to still be set")
 	assert.Equal(t, porterv1.PhaseFailed, ps.Status.Phase, "incorrect Phase")
@@ -123,7 +123,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	assert.Empty(t, ps.Status.Conditions, "Conditions should have been reset")
 
 	// Retry the last action
-	lastAction := ps.Status.Action.Name
+	lastAction := actionName
 	ps.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
 	require.NoError(t, controller.Update(ctx, &ps))
 
@@ -131,7 +131,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 
 	// Verify that action has retry set on it now
 	require.NotNil(t, ps.Status.Action, "Expected the action to still be set")
-	assert.Equal(t, lastAction, ps.Status.Action.Name, "Expected the action to be the same")
+	assert.Equal(t, lastAction, actionName, "Expected the action to be the same")
 	// get the latest version of the action
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
 	assert.NotEmpty(t, action.Annotations[porterv1.AnnotationRetry], "Expected the action to have its retry annotation set")
@@ -146,14 +146,14 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	now := metav1.NewTime(time.Now())
 	ps.Generation = 3
 	ps.DeletionTimestamp = &now
-	require.NoError(t, controller.Update(ctx, &ps))
+	require.NoError(t, controller.Delete(ctx, &ps))
 
 	triggerReconcile()
 
 	// Verify that an action was created to delete it
 	require.NotNil(t, ps.Status.Action, "expected Action to be set")
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
-	assert.Equal(t, "3", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
+	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
 
 	// Complete the delete action
 	action.Status.Phase = porterv1.PhaseSucceeded
@@ -263,7 +263,7 @@ func setupParameterSetController(objs ...client.Object) ParameterSetReconciler {
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)
-	fakeBuilder.WithObjects(objs...)
+	fakeBuilder.WithObjects(objs...).WithStatusSubresource(objs...)
 	fakeClient := fakeBuilder.Build()
 
 	return ParameterSetReconciler{
