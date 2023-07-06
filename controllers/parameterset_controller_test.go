@@ -24,6 +24,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+func TestRetryForParameterSet(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.ParameterSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	action := &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-action",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupParameterSetController(inst, action)
+	err := rec.retry(ctx, rec.Log, inst, action)
+	assert.NoError(t, err)
+}
+
 func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	ctx := context.Background()
 
