@@ -723,6 +723,58 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 	assert.Equal(t, action.Spec.VolumeMounts[0].SubPath, "plugins", "incorrect VolumeMounts")
 }
 
+func TestRenamePluginVolume(t *testing.T) {
+	tests := map[string]struct {
+		actionCondition metav1.ConditionStatus
+		phase           porterv1.AgentPhase
+		pvc             *corev1.PersistentVolumeClaim
+	}{
+		"phase-pending":   {actionCondition: metav1.ConditionFalse, phase: porterv1.PhasePending},
+		"phase-running":   {actionCondition: metav1.ConditionFalse, phase: porterv1.PhaseRunning},
+		"phase-succeeded": {actionCondition: metav1.ConditionTrue, phase: porterv1.PhaseSucceeded, pvc: &corev1.PersistentVolumeClaim{}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			action := &porterv1.AgentAction{
+				Status: porterv1.AgentActionStatus{
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(porterv1.ConditionComplete),
+							Status: test.actionCondition,
+						},
+					},
+					Phase: test.phase,
+				},
+			}
+			spec := porterv1.AgentConfigSpec{
+				StorageClassName: "fake-storageclass",
+				PluginConfigFile: &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
+			}
+			actionspec := porterv1.NewAgentConfigSpecAdapter(spec)
+			actionCfg := &porterv1.AgentConfigAdapter{
+				AgentConfig: porterv1.AgentConfig{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "fake-name",
+						Namespace: "fake-namespace",
+					},
+				},
+				Spec: actionspec,
+			}
+			logger := logr.Discard()
+			var r *AgentConfigReconciler
+			if test.pvc != nil {
+				r = setupAgentConfigController(test.pvc)
+			} else {
+
+				r = setupAgentConfigController()
+			}
+
+			err := r.renamePluginVolume(context.TODO(), logger, action, actionCfg)
+			assert.NoError(t, err)
+		})
+	}
+}
+
 func setupAgentConfigController(objs ...client.Object) *AgentConfigReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

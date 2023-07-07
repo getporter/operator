@@ -375,16 +375,12 @@ func definePluginVomeAndMount(pvc *corev1.PersistentVolumeClaim) (corev1.Volume,
 
 // createHashPVC creates a new pvc using the hash of all plugins metadata.
 // It uses the label selector to make sure we will select the volum that has plugins installed.
-func (r *AgentConfigReconciler) createHashPVC(
-	ctx context.Context,
-	log logr.Logger,
-	agentCfg *porterv1.AgentConfigAdapter,
+func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter,
 ) (*corev1.PersistentVolumeClaim, error) {
 	log.V(Log4Debug).Info("Creating new pvc using the hash of all plugins metadata", "new persistentvolumeclaim", agentCfg.GetPluginsPVCName())
 	labels := agentCfg.Spec.Plugins.GetLabels()
 	labels[porterv1.LabelResourceName] = agentCfg.Name
 	storageClassName := agentCfg.Spec.GetStorageClassName()
-
 	selector := &metav1.LabelSelector{
 		MatchLabels: labels,
 	}
@@ -588,10 +584,9 @@ func (r *AgentConfigReconciler) isReadyToBeDeleted(ctx context.Context, log logr
 func (r *AgentConfigReconciler) getExistingPluginPVCs(ctx context.Context, log logr.Logger, agentCfg *porterv1.AgentConfigAdapter) (readyPVC *corev1.PersistentVolumeClaim, tempPVC *corev1.PersistentVolumeClaim, err error) {
 	results := &corev1.PersistentVolumeClaimList{}
 	err = r.List(ctx, results, client.InNamespace(agentCfg.Namespace), client.MatchingLabels(agentCfg.Spec.Plugins.GetLabels()))
-	if err != nil && !apierrors.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) || len(results.Items) < 1 {
 		return nil, nil, err
 	}
-
 	hashedName := agentCfg.Spec.Plugins.GetPVCName(agentCfg.Namespace)
 	for _, item := range results.Items {
 		item := item
@@ -713,7 +708,7 @@ func (r *AgentConfigReconciler) syncPluginInstallStatus(ctx context.Context, log
 
 func (r *AgentConfigReconciler) renamePluginVolume(ctx context.Context, log logr.Logger, action *porterv1.AgentAction, agentCfg *porterv1.AgentConfigAdapter) error {
 	// if the plugin install action is not finished, we need to wait for it before acting further
-	if !(apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase == porterv1.PhaseSucceeded) {
+	if !apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)) && action.Status.Phase != porterv1.PhaseSucceeded {
 		log.V(Log4Debug).Info("Plugins is not ready yet.", "action status", action.Status)
 		return nil
 	}
