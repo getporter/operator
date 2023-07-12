@@ -65,6 +65,11 @@ type AgentConfigSpec struct {
 	// +optional
 	VolumeSize string `json:"volumeSize,omitempty" mapstructure:"volumeSize,omitempty"`
 
+	// TTLSecondsAfterFinished mechanism to limit the lifetime of Job
+	// objects that have finished execution.
+	// todo(schristoff): update that ^
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty" mapstructure:"ttlSecondsAftterFinished,omitempty"`
+
 	// PullPolicy specifies when to pull the Porter Agent image. The default
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
 	// otherwise.
@@ -344,6 +349,12 @@ func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {
 	}
 
 	return yaml.Marshal(raw)
+}
+
+// GetTTL
+// todo(schristoff): comment and prob should set sane defaults?
+func (c AgentConfigSpecAdapter) GetTTLSecondsAfterFinished() *int32 {
+	return c.original.TTLSecondsAfterFinished
 }
 
 // PluginConfigList is the list implementation of the Plugins map.
