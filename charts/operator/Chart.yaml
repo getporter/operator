@@ -1,7 +1,7 @@
 apiVersion: v2
 name: porter-operator
-version: v0.0.0
-appVersion: v0.0.0
+version: v0.0.1
+appVersion: v0.0.1
 description: Deploy components and dependencies of Porter Operator
 home: https://porter.sh
 sources:
