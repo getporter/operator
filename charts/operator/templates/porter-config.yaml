@@ -1,0 +1,19 @@
+apiVersion: getporter.org/v1
+kind: PorterConfig
+metadata:
+  name: default
+  labels:
+    getporter.org/generator: "porter-operator-bundle"
+  namespace: '{{ .Release.Namespace }}'
+spec:
+  default-secrets-plugin: "kubernetes.secrets"
+  default-storage: "in-cluster-mongodb"
+  storage:
+    - name: "in-cluster-mongodb"
+      plugin: "mongodb"
+      config:
+        url: "{{ template "mongodb.url" . }}"
+
+# Values are supplied by the bundle parameter porter-config
+
+# If nothing is provided, defaults to the contents of defaults/porter-config-spec.yaml

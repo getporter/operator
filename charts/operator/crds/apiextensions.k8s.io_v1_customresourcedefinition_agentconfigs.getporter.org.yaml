@@ -1,0 +1,221 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: agentconfigs.getporter.org
+spec:
+  group: getporter.org
+  names:
+    kind: AgentConfig
+    listKind: AgentConfigList
+    plural: agentconfigs
+    singular: agentconfig
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: AgentConfig is the Schema for the agentconfigs API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: "AgentConfigSpec defines the configuration for the Porter
+              agent. \n SERIALIZATION NOTE: \n The json serialization is for persisting
+              this to Kubernetes. The mapstructure tags is used internally for AgentConfigSpec.MergeConfig."
+            properties:
+              installationServiceAccount:
+                description: InstallationServiceAccount specifies a service account
+                  to run the Kubernetes pod/job for the installation image. The default
+                  is to run without a service account. This can be useful for a bundle
+                  which is targeting the kubernetes cluster that the operator is installed
+                  in.
+                type: string
+              pluginConfigFile:
+                description: PluginConfigFile specifies plugins required to run Porter
+                  bundles. In order to utilize mapstructure omitempty tag with an
+                  embedded struct, this field needs to be a pointer
+                properties:
+                  plugins:
+                    additionalProperties:
+                      description: Plugin represents the plugin configuration.
+                      properties:
+                        feedURL:
+                          type: string
+                        mirror:
+                          type: string
+                        url:
+                          type: string
+                        version:
+                          type: string
+                      type: object
+                    description: Plugins is a map of plugin configuration using plugin
+                      name as the key.
+                    type: object
+                  schemaVersion:
+                    description: SchemaVersion is the version of the plugins configuration
+                      state schema.
+                    type: string
+                required:
+                - schemaVersion
+                type: object
+              porterRepository:
+                description: PorterRepository is the repository for the Porter Agent
+                  image. Defaults to ghcr.io/getporter/porter-agent
+                type: string
+              porterVersion:
+                description: PorterVersion is the tag for the Porter Agent image.
+                  Defaults to a well-known version of the agent that has been tested
+                  with the operator. Users SHOULD override this to use more recent
+                  versions.
+                type: string
+              pullPolicy:
+                description: PullPolicy specifies when to pull the Porter Agent image.
+                  The default is to use PullAlways when the tag is canary or latest,
+                  and PullIfNotPresent otherwise.
+                type: string
+              retryLimit:
+                description: RetryLimit specifies the maximum number of retries that
+                  a failed agent job will run before being marked as failure. The
+                  default is set to 6 the same as the `BackoffLimit` on a kubernetes
+                  job.
+                format: int32
+                type: integer
+              serviceAccount:
+                description: ServiceAccount is the service account to run the Porter
+                  Agent under.
+                type: string
+              storageClassName:
+                description: StorageClassName is the name of the storage class that
+                  Porter will request when running the Porter Agent. It is used to
+                  determine what the storage class will be for the volume requested
+                type: string
+              volumeSize:
+                description: VolumeSize is the size of the persistent volume that
+                  Porter will request when running the Porter Agent. It is used to
+                  share data between the Porter Agent and the bundle invocation image.
+                  It must be large enough to store any files used by the bundle including
+                  credentials, parameters and outputs.
+                type: string
+            type: object
+          status:
+            description: AgentConfigStatus defines the observed state of AgentConfig
+            properties:
+              action:
+                description: The most recent action executed for the resource
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              conditions:
+                description: 'Conditions store a list of states that have been reached.
+                  Each condition refers to the status of the ActiveJob Possible conditions
+                  are: Scheduled, Started, Completed, and Failed'
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: The last generation observed by the controller.
+                format: int64
+                type: integer
+              phase:
+                description: 'The current status of the agent. Possible values are:
+                  Unknown, Pending, Running, Succeeded, and Failed.'
+                type: string
+              ready:
+                default: false
+                description: The current status of whether the AgentConfig is ready
+                  to be used for an AgentAction.
+                type: boolean
+            required:
+            - ready
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

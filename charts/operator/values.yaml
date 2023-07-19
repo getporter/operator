@@ -6,7 +6,7 @@
 # corresponding CRD yaml in the cart (and so no CRD in the k8s
 # repository).
 images:
-  manager: localhost:5000/porter-operator-manager@sha256:f4d242064ddd04f6423175a071f9a9894e1efacddc3b2744cfe8eb11c092c09e
+  manager: portertest.azurecr.io/porter-operator-manager@sha256:f4d242064ddd04f6423175a071f9a9894e1efacddc3b2744cfe8eb11c092c09e
   kubeRBACProxy: gcr.io/kubebuilder/kube-rbac-proxy:v0.5.0
 # Mongo DB
 # Set Mongo Db 
@@ -21,7 +21,7 @@ agentconfig:
   porterRepository: ghcr.io/getporter/porter-agent
   porterVersion: v1.0.14
   serviceAccount: porter-agent
-  installationServiceAccount: porter-agent
+  installationServiceAccount: porter-admin
   pullPolicy: Always
   volumeSize: 64Mi
-  storageClassName: ""
+  storageClassName: azurefile-csi-nfs

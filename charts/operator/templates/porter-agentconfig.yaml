@@ -1,0 +1,22 @@
+apiVersion: getporter.org/v1
+kind: AgentConfig
+metadata:
+  name: default
+  labels:
+    getporter.org/generator: "porter-operator-bundle"
+  namespace: '{{ .Release.Namespace }}'
+spec:
+  pluginConfigFile:
+    schemaVersion: 1.0.0
+    plugins:
+      kubernetes: {}
+      # Values are set in helpers.sh based on the bundle parameters which are copied into agentconfig/*
+  porterRepository: '{{ .Values.agentconfig.porterRepository }}'
+  porterVersion: '{{ .Values.agentconfig.porterVersion }}'
+  serviceAccount: '{{ .Values.agentconfig.serviceAccount }}'
+  installationServiceAccount: '{{ .Values.agentconfig.installationServiceAccount }}'
+  pullPolicy: '{{ .Values.agentconfig.pullPolicy }}'
+  volumeSize: '{{ .Values.agentconfig.volumeSize }}'
+  storageClassName: '{{ .Values.agentconfig.storageClassName }}'
+
+# where each file is a setting on the spec.

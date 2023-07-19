@@ -1,0 +1,205 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: porter-operator-manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentactions
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentactions/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentactions/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - agentconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - credentialsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - credentialsets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - credentialsets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - installations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - installations/finalizers
+  verbs:
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - installations/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - parametersets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - parametersets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - parametersets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - getporter.org
+  resources:
+  - porterconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

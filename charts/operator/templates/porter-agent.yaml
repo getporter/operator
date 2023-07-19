@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: porter-agent
+  labels:
+    getporter.org/generator: "porter-operator-bundle"
+  namespace: '{{ .Release.Namespace }}'
