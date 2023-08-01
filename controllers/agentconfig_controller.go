@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -214,8 +214,8 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 					Kind:               agentCfg.Kind,
 					Name:               agentCfg.Name,
 					UID:                agentCfg.UID,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 		},
@@ -282,8 +282,8 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 					Kind:               agentCfg.Kind,
 					Name:               agentCfg.Name,
 					UID:                agentCfg.UID,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 		},
@@ -396,8 +396,8 @@ func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logg
 					Kind:               agentCfg.Kind,
 					Name:               agentCfg.Name,
 					UID:                agentCfg.UID,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 		},

@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -520,7 +520,7 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 						Labels:       sharedLabels,
 					},
 					Type:      corev1.SecretTypeBasicAuth,
-					Immutable: pointer.Bool(false),
+					Immutable: ptr.To(false),
 					Data: map[string][]byte{
 						"config.yaml": porterCfgB,
 					},
@@ -536,12 +536,12 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 			if test.created {
 				assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
 				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
-				assert.Equal(t, pointer.Bool(true), secret.Immutable, "expected the secret to be immutable")
+				assert.Equal(t, ptr.To(true), secret.Immutable, "expected the secret to be immutable")
 				assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
 			} else {
 				assert.Equal(t, "existing-", secret.GenerateName, "incorrect secret name")
 				assert.Equal(t, corev1.SecretTypeBasicAuth, secret.Type, "expected the secret to be of type Opaque")
-				assert.Equal(t, pointer.Bool(false), secret.Immutable, "expected the secret to be immutable")
+				assert.Equal(t, ptr.To(false), secret.Immutable, "expected the secret to be immutable")
 				assert.Contains(t, secret.Data, "config.yaml", "expected the secret to have config.yaml")
 
 			}
@@ -652,7 +652,7 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 						Labels:       sharedLabels,
 					},
 					Type:      corev1.SecretTypeBasicAuth,
-					Immutable: pointer.Bool(false),
+					Immutable: ptr.To(false),
 					Data: map[string][]byte{
 						"existing.yaml": []byte(`{}`),
 					},
@@ -667,12 +667,12 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 			if test.created {
 				assert.Equal(t, "porter-hello-", secret.GenerateName, "incorrect secret name")
 				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "expected the secret to be of type Opaque")
-				assert.Equal(t, pointer.Bool(true), secret.Immutable, "expected the secret to be immutable")
+				assert.Equal(t, ptr.To(true), secret.Immutable, "expected the secret to be immutable")
 				assert.Contains(t, secret.Data, "installation.yaml", "expected the secret to have config.yaml")
 			} else {
 				assert.Equal(t, "existing-", secret.GenerateName, "incorrect secret name")
 				assert.Equal(t, corev1.SecretTypeBasicAuth, secret.Type, "expected the secret to be of type Opaque")
-				assert.Equal(t, pointer.Bool(false), secret.Immutable, "expected the secret to be immutable")
+				assert.Equal(t, ptr.To(false), secret.Immutable, "expected the secret to be immutable")
 				assert.Contains(t, secret.Data, "existing.yaml", "expected the secret to have config.yaml")
 			}
 			assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
@@ -705,14 +705,14 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 		Kind:               "AgentAction",
 		Name:               "porter-hello",
 		UID:                "random-uid",
-		Controller:         pointer.Bool(true),
-		BlockOwnerDeletion: pointer.Bool(true),
+		Controller:         ptr.To(true),
+		BlockOwnerDeletion: ptr.To(true),
 	}
 	assert.Equal(t, wantOwnerRef, job.OwnerReferences[0], "incorrect owner reference")
 	assertSharedAgentLabels(t, job.Labels)
 	assertContains(t, job.Labels, porterv1.LabelJobType, porterv1.JobTypeAgent, "incorrect label")
 	assertContains(t, job.Labels, "testLabel", "abc123", "incorrect label")
-	assert.Equal(t, pointer.Int32(1), job.Spec.Completions, "incorrect job completions")
+	assert.Equal(t, ptr.To(int32(1)), job.Spec.Completions, "incorrect job completions")
 	assert.Nil(t, job.Spec.BackoffLimit, "incorrect job back off limit")
 
 	// Verify the job pod template
@@ -726,9 +726,9 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
 	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
-	assert.Equal(t, pointer.Int64(65532), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
-	assert.Equal(t, pointer.Int64(0), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
-	assert.Equal(t, pointer.Int64(0), podTemplate.Spec.SecurityContext.FSGroup, "incorrect FSGroup")
+	assert.Equal(t, ptr.To(int64(65532)), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
+	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
+	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.FSGroup, "incorrect FSGroup")
 
 	// Verify the agent container
 	agentContainer := podTemplate.Spec.Containers[0]
@@ -745,7 +745,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
 	assertEnvVar(t, agentContainer.Env, "LABELS", "getporter.org/jobType=bundle-installer getporter.org/managed=true getporter.org/resourceGeneration=1 getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/resourceGeneration=1 getporter.org/retry=")
-	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.Bool(true))
+	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", ptr.To(true))
 	assert.Len(t, agentContainer.VolumeMounts, 4)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
@@ -834,9 +834,9 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assert.Equal(t, testSA.ImagePullSecrets[0].Name, podTemplate.Spec.Volumes[3].Secret.SecretName, "expected the service account image pull secret name")
 	assert.Equal(t, porterv1.VolumePorterPluginsName, podTemplate.Spec.Volumes[4].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
-	assert.Equal(t, pointer.Int64(65532), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
-	assert.Equal(t, pointer.Int64(0), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
-	assert.Equal(t, pointer.Int64(0), podTemplate.Spec.SecurityContext.FSGroup, "incorrect FSGroup")
+	assert.Equal(t, ptr.To(int64(65532)), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
+	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
+	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.FSGroup, "incorrect FSGroup")
 
 	// Verify the agent container
 	agentContainer := podTemplate.Spec.Containers[0]
@@ -853,7 +853,7 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
 	assertEnvVar(t, agentContainer.Env, "LABELS", "getporter.org/jobType=bundle-installer getporter.org/managed=true getporter.org/resourceGeneration=1 getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/resourceGeneration=1 getporter.org/retry=")
-	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", pointer.Bool(true))
+	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", ptr.To(true))
 	assert.Len(t, agentContainer.VolumeMounts, 5)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
 	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)

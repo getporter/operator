@@ -6,38 +6,38 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestPorterConfigSpec_MergeConfig(t *testing.T) {
 	t.Run("empty is ignored", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Verbosity: pointer.String("info"),
+			Verbosity: ptr.To("info"),
 		}
 
 		instConfig := PorterConfigSpec{}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.String("info"), config.Verbosity)
+		assert.Equal(t, ptr.To("info"), config.Verbosity)
 	})
 
 	t.Run("override", func(t *testing.T) {
 		nsConfig := PorterConfigSpec{
-			Verbosity: pointer.String("info"),
+			Verbosity: ptr.To("info"),
 		}
 
 		instConfig := PorterConfigSpec{
-			Verbosity: pointer.String("debug"),
+			Verbosity: ptr.To("debug"),
 			Telemetry: TelemetryConfig{
-				Enabled: pointer.Bool(true),
+				Enabled: ptr.To(true),
 			},
 		}
 
 		config, err := nsConfig.MergeConfig(instConfig)
 		require.NoError(t, err)
-		assert.Equal(t, pointer.String("debug"), config.Verbosity)
-		assert.Equal(t, pointer.Bool(true), config.Telemetry.Enabled)
+		assert.Equal(t, ptr.To("debug"), config.Verbosity)
+		assert.Equal(t, ptr.To(true), config.Telemetry.Enabled)
 	})
 }
 
@@ -51,14 +51,14 @@ func TestPorterConfigSpec_ToPorterDocument(t *testing.T) {
 		{
 			name: "All fields set",
 			cfg: PorterConfigSpec{
-				Verbosity:            pointer.String("debug"),
-				Namespace:            pointer.String("test"),
+				Verbosity:            ptr.To("debug"),
+				Namespace:            ptr.To("test"),
 				Experimental:         []string{"build-drivers"},
-				BuildDriver:          pointer.String("buildkit"),
-				DefaultStorage:       pointer.String("in-cluster-mongodb"),
-				DefaultSecrets:       pointer.String("keyvault"),
-				DefaultStoragePlugin: pointer.String("mongodb"),
-				DefaultSecretsPlugin: pointer.String("kubernetes.secrets"),
+				BuildDriver:          ptr.To("buildkit"),
+				DefaultStorage:       ptr.To("in-cluster-mongodb"),
+				DefaultSecrets:       ptr.To("keyvault"),
+				DefaultStoragePlugin: ptr.To("mongodb"),
+				DefaultSecretsPlugin: ptr.To("kubernetes.secrets"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -98,8 +98,8 @@ secrets:
 		{
 			name: "Storage config not provided",
 			cfg: PorterConfigSpec{
-				DefaultSecretsPlugin: pointer.String("kubernetes.secrets"),
-				DefaultStorage:       pointer.String("in-cluster-mongodb"),
+				DefaultSecretsPlugin: ptr.To("kubernetes.secrets"),
+				DefaultStorage:       ptr.To("in-cluster-mongodb"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -117,8 +117,8 @@ storage:
 		{
 			name: "Secrets config not provided",
 			cfg: PorterConfigSpec{
-				DefaultStorage: pointer.String("in-cluster-mongodb"),
-				DefaultSecrets: pointer.String("kubernetes-secrets"),
+				DefaultStorage: ptr.To("in-cluster-mongodb"),
+				DefaultSecrets: ptr.To("kubernetes-secrets"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -148,8 +148,8 @@ secrets:
 		{
 			name: "All Telemetry config provided",
 			cfg: PorterConfigSpec{
-				DefaultStorage: pointer.String("in-cluster-mongodb"),
-				DefaultSecrets: pointer.String("kubernetes-secrets"),
+				DefaultStorage: ptr.To("in-cluster-mongodb"),
+				DefaultSecrets: ptr.To("kubernetes-secrets"),
 				Storage: []StorageConfig{
 					{PluginConfig{
 						Name:         "in-cluster-mongodb",
@@ -164,14 +164,14 @@ secrets:
 					}},
 				},
 				Telemetry: TelemetryConfig{
-					Enabled:        pointer.Bool(true),
-					Protocol:       pointer.String("grpc"),
-					Endpoint:       pointer.String("127.0.0.1:4317"),
-					Insecure:       pointer.Bool(true),
-					Compression:    pointer.String("gzip"),
-					Timeout:        pointer.String("3s"),
-					StartTimeout:   pointer.String("100ms"),
-					RedirectToFile: pointer.String("foo"),
+					Enabled:        ptr.To(true),
+					Protocol:       ptr.To("grpc"),
+					Endpoint:       ptr.To("127.0.0.1:4317"),
+					Insecure:       ptr.To(true),
+					Compression:    ptr.To("gzip"),
+					Timeout:        ptr.To("3s"),
+					StartTimeout:   ptr.To("100ms"),
+					RedirectToFile: ptr.To("foo"),
 				},
 			},
 			expDocument: []byte(`default-storage: in-cluster-mongodb
