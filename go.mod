@@ -27,7 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.9.5
 	github.com/stretchr/testify v1.8.4
-	github.com/tidwall/gjson v1.14.4
+	github.com/tidwall/gjson v1.15.0
 	github.com/tidwall/pretty v1.2.1
 	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
