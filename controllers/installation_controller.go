@@ -81,8 +81,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log = log.WithValues("resourceVersion", inst.ResourceVersion, "generation", inst.Generation, "observedGeneration", inst.Status.ObservedGeneration)
 	log.V(Log5Trace).Info("Reconciling installation")
-
 	// Check if we have requested an agent run yet
+	// TODO Look for annoation/label for outputs generation CR
+	// TODO Get installationoutput CR if annotation exists
 	action, handled, err := r.isHandled(ctx, log, inst)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -149,7 +150,9 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-
+	// TODO: make this one function (not a fan of doing this) and call when
+	// connection has been established. Add annotation about installation output
+	// being true.
 	in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Name, Namespace: ptr.To(inst.Namespace)}
 	if r.PorterGRPCClient != nil {
 		resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
@@ -181,7 +184,17 @@ func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context
 			Name:      install.Spec.Name,
 			Namespace: install.Spec.Namespace,
 		},
+		Status: v1.InstallationOutputStatus{
+			Phase: v1.PhaseSucceeded,
+			Conditions: []metav1.Condition{
+				{
+					Type:   v1.InstallationOutputSucceeded,
+					Status: metav1.ConditionTrue,
+				},
+			},
+		},
 	}
+
 	outputs := []v1.Output{}
 	for _, output := range in.Outputs {
 		tmpOutput := v1.Output{
