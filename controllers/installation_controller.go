@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +49,7 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Installation{}, builder.WithPredicates(resourceChanged{})).
 		Owns(&v1.AgentAction{}).
+		Owns(&v1.InstallationOutput{}).
 		Complete(r)
 }
 
@@ -69,8 +71,8 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if inst.DeletionTimestamp != nil {
-		if controllerutil.ContainsFinalizer(inst, porterv1.FinalizerName) {
-			controllerutil.RemoveFinalizer(inst, porterv1.FinalizerName)
+		if controllerutil.ContainsFinalizer(inst, v1.FinalizerName) {
+			controllerutil.RemoveFinalizer(inst, v1.FinalizerName)
 			if err := r.Update(ctx, inst); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -149,17 +151,22 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
 
 	in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Name, Namespace: ptr.To(inst.Namespace)}
-	// TODO: instantiate this client to hit the endpoint
-	resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
-	// NOTE: May not want to requeue if this fails
-	if err != nil {
-		return ctrl.Result{}, err
+	if r.PorterGRPCClient != nil {
+		resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
+		// NOTE: May not want to requeue if this fails
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		log.V(Log4Debug).Info("creating installation outputs resource")
+		outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
+		if err != nil {
+			log.V(Log4Debug).Error(err, "error creating installation outputs resource")
+			return ctrl.Result{}, err
+		}
+		controllerutil.SetOwnerReference(inst, outputs, r.Scheme)
+		return ctrl.Result{}, r.Create(ctx, outputs, &client.CreateOptions{})
 	}
-	outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, r.Create(ctx, outputs, &client.CreateOptions{})
+	return ctrl.Result{}, nil
 }
 
 func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context, install *v1.Installation, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
