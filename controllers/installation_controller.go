@@ -2,9 +2,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
-	porterv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
+	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
+	portergrpc "get.porter.sh/porter/gen/proto/go/porterapis/porter/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -24,8 +27,9 @@ const (
 // InstallationReconciler calls porter to execute changes made to an Installation CRD
 type InstallationReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log              logr.Logger
+	PorterGRPCClient portergrpc.PorterClient
+	Scheme           *runtime.Scheme
 }
 
 // +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -42,8 +46,8 @@ type InstallationReconciler struct {
 // SetupWithManager sets up the controller with the Manager.
 func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&porterv1.Installation{}, builder.WithPredicates(resourceChanged{})).
-		Owns(&porterv1.AgentAction{}).
+		For(&v1.Installation{}, builder.WithPredicates(resourceChanged{})).
+		Owns(&v1.AgentAction{}).
 		Complete(r)
 }
 
@@ -54,7 +58,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := r.Log.WithValues("installation", req.Name, "namespace", req.Namespace)
 
 	// Retrieve the Installation
-	inst := &porterv1.Installation{}
+	inst := &v1.Installation{}
 	err := r.Get(ctx, req.NamespacedName, inst)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -143,13 +147,54 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-	return ctrl.Result{}, nil
+
+	in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Name, Namespace: ptr.To(inst.Namespace)}
+	// TODO: instantiate this client to hit the endpoint
+	resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
+	// NOTE: May not want to requeue if this fails
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, r.Create(ctx, outputs, &client.CreateOptions{})
+}
+
+func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context, install *v1.Installation, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
+	if len(in.Outputs) < 1 {
+		return nil, fmt.Errorf("no outputs for the installation %s", install.Name)
+	}
+	installOutputs := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: install.Name,
+		},
+		Spec: v1.InstallationOutputSpec{
+			Name:      install.Spec.Name,
+			Namespace: install.Spec.Namespace,
+		},
+	}
+	outputs := []v1.Output{}
+	for _, output := range in.Outputs {
+		tmpOutput := v1.Output{
+			Name:      output.Name,
+			Type:      output.Type,
+			Sensitive: output.Sensitive,
+			Value:     output.Value.String(),
+		}
+		outputs = append(outputs, tmpOutput)
+	}
+	installOutputs.Status.Outputs = outputs
+
+	return installOutputs, nil
+
 }
 
 // Determines if this generation of the Installation has being processed by Porter.
-func (r *InstallationReconciler) isHandled(ctx context.Context, log logr.Logger, inst *porterv1.Installation) (*porterv1.AgentAction, bool, error) {
+func (r *InstallationReconciler) isHandled(ctx context.Context, log logr.Logger, inst *v1.Installation) (*v1.AgentAction, bool, error) {
 	labels := getActionLabels(inst)
-	results := porterv1.AgentActionList{}
+	results := v1.AgentActionList{}
 	err := r.List(ctx, &results, client.InNamespace(inst.Namespace), client.MatchingLabels(labels))
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "could not query for the current agent action")
@@ -165,7 +210,7 @@ func (r *InstallationReconciler) isHandled(ctx context.Context, log logr.Logger,
 }
 
 // Run the porter agent with the command `porter installation apply`
-func (r *InstallationReconciler) applyInstallation(ctx context.Context, log logr.Logger, inst *porterv1.Installation) error {
+func (r *InstallationReconciler) applyInstallation(ctx context.Context, log logr.Logger, inst *v1.Installation) error {
 	log.V(Log5Trace).Info("Initializing installation status")
 	inst.Status.Initialize()
 	if err := r.saveStatus(ctx, log, inst); err != nil {
@@ -176,7 +221,7 @@ func (r *InstallationReconciler) applyInstallation(ctx context.Context, log logr
 }
 
 // Flag the bundle as uninstalled, and then run the porter agent with the command `porter installation apply`
-func (r *InstallationReconciler) uninstallInstallation(ctx context.Context, log logr.Logger, inst *porterv1.Installation) error {
+func (r *InstallationReconciler) uninstallInstallation(ctx context.Context, log logr.Logger, inst *v1.Installation) error {
 	log.V(Log5Trace).Info("Initializing installation status")
 	inst.Status.Initialize()
 	if err := r.saveStatus(ctx, log, inst); err != nil {
@@ -191,7 +236,7 @@ func (r *InstallationReconciler) uninstallInstallation(ctx context.Context, log 
 }
 
 // Trigger an agent
-func (r *InstallationReconciler) runPorter(ctx context.Context, log logr.Logger, inst *porterv1.Installation) error {
+func (r *InstallationReconciler) runPorter(ctx context.Context, log logr.Logger, inst *v1.Installation) error {
 	action, err := r.createAgentAction(ctx, log, inst)
 	if err != nil {
 		return err
@@ -202,7 +247,7 @@ func (r *InstallationReconciler) runPorter(ctx context.Context, log logr.Logger,
 }
 
 // create an AgentAction that will trigger running porter
-func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr.Logger, inst *porterv1.Installation) (*porterv1.AgentAction, error) {
+func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr.Logger, inst *v1.Installation) (*v1.AgentAction, error) {
 	log.V(Log5Trace).Info("Creating porter agent action")
 
 	installationResourceB, err := inst.Spec.ToPorterDocument()
@@ -215,14 +260,14 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 		labels[k] = v
 	}
 
-	action := &porterv1.AgentAction{
+	action := &v1.AgentAction{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:    inst.Namespace,
 			GenerateName: inst.Name + "-",
 			Labels:       labels,
 			Annotations:  inst.Annotations,
 		},
-		Spec: porterv1.AgentActionSpec{
+		Spec: v1.AgentActionSpec{
 			AgentConfig: inst.Spec.AgentConfig,
 			Args:        []string{"installation", "apply", "installation.yaml"},
 			Files: map[string][]byte{
@@ -243,7 +288,7 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 }
 
 // Check the status of the porter-agent job and use that to update the AgentAction status
-func (r *InstallationReconciler) syncStatus(ctx context.Context, log logr.Logger, inst *porterv1.Installation, action *porterv1.AgentAction) error {
+func (r *InstallationReconciler) syncStatus(ctx context.Context, log logr.Logger, inst *v1.Installation, action *v1.AgentAction) error {
 	origStatus := inst.Status
 
 	applyAgentAction(log, inst, action)
@@ -256,20 +301,20 @@ func (r *InstallationReconciler) syncStatus(ctx context.Context, log logr.Logger
 }
 
 // Only update the status with a PATCH, don't clobber the entire installation
-func (r *InstallationReconciler) saveStatus(ctx context.Context, log logr.Logger, inst *porterv1.Installation) error {
+func (r *InstallationReconciler) saveStatus(ctx context.Context, log logr.Logger, inst *v1.Installation) error {
 	log.V(Log5Trace).Info("Patching installation status")
 	return PatchStatusWithRetry(ctx, log, r.Client, r.Status().Patch, inst, func() client.Object {
-		return &porterv1.Installation{}
+		return &v1.Installation{}
 	})
 }
 
-func (r *InstallationReconciler) shouldUninstall(inst *porterv1.Installation) bool {
+func (r *InstallationReconciler) shouldUninstall(inst *v1.Installation) bool {
 	// ignore a deleted CRD with no finalizers
 	return isDeleted(inst) && isFinalizerSet(inst)
 }
 
 // Sync the retry annotation from the installation to the agent action to trigger another run.
-func (r *InstallationReconciler) retry(ctx context.Context, log logr.Logger, inst *porterv1.Installation, action *porterv1.AgentAction) error {
+func (r *InstallationReconciler) retry(ctx context.Context, log logr.Logger, inst *v1.Installation, action *v1.AgentAction) error {
 	log.V(Log5Trace).Info("Initializing installation status")
 	inst.Status.Initialize()
 	inst.Status.Action = &corev1.LocalObjectReference{Name: action.Name}
