@@ -23,6 +23,73 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+func TestShouldInstall(t *testing.T) {
+	now := metav1.Now()
+	tests := map[string]struct {
+		wantTrue     bool
+		delTimeStamp *metav1.Time
+	}{
+		"true":  {wantTrue: true, delTimeStamp: &now},
+		"false": {wantTrue: false, delTimeStamp: nil},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			inst := &porterv1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "fake-name",
+					Namespace:         "fake-ns",
+					Finalizers:        []string{porterv1.FinalizerName},
+					DeletionTimestamp: test.delTimeStamp,
+				},
+			}
+			rec := setupInstallationController(inst)
+			isTrue := rec.shouldUninstall(inst)
+			if test.wantTrue {
+				assert.True(t, isTrue)
+			}
+			if !test.wantTrue {
+				assert.False(t, isTrue)
+			}
+		})
+	}
+}
+
+func TestUninstallInstallation(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupInstallationController(inst)
+	err := rec.uninstallInstallation(ctx, rec.Log, inst)
+	assert.NoError(t, err)
+	gotInstall := &porterv1.Installation{}
+	rec.Get(ctx, types.NamespacedName{Name: "fake-install", Namespace: "fake-ns"}, gotInstall)
+	assert.NotEmpty(t, gotInstall.Status)
+	assert.Equal(t, porterv1.PhaseUnknown, gotInstall.Status.Phase)
+}
+
+func TestRetry(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	action := &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-action",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupInstallationController(inst, action)
+	err := rec.retry(ctx, rec.Log, inst, action)
+	assert.NoError(t, err)
+}
+
 func TestInstallationReconciler_Reconcile(t *testing.T) {
 	// long test is long
 	// Run through a full resource lifecycle: create, update, delete
