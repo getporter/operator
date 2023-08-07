@@ -161,13 +161,20 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, err
 		}
 		log.V(Log4Debug).Info("creating installation outputs resource")
+		// TODO: Separate this into it's own func to test and extract what you
+		// can
 		outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
 		if err != nil {
 			log.V(Log4Debug).Error(err, "error creating installation outputs resource")
 			return ctrl.Result{}, err
 		}
+		// TODO: Wrap in a retry? Try to reduce the errors
 		controllerutil.SetOwnerReference(inst, outputs, r.Scheme)
-		return ctrl.Result{}, r.Create(ctx, outputs, &client.CreateOptions{})
+		r.Create(ctx, outputs, &client.CreateOptions{})
+
+		patchInstall := client.MergeFrom(inst.DeepCopy())
+		inst.Annotations[v1.AnnotationInstallationOutput] = "true"
+		return ctrl.Result{}, r.Patch(ctx, inst, patchInstall)
 	}
 	return ctrl.Result{}, nil
 }
