@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	v1 "get.porter.sh/operator/api/v1"
 	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
@@ -14,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -84,6 +86,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Check if we have requested an agent run yet
 	// TODO Look for annoation/label for outputs generation CR
 	// TODO Get installationoutput CR if annotation exists
+
 	action, handled, err := r.isHandled(ctx, log, inst)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -116,7 +119,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Nothing for us to do at this point
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has already been dispatched.")
-		return ctrl.Result{}, nil
+		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
 
 	// Should we uninstall the bundle?
@@ -153,51 +156,69 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// TODO: make this one function (not a fan of doing this) and call when
 	// connection has been established. Add annotation about installation output
 	// being true.
-	in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Name, Namespace: ptr.To(inst.Namespace)}
 	if r.PorterGRPCClient != nil {
-		resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
-		// NOTE: May not want to requeue if this fails
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		log.V(Log4Debug).Info("creating installation outputs resource")
-		// TODO: Separate this into it's own func to test and extract what you
-		// can
-		outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
-		if err != nil {
-			log.V(Log4Debug).Error(err, "error creating installation outputs resource")
-			return ctrl.Result{}, err
-		}
-		// TODO: Wrap in a retry? Try to reduce the errors
-		controllerutil.SetOwnerReference(inst, outputs, r.Scheme)
-		r.Create(ctx, outputs, &client.CreateOptions{})
-
-		patchInstall := client.MergeFrom(inst.DeepCopy())
-		inst.Annotations[v1.AnnotationInstallationOutput] = "true"
-		return ctrl.Result{}, r.Patch(ctx, inst, patchInstall)
+		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
 	return ctrl.Result{}, nil
 }
 
-func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context, install *v1.Installation, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
-	if len(in.Outputs) < 1 {
-		return nil, fmt.Errorf("no outputs for the installation %s", install.Name)
+func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.Context, log logr.Logger, inst *v1.Installation) (ctrl.Result, error) {
+	// NOTE: May not want to requeue if this fails
+	installCr := &v1.InstallationOutput{}
+	err := r.Get(ctx, types.NamespacedName{Name: inst.Spec.Name, Namespace: inst.Spec.Namespace}, installCr)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(Log5Trace).Info("installation output cr doesn't exist, creating")
+			in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Spec.Name, Namespace: ptr.To(inst.Namespace)}
+			resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
+			if err != nil {
+				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server %s", err.Error()))
+				return ctrl.Result{}, err
+			}
+			// TODO: Separate this into it's own func to test and extract what you
+			// can
+			log.V(Log5Trace).Info("creating installation outputs cr")
+			outputs, err := r.CreateInstallationOutputsCR(ctx, inst, resp)
+			if err != nil {
+				log.V(Log4Debug).Error(err, "error creating installation outputs resource")
+				return ctrl.Result{}, err
+			}
+			// TODO: Wrap in a retry? Try to reduce the errors
+			log.V(Log5Trace).Info("setting owner references on outputs cr")
+			controllerutil.SetOwnerReference(inst, outputs, r.Scheme)
+			err = r.Create(ctx, outputs, &client.CreateOptions{})
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			installOutputs, err := r.CreateStatusOutputs(ctx, outputs, resp)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+
+			err = r.Status().Update(ctx, installOutputs)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			log.V(Log5Trace).Info("successfully created outputs cr")
+			patchInstall := client.MergeFrom(inst.DeepCopy())
+			inst.SetAnnotations(map[string]string{v1.AnnotationInstallationOutput: "true"})
+			log.V(Log5Trace).Info("patching installation cr")
+			return ctrl.Result{}, r.Patch(ctx, inst, patchInstall)
+		}
 	}
-	installOutputs := &v1.InstallationOutput{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: install.Name,
-		},
-		Spec: v1.InstallationOutputSpec{
-			Name:      install.Spec.Name,
-			Namespace: install.Spec.Namespace,
-		},
-		Status: v1.InstallationOutputStatus{
-			Phase: v1.PhaseSucceeded,
-			Conditions: []metav1.Condition{
-				{
-					Type:   v1.InstallationOutputSucceeded,
-					Status: metav1.ConditionTrue,
-				},
+	patchInstallCR := client.MergeFrom(installCr.DeepCopy())
+	return ctrl.Result{}, r.Patch(ctx, installCr, patchInstallCR)
+}
+func (r *InstallationReconciler) CreateStatusOutputs(ctx context.Context, install *v1.InstallationOutput, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
+	install.Status = v1.InstallationOutputStatus{
+		Phase: v1.PhaseSucceeded,
+		Conditions: []metav1.Condition{
+			{
+				Type:               v1.InstallationOutputSucceeded,
+				Status:             metav1.ConditionTrue,
+				Reason:             "InstallationOutputCreatedSuccess",
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				Message:            "outputs custom resource generated succeeded",
 			},
 		},
 	}
@@ -208,14 +229,31 @@ func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context
 			Name:      output.Name,
 			Type:      output.Type,
 			Sensitive: output.Sensitive,
-			Value:     output.Value.String(),
+			Value:     output.GetValue().GetStringValue(),
 		}
 		outputs = append(outputs, tmpOutput)
 	}
-	installOutputs.Status.Outputs = outputs
+	install.Status.Outputs = outputs
 
+	return install, nil
+
+}
+
+func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context, install *v1.Installation, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
+	if len(in.Outputs) < 1 {
+		return nil, fmt.Errorf("no outputs for the installation %s", install.Name)
+	}
+	installOutputs := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      install.Spec.Name,
+			Namespace: install.Namespace,
+		},
+		Spec: v1.InstallationOutputSpec{
+			Name:      install.Spec.Name,
+			Namespace: install.Spec.Namespace,
+		},
+	}
 	return installOutputs, nil
-
 }
 
 // Determines if this generation of the Installation has being processed by Porter.

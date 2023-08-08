@@ -68,7 +68,7 @@ func main() {
 	}
 	// TODO: Set this with credentials on the server side
 	// TODO: This needs to be set so we don't fail when instantiating client
-	conn, err := grpc.DialContext(context.Background(), ":3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.DialContext(context.Background(), "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		setupLog.Error(err, "unable to set up listener")
 		os.Exit(1)
