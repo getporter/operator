@@ -168,12 +168,13 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 	err := r.Get(ctx, types.NamespacedName{Name: inst.Spec.Name, Namespace: inst.Spec.Namespace}, installCr)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.V(Log5Trace).Info("installation output cr doesn't exist, creating")
-			in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Spec.Name, Namespace: ptr.To(inst.Namespace)}
+			log.V(Log4Debug).Info("installation output cr doesn't exist, seeing if we should create")
+			in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Spec.Name, Namespace: ptr.To(inst.Spec.Namespace)}
 			resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
 			if err != nil {
-				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server %s", err.Error()))
-				return ctrl.Result{}, err
+				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server for: %s:%s installation error: %s", inst.Spec.Name, inst.Spec.Namespace, err.Error()))
+				// NOTE: Stop installation output cr creation
+				return ctrl.Result{}, nil
 			}
 			// TODO: Separate this into it's own func to test and extract what you
 			// can
