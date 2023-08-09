@@ -17,12 +17,31 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+func TestRetryForCredentialSet(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.CredentialSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	action := &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-action",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupCredentialSetController(inst, action)
+	err := rec.retry(ctx, rec.Log, inst, action)
+	assert.NoError(t, err)
+}
 
 func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 	ctx := context.Background()
@@ -226,8 +245,8 @@ func TestCredentialSetReconciler_createAgentAction(t *testing.T) {
 				Kind:               "CredentialSet",
 				Name:               "myCreds",
 				UID:                "random-uid",
-				Controller:         pointer.Bool(true),
-				BlockOwnerDeletion: pointer.Bool(true),
+				Controller:         ptr.To(true),
+				BlockOwnerDeletion: ptr.To(true),
 			}
 			assert.Equal(t, wantOwnerRef, action.OwnerReferences[0], "incorrect owner reference")
 			assertContains(t, action.Annotations, porterv1.AnnotationRetry, cs.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
