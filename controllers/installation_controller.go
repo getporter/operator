@@ -51,7 +51,7 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1.Installation{}, builder.WithPredicates(resourceChanged{})).
 		Owns(&v1.AgentAction{}).
-		Owns(&v1.InstallationOutput{}).
+		Owns(&v1.InstallationOutput{}, builder.MatchEveryOwner).
 		Complete(r)
 }
 
@@ -119,7 +119,10 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Nothing for us to do at this point
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has already been dispatched.")
-		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
+		if r.PorterGRPCClient != nil {
+			return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// Should we uninstall the bundle?
@@ -341,7 +344,6 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 			},
 		},
 	}
-
 	if err := controllerutil.SetControllerReference(inst, action, r.Scheme); err != nil {
 		return nil, err
 	}
