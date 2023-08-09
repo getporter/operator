@@ -16,19 +16,16 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .metadata.Namespace
-      name: Namespace
+    - jsonPath: .spec.name
+      name: Porter Name
       type: string
-    - jsonPath: .spec.Namespace
+    - jsonPath: .spec.namespace
       name: Porter Namespace
       type: string
-    - jsonPath: .spec.Name
-      name: Name
-      type: string
-    - jsonPath: .status.PorterResourceStatus.Action
+    - jsonPath: .status.action.name
       name: Last Action
       type: string
-    - jsonPath: .status.PorterResourceStatus.Phase
+    - jsonPath: .status.phase
       name: Last Status
       type: string
     - jsonPath: .metadata.creationTimestamp
