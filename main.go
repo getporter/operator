@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	portershv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -27,7 +27,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(portershv1.AddToScheme(scheme))
+	utilruntime.Must(v1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
