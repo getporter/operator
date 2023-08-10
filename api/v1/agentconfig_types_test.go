@@ -369,3 +369,8 @@ func TestAgentConfigSpecAdapter_GetRetryLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestHashString(t *testing.T) {
+	str := hashString("fake-string")
+	assert.Equal(t, "ab19e45285992b247dd281213f803479", str)
+}
