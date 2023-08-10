@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -441,26 +442,11 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
-<<<<<<< HEAD
-=======
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         action.APIVersion,
-					Kind:               action.Kind,
-					Name:               action.Name,
-					UID:                action.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
->>>>>>> 4491ab180cba93a6ac669de10754a29f6a394983
 		},
 		Spec: batchv1.JobSpec{
 			Completions:             pointer.Int32(1),
 			BackoffLimit:            agentCfg.GetRetryLimit(),
 			TTLSecondsAfterFinished: agentCfg.GetTTLSecondsAfterFinished(),
-			Completions:  ptr.To(int32(1)),
-			BackoffLimit: agentCfg.GetRetryLimit(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
