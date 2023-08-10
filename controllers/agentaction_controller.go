@@ -254,6 +254,7 @@ func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			Annotations:  action.GetAnnotations(),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         action.APIVersion,
@@ -312,6 +313,7 @@ func (r *AgentActionReconciler) createConfigSecret(ctx context.Context, log logr
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			Annotations:  action.GetAnnotations(),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         action.APIVersion,
@@ -358,6 +360,7 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			Annotations:  action.GetAnnotations(),
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         action.APIVersion,
@@ -438,16 +441,6 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         action.APIVersion,
-					Kind:               action.Kind,
-					Name:               action.Name,
-					UID:                action.UID,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
-				},
-			},
 		},
 		Spec: batchv1.JobSpec{
 			Completions:             pointer.Int32(1),
