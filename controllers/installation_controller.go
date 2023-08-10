@@ -8,7 +8,6 @@ import (
 
 	v1 "get.porter.sh/operator/api/v1"
 	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
-	portergrpc "get.porter.sh/porter/gen/proto/go/porterapis/porter/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +30,7 @@ const (
 type InstallationReconciler struct {
 	client.Client
 	Log              logr.Logger
-	PorterGRPCClient portergrpc.PorterClient
+	PorterGRPCClient PorterClient
 	Scheme           *runtime.Scheme
 }
 
