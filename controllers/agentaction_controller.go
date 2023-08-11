@@ -254,6 +254,16 @@ func (r *AgentActionReconciler) createAgentVolume(ctx context.Context, log logr.
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         action.APIVersion,
+					Kind:               action.Kind,
+					Name:               action.Name,
+					UID:                action.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -302,6 +312,16 @@ func (r *AgentActionReconciler) createConfigSecret(ctx context.Context, log logr
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         action.APIVersion,
+					Kind:               action.Kind,
+					Name:               action.Name,
+					UID:                action.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
 		},
 		Type:      corev1.SecretTypeOpaque,
 		Immutable: ptr.To(true),
@@ -338,6 +358,16 @@ func (r *AgentActionReconciler) createWorkdirSecret(ctx context.Context, log log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         action.APIVersion,
+					Kind:               action.Kind,
+					Name:               action.Name,
+					UID:                action.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
 		},
 		Type:      corev1.SecretTypeOpaque,
 		Immutable: ptr.To(true),
@@ -420,8 +450,9 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  ptr.To(int32(1)),
-			BackoffLimit: agentCfg.GetRetryLimit(),
+			Completions:             ptr.To(int32(1)),
+			BackoffLimit:            agentCfg.GetRetryLimit(),
+			TTLSecondsAfterFinished: agentCfg.GetTTLSecondsAfterFinished(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
