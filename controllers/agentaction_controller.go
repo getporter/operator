@@ -440,6 +440,16 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         action.APIVersion,
+					Kind:               action.Kind,
+					Name:               action.Name,
+					UID:                action.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Completions:             ptr.To(int32(1)),
