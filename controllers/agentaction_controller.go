@@ -19,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -443,7 +442,7 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			Labels:       labels,
 		},
 		Spec: batchv1.JobSpec{
-			Completions:             pointer.Int32(1),
+			Completions:             ptr.To(int32(1)),
 			BackoffLimit:            agentCfg.GetRetryLimit(),
 			TTLSecondsAfterFinished: agentCfg.GetTTLSecondsAfterFinished(),
 			Template: corev1.PodTemplateSpec{
