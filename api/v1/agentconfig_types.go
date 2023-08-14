@@ -67,6 +67,7 @@ type AgentConfigSpec struct {
 
 	// TTLSecondsAfterFinished set the time limit of the lifetime of a Job
 	// that has finished execution.
+	// +kubebuilder:default:=600
 	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty" mapstructure:"ttlSecondsAftterFinished,omitempty"`
 
 	// PullPolicy specifies when to pull the Porter Agent image. The default
@@ -331,9 +332,14 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 	return c.original.InstallationServiceAccount
 }
 
-// SetRetryAnnotation flags the resource to retry its last operation.
+// GetRetryLimit returns the config value of RetryLimit
 func (c *AgentConfigSpecAdapter) GetRetryLimit() *int32 {
 	return c.original.RetryLimit
+}
+
+// GetTTLSecondsAfterFinished returns the config value of TTLSecondsAfterFinished
+func (c *AgentConfigSpecAdapter) GetTTLSecondsAfterFinished() *int32 {
+	return c.original.TTLSecondsAfterFinished
 }
 
 func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {
@@ -348,16 +354,6 @@ func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {
 	}
 
 	return yaml.Marshal(raw)
-}
-
-// GetTTLSecondsAfterFinished returns the config value of
-// TTLSecondsAfterFinished defaults to 600
-func (c AgentConfigSpecAdapter) GetTTLSecondsAfterFinished() *int32 {
-	if c.original.TTLSecondsAfterFinished == nil {
-		defaultTTLSeconds := int32(600)
-		c.original.TTLSecondsAfterFinished = &defaultTTLSeconds
-	}
-	return c.original.TTLSecondsAfterFinished
 }
 
 // PluginConfigList is the list implementation of the Plugins map.

@@ -370,6 +370,28 @@ func TestAgentConfigSpecAdapter_GetRetryLimit(t *testing.T) {
 	}
 }
 
+func TestAgentConfigSpecAdapter_GetTTLSecondsAfterFinished(t *testing.T) {
+	// var testdataDefault int32 = 600
+	var testdatauserSubmitted int32 = 700
+	testCases := []struct {
+		name                    string
+		TTLSecondsAfterFinished *int32
+		expected                *int32
+	}{
+		// {name: "default", TTLSecondsAfterFinished: nil, expected: &testdataDefault},
+		{name: "user submitted", TTLSecondsAfterFinished: &testdatauserSubmitted, expected: &testdatauserSubmitted},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			adapter := NewAgentConfigSpecAdapter(AgentConfigSpec{
+				TTLSecondsAfterFinished: tc.TTLSecondsAfterFinished,
+			})
+			result := adapter.GetTTLSecondsAfterFinished()
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
 func TestHashString(t *testing.T) {
 	str := hashString("fake-string")
 	assert.Equal(t, "ab19e45285992b247dd281213f803479", str)
