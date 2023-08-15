@@ -25,6 +25,10 @@ spec:
     - jsonPath: .status.phase
       name: Phase
       type: string
+    - jsonPath: .status.outputNames
+      name: Output Names
+      priority: 1
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
@@ -122,6 +126,8 @@ spec:
                   - type
                   type: object
                 type: array
+              outputNames:
+                type: string
               outputs:
                 items:
                   properties:

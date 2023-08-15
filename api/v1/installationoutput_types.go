@@ -30,6 +30,8 @@ type InstallationOutputStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	Outputs []Output `json:"outputs,omitempty"`
+
+	OutputNames string `json:"outputNames,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -38,6 +40,7 @@ type InstallationOutputStatus struct {
 // +kubebuilder:printcolumn:name="Porter Name",type="string",JSONPath=".spec.name"
 // +kubebuilder:printcolumn:name="Porter Namespace",type="string",JSONPath=".spec.namespace"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase"
+// +kubebuilder:printcolumn:name="Output Names",type="string",JSONPath=".status.outputNames",priority=1
 // InstallationOutput is the Schema for the installationoutputs API
 type InstallationOutput struct {
 	metav1.TypeMeta   `json:",inline"`
