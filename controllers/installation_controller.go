@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	v1 "get.porter.sh/operator/api/v1"
@@ -227,6 +228,7 @@ func (r *InstallationReconciler) CreateStatusOutputs(ctx context.Context, instal
 	}
 
 	outputs := []v1.Output{}
+	outputNames := []string{}
 	for _, output := range in.Outputs {
 		tmpOutput := v1.Output{
 			Name:      output.Name,
@@ -234,12 +236,13 @@ func (r *InstallationReconciler) CreateStatusOutputs(ctx context.Context, instal
 			Sensitive: output.Sensitive,
 			Value:     output.GetValue().GetStringValue(),
 		}
+		outputNames = append(outputNames, output.Name)
 		outputs = append(outputs, tmpOutput)
 	}
 	install.Status.Outputs = outputs
+	install.Status.OutputNames = strings.Join(outputNames, ",")
 
 	return install, nil
-
 }
 
 func (r *InstallationReconciler) CreateInstallationOutputsCR(ctx context.Context, install *v1.Installation, in *installationv1.ListInstallationLatestOutputResponse) (*v1.InstallationOutput, error) {
