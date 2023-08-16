@@ -24,6 +24,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+func TestRetryForCredentialSet(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.CredentialSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	action := &porterv1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-action",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupCredentialSetController(inst, action)
+	err := rec.retry(ctx, rec.Log, inst, action)
+	assert.NoError(t, err)
+}
+
 func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 	ctx := context.Background()
 

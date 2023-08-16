@@ -113,11 +113,10 @@ type InstallationStatus struct {
 // +kubebuilder:subresource:status
 
 // Installation is the Schema for the installations API
-// +kubebuilder:printcolumn:name="Namespace",type="string",JSONPath=".metadata.Namespace"
-// +kubebuilder:printcolumn:name="Porter Namespace",type="string",JSONPath=".spec.Namespace"
-// +kubebuilder:printcolumn:name="Name",type="string",JSONPath=".spec.Name"
-// +kubebuilder:printcolumn:name="Last Action",type="string",JSONPath=".status.PorterResourceStatus.Action"
-// +kubebuilder:printcolumn:name="Last Status",type="string",JSONPath=".status.PorterResourceStatus.Phase"
+// +kubebuilder:printcolumn:name="Porter Name",type="string",JSONPath=".spec.name"
+// +kubebuilder:printcolumn:name="Porter Namespace",type="string",JSONPath=".spec.namespace"
+// +kubebuilder:printcolumn:name="Last Action",type="string",JSONPath=".status.action.name"
+// +kubebuilder:printcolumn:name="Last Status",type="string",JSONPath=".status.phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type Installation struct {
 	metav1.TypeMeta   `json:",inline"`
