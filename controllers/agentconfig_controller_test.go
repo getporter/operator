@@ -24,6 +24,114 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+func TestShouldDelete(t *testing.T) {
+	now := metav1.Now()
+	tests := map[string]struct {
+		wantTrue     bool
+		delTimeStamp *metav1.Time
+	}{
+		"true":  {wantTrue: true, delTimeStamp: &now},
+		"false": {wantTrue: false, delTimeStamp: nil},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			inst := &porterv1.AgentConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "fake-name",
+					Namespace:         "fake-namespace",
+					Finalizers:        []string{porterv1.FinalizerName},
+					DeletionTimestamp: test.delTimeStamp,
+				},
+			}
+			acAdapter := &porterv1.AgentConfigAdapter{
+				AgentConfig: *inst,
+			}
+			rec := setupAgentConfigController()
+			isTrue := rec.shouldDelete(acAdapter)
+			if test.wantTrue {
+				assert.True(t, isTrue)
+			}
+			if !test.wantTrue {
+				assert.False(t, isTrue)
+			}
+		})
+	}
+}
+
+func TestCleanup(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.AgentConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "fake-name",
+			Namespace:  "fake-namespace",
+			Finalizers: []string{porterv1.FinalizerName},
+		},
+	}
+	plugins := map[string]porterv1.Plugin{
+		"kubernetes": {
+			FeedURL: "https://not-a-feed-url.com",
+			URL:     "https://not-a-real-website.com",
+			Mirror:  "fake-mirror",
+			Version: "0.0.1",
+		},
+	}
+	ps := porterv1.NewPluginsList(plugins)
+	pv := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-pv",
+			Namespace: "fake-namespace",
+		},
+	}
+	pvc := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "porter-f181fa67e59422c667a37d45da7481fb",
+			Namespace: "fake-namespace",
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			VolumeName: "fake-pv",
+		},
+	}
+	acAdap := &porterv1.AgentConfigAdapter{
+		AgentConfig: *inst,
+		Spec: porterv1.AgentConfigSpecAdapter{
+			Plugins: ps,
+		},
+	}
+	rec := setupAgentConfigController(&pvc, &pv, inst)
+	err := rec.cleanup(ctx, rec.Log, acAdap)
+	assert.NoError(t, err)
+}
+
+func TestGetPVC(t *testing.T) {
+	ctx := context.Background()
+	pvc := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "porter-f181fa67e59422c667a37d45da7481fb",
+			Namespace: "fake-namespace",
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			VolumeName: "fake-pv",
+		},
+	}
+	rec := setupAgentConfigController(&pvc)
+	_, _, err := rec.getPersistentVolumeClaim(ctx, "fake-namespace", "porter-f181fa67e59422c667a37d45da7481fb")
+	assert.NoError(t, err)
+}
+
+func TestGetPV(t *testing.T) {
+	ctx := context.Background()
+	pvc := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "porter-pv",
+			Namespace: "fake-namespace",
+		},
+	}
+	rec := setupAgentConfigController(&pvc)
+	_, err := rec.getPersistentVolume(ctx, "fake-namespace", "porter-pv")
+	assert.NoError(t, err)
+}
+
 func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	// long test is long
 	// Run through a full resource lifecycle: create, update, delete

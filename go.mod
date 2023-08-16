@@ -14,7 +14,7 @@ replace (
 )
 
 require (
-	get.porter.sh/magefiles v0.6.0
+	get.porter.sh/magefiles v0.6.1-0.20230811154928-b038ebed7c77
 	get.porter.sh/porter v1.0.15
 	github.com/carolynvs/aferox v0.3.0
 	github.com/carolynvs/magex v0.9.0
