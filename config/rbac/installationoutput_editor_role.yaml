@@ -1,0 +1,31 @@
+# permissions for end users to edit installationoutputs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: installationoutput-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: porter-operator
+    app.kubernetes.io/part-of: porter-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: installationoutput-editor-role
+rules:
+- apiGroups:
+  - getporter.org
+  resources:
+  - installationoutputs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - getporter.org
+  resources:
+  - installationoutputs/status
+  verbs:
+  - get

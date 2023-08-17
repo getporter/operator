@@ -1,0 +1,12 @@
+apiVersion: getporter.org/v1
+kind: InstallationOutput
+metadata:
+  labels:
+    app.kubernetes.io/name: installationoutput
+    app.kubernetes.io/instance: installationoutput-sample
+    app.kubernetes.io/part-of: porter-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: porter-operator
+  name: installationoutput-sample
+spec:
+  # TODO(user): Add fields here
