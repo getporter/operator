@@ -11,10 +11,10 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -210,16 +210,6 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 			GenerateName: inst.Name + "-",
 			Labels:       labels,
 			Annotations:  inst.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         inst.APIVersion,
-					Kind:               inst.Kind,
-					Name:               inst.Name,
-					UID:                inst.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig: inst.Spec.AgentConfig,
@@ -228,6 +218,10 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 				"installation.yaml": installationResourceB,
 			},
 		},
+	}
+
+	if err := controllerutil.SetControllerReference(inst, action, r.Scheme); err != nil {
+		return nil, errors.Wrap(err, "error attaching owner reference to porter agent action")
 	}
 
 	if err := r.Create(ctx, action); err != nil {

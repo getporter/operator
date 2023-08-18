@@ -758,16 +758,6 @@ func TestAgentConfigReconciler_createAgentAction(t *testing.T) {
 			Namespace:    agentCfg.Namespace,
 			Labels:       labels,
 			Annotations:  wrapper.GetPluginsPVCNameAnnotation(),
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         agentCfg.APIVersion,
-					Kind:               agentCfg.Kind,
-					Name:               agentCfg.Name,
-					UID:                agentCfg.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},

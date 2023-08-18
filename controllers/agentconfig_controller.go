@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -145,6 +144,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if created {
 		log.V(Log4Debug).Info("Created new temporary persistent volume claim.", "name", pvc.Name)
 	}
+
 	// Use porter to finish reconciling the agent config
 	err = r.applyAgentConfig(ctx, log, pvc, agentCfg)
 	if err != nil {
@@ -208,16 +208,6 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 			Namespace:    agentCfg.Namespace,
 			Labels:       labels,
 			Annotations:  agentCfg.GetPluginsPVCNameAnnotation(),
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         agentCfg.APIVersion,
-					Kind:               agentCfg.Kind,
-					Name:               agentCfg.Name,
-					UID:                agentCfg.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -230,6 +220,9 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 	}
 	if storageClassName != "" {
 		pvc.Spec.StorageClassName = &storageClassName
+	}
+	if err := controllerutil.SetControllerReference(agentCfg, pvc, r.Scheme); err != nil {
+		return nil, false, errors.Wrap(err, "error attaching owner reference to agent volume (pvc)")
 	}
 
 	if err := r.Create(ctx, pvc); err != nil {
@@ -276,16 +269,6 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 			GenerateName: agentCfg.Name + "-",
 			Labels:       labels,
 			Annotations:  agentCfg.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         agentCfg.APIVersion,
-					Kind:               agentCfg.Kind,
-					Name:               agentCfg.Name,
-					UID:                agentCfg.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig:  agentCfgName,
@@ -300,6 +283,11 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 
 	if err := r.Create(ctx, action); err != nil {
 		return nil, errors.Wrap(err, "error creating the porter agent action")
+	}
+
+	if err := controllerutil.SetControllerReference(agentCfg, action, r.Scheme); err != nil {
+		return nil, errors.Wrap(err, "error attaching owner reference"+
+			"while creating porter agent action")
 	}
 
 	log.V(Log4Debug).Info("Created porter agent action", "name", action.Name)
@@ -390,16 +378,6 @@ func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logg
 			Name:      agentCfg.GetPluginsPVCName(),
 			Namespace: agentCfg.Namespace,
 			Labels:    labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         agentCfg.APIVersion,
-					Kind:               agentCfg.Kind,
-					Name:               agentCfg.Name,
-					UID:                agentCfg.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
@@ -413,6 +391,10 @@ func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logg
 	}
 	if storageClassName != "" {
 		pvc.Spec.StorageClassName = &storageClassName
+	}
+
+	if err := controllerutil.SetControllerReference(agentCfg, pvc, r.Scheme); err != nil {
+		return nil, errors.Wrap(err, "error attaching owner reference to agent volume (pvc)")
 	}
 
 	if err := r.Create(ctx, pvc); err != nil {
