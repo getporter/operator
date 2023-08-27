@@ -221,7 +221,7 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 	if storageClassName != "" {
 		pvc.Spec.StorageClassName = &storageClassName
 	}
-	if err := controllerutil.SetControllerReference(agentCfg, pvc, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(&agentCfg.AgentConfig, pvc, r.Scheme); err != nil {
 		return nil, false, errors.Wrap(err, "error attaching owner reference to agent volume (pvc)")
 	}
 
@@ -285,7 +285,7 @@ func (r *AgentConfigReconciler) createAgentAction(ctx context.Context, log logr.
 		return nil, errors.Wrap(err, "error creating the porter agent action")
 	}
 
-	if err := controllerutil.SetControllerReference(agentCfg, action, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(&agentCfg.AgentConfig, action, r.Scheme); err != nil {
 		return nil, errors.Wrap(err, "error attaching owner reference"+
 			"while creating porter agent action")
 	}
@@ -393,7 +393,7 @@ func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logg
 		pvc.Spec.StorageClassName = &storageClassName
 	}
 
-	if err := controllerutil.SetControllerReference(agentCfg, pvc, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(&agentCfg.AgentConfig, pvc, r.Scheme); err != nil {
 		return nil, errors.Wrap(err, "error attaching owner reference to agent volume (pvc)")
 	}
 
