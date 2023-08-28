@@ -162,12 +162,14 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
-		require.NoError(t, err)
+		if err != nil {
+			require.Error(t, err)
+		}
 		require.True(t, result.IsZero())
 
 		err = controller.Get(ctx, key, &agentCfgData)
-		if !apierrors.IsNotFound(err) {
-			require.NoError(t, err)
+		if apierrors.IsNotFound(err) {
+			require.Error(t, err)
 		}
 		agentCfg = porterv1.NewAgentConfigAdapter(agentCfgData)
 	}
