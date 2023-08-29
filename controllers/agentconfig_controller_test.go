@@ -162,9 +162,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
-		if err != nil {
-			require.Error(t, err)
-		}
+		require.NoError(t, err)
 		require.True(t, result.IsZero())
 
 		err = controller.Get(ctx, key, &agentCfgData)
