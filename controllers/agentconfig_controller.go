@@ -87,22 +87,10 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if processed {
+	if processed || agentCfg.DeletionTimestamp != nil {
 		err = removeAgentCfgFinalizer(ctx, log, r.Client, agentCfg)
 		log.V(Log4Debug).Info("Reconciliation complete: Finalizer has been removed from the AgentConfig.")
 		return ctrl.Result{}, err
-	}
-
-	// In the case of deleting the namespace check the agentcfg timestamp
-	// this will tell us to remove the finalizer
-	if agentCfgData.DeletionTimestamp != nil {
-		log.V(Log5Trace).Info("Reconile: deletion timestamp is not nil, removing finalizer")
-		if controllerutil.ContainsFinalizer(agentCfgData, porterv1.FinalizerName) {
-			controllerutil.RemoveFinalizer(agentCfgData, porterv1.FinalizerName)
-			if err := r.Update(ctx, agentCfgData); err != nil {
-				return ctrl.Result{}, err
-			}
-		}
 	}
 
 	updatedStatus, err := r.syncPluginInstallStatus(ctx, log, agentCfg)
