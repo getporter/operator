@@ -87,8 +87,12 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	if processed || agentCfg.DeletionTimestamp != nil {
 		err = removeAgentCfgFinalizer(ctx, log, r.Client, agentCfg)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		log.V(Log4Debug).Info("Reconciliation complete: Finalizer has been removed from the AgentConfig.")
 		return ctrl.Result{}, err
 	}
