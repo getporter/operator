@@ -227,6 +227,7 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 	if storageClassName != "" {
 		pvc.Spec.StorageClassName = &storageClassName
 	}
+
 	if err := controllerutil.SetControllerReference(&agentCfg.AgentConfig, pvc, r.Scheme); err != nil {
 		return nil, false, errors.Wrap(err, "error attaching owner reference to agent volume (pvc)")
 	}

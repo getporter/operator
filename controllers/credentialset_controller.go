@@ -215,16 +215,15 @@ func (r *CredentialSetReconciler) createAgentAction(ctx context.Context, log log
 
 	action := newAgentAction(cs)
 
-	if err := controllerutil.SetControllerReference(cs, action, r.Scheme); err != nil {
-		return nil, errors.Wrap(err, "error attaching owner reference to porter agent action")
-	}
-
 	log.WithValues("action name", action.Name)
 	if r.shouldDelete(cs) {
 		log.V(Log5Trace).Info("Deleting porter credential set")
 		action.Spec.Args = []string{"credentials", "delete", "-n", cs.Spec.Namespace, cs.Spec.Name}
 	} else {
 		log.V(Log5Trace).Info(fmt.Sprintf("Creating porter credential set %s", action.Name))
+		if err := controllerutil.SetControllerReference(cs, action, r.Scheme); err != nil {
+			return nil, errors.Wrap(err, "error attaching owner reference to porter agent action")
+		}
 		action.Spec.Args = []string{"credentials", "apply", "credentials.yaml"}
 		action.Spec.Files = map[string][]byte{"credentials.yaml": credSetResourceB}
 	}
