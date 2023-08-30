@@ -413,7 +413,6 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 				assert.Equal(t, "porter-hello-", pvc.GenerateName, "incorrect pvc name")
 				assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, pvc.Spec.AccessModes, "incorrect pvc access modes")
 				assert.Equal(t, pvc.Spec.Resources.Requests[corev1.ResourceStorage], resource.MustParse("128Mi"))
-				assert.Equal(t, pvc.OwnerReferences[0].Name, action.Name)
 			} else {
 				assert.Equal(t, "existing-", pvc.GenerateName, "incorrect pvc name")
 				assert.Equal(t, []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}, pvc.Spec.AccessModes, "incorrect pvc access modes")

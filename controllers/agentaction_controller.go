@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -448,6 +449,9 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 				},
 			},
 		},
+	}
+	if err := controllerutil.SetControllerReference(action, &porterJob, r.Scheme); err != nil {
+		return porterJob, errors.Wrap(err, "error attaching controller reference to agent job")
 	}
 
 	if err := r.Create(ctx, &porterJob); err != nil {
