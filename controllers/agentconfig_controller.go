@@ -136,11 +136,6 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	if updated {
-		// if we added a finalizer, stop processing and we will finish when the updated resource is reconciled
-		log.V(Log4Debug).Info("Reconciliation complete: A finalizer has been set on the agent config.")
-		return ctrl.Result{}, nil
-	}
 
 	pvc, created, err := r.createEmptyPluginVolume(ctx, log, agentCfg)
 	if err != nil {
@@ -154,6 +149,12 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	err = r.applyAgentConfig(ctx, log, pvc, agentCfg)
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	if updated {
+		// if we added a finalizer, stop processing and we will finish when the updated resource is reconciled
+		log.V(Log4Debug).Info("Reconciliation complete: A finalizer has been set on the agent config.")
+		return ctrl.Result{}, nil
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the agent config.")
