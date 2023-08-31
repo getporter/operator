@@ -27,6 +27,7 @@ var _ = Describe("CredentialSet create", func() {
 			By("creating an agent action", func() {
 				ctx := context.Background()
 				ns := createTestNamespace(ctx)
+
 				name := "test-cs-" + ns
 				testSecret := "foo"
 				createTestSecret(ctx, name, testSecret, ns)
@@ -39,8 +40,18 @@ var _ = Describe("CredentialSet create", func() {
 						Secret: name,
 					},
 				}
+
 				cs.Spec.Credentials = append(cs.Spec.Credentials, cred)
 				cs.Spec.Namespace = ns
+
+				//stealing this from paramset_test to see if i can get this working
+				patchCS := func(ps *porterv1.CredentialSet) {
+					controllers.PatchObjectWithRetry(ctx, logr.Discard(), k8sClient, k8sClient.Patch, ps, func() client.Object {
+						return &porterv1.CredentialSet{}
+					})
+					// Wait for the patch to apply, this can cause race conditions
+				}
+				patchCS(cs)
 
 				Expect(k8sClient.Create(ctx, cs)).Should(Succeed())
 				Expect(waitForPorter(ctx, cs, 1, "waiting for credential set to apply")).Should(Succeed())
