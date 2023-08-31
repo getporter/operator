@@ -81,8 +81,13 @@ var _ = Describe("CredentialSet create", func() {
 var _ = Describe("CredentialSet secret does not exist", func() {
 	Context("when an installation is created with a CredentialSet resource that references a secret that does not exist", func() {
 		It("should fail the installation install", func() {
+			agentCfg := NewTestAgentCfg()
+
 			ctx := context.Background()
 			ns := createTestNamespace(ctx)
+			agentCfg.Namespace = ns
+			Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
+
 			name := "test-cs-" + ns
 			By("successfully creating the credential set", func() {
 				Log(fmt.Sprintf("create credential set '%s' for credset", name))
@@ -130,6 +135,10 @@ var _ = Describe("CredentialSet update", func() {
 				ctx := context.Background()
 				ns := createTestNamespace(ctx)
 				name := "cs-update-" + ns
+				agentCfg := NewTestAgentCfg()
+
+				agentCfg.Namespace = ns
+				Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 
 				Log(fmt.Sprintf("create credential set '%s' for credset", name))
 				cs := NewTestCredSet(name)
@@ -200,6 +209,10 @@ var _ = Describe("CredentialSet delete", func() {
 				ns := createTestNamespace(ctx)
 				name := "cs-delete-" + ns
 				testSecret := "secret-value"
+
+				agentCfg := NewTestAgentCfg()
+				agentCfg.Namespace = ns
+				Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 
 				Log(fmt.Sprintf("create k8s secret '%s' for credset", name))
 				csSecret := NewTestSecret(name, testSecret)
