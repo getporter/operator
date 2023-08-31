@@ -26,7 +26,11 @@ var _ = Describe("CredentialSet create", func() {
 		It("should run porter", func() {
 			By("creating an agent action", func() {
 				ctx := context.Background()
+				agentCfg := NewTestAgentCfg()
 				ns := createTestNamespace(ctx)
+				agentCfg.Namespace = ns
+
+				Expect(k8sClient.Create(ctx, &agentCfg.AgentConfig)).Should(Succeed())
 
 				name := "test-cs-" + ns
 				testSecret := "foo"
