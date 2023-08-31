@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -63,6 +64,15 @@ func (r *AgentActionReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{Requeue: false}, err
+	}
+
+	if action.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(action, porterv1.FinalizerName) {
+			controllerutil.RemoveFinalizer(action, porterv1.FinalizerName)
+			if err := r.Update(ctx, action); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	log = log.WithValues("resourceVersion", action.ResourceVersion, "generation", action.Generation, "observedGeneration", action.Status.ObservedGeneration)

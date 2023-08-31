@@ -62,6 +62,16 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, err
 	}
+
+	if agentCfgData.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(agentCfgData, porterv1.FinalizerName) {
+			controllerutil.RemoveFinalizer(agentCfgData, porterv1.FinalizerName)
+			if err := r.Update(ctx, agentCfgData); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	agentCfg := porterv1.NewAgentConfigAdapter(*agentCfgData)
 
 	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration, "status", agentCfg.Status.Ready)

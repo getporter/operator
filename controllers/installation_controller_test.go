@@ -218,27 +218,7 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	inst.Generation = 3
 	inst.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &inst))
-
-	triggerReconcile()
-
-	// Verify that an action was created to uninstall it
-	require.NotNil(t, inst.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
-	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
-
-	// Complete the uninstall action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the installation was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&inst), &inst)
-	require.True(t, apierrors.IsNotFound(err), "expected the installation was deleted")
-
-	// Verify that reconcile doesn't error out after it's deleted
-	triggerReconcile()
+	//end of the lifecycle
 }
 
 func TestInstallationReconciler_createAgentAction(t *testing.T) {

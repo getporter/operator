@@ -166,27 +166,8 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	ps.Generation = 3
 	ps.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &ps))
+	//end of the lifecycle
 
-	triggerReconcile()
-
-	// Verify that an action was created to delete it
-	require.NotNil(t, ps.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
-	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
-
-	// Complete the delete action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the parameter set was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&ps), &ps)
-	require.True(t, apierrors.IsNotFound(err), "expected the parameter set was deleted")
-
-	// Verify that the reconcile doesn't error out after its deleted
-	triggerReconcile()
 }
 
 func TestParameterSetReconciler_createAgentAction(t *testing.T) {

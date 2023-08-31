@@ -58,6 +58,14 @@ func (r *ParameterSetReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		return ctrl.Result{}, err
 	}
+	if ps.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(ps, porterv1.FinalizerName) {
+			controllerutil.RemoveFinalizer(ps, porterv1.FinalizerName)
+			if err := r.Update(ctx, ps); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	log = log.WithValues("resourceVersion", ps.ResourceVersion, "generation", ps.Generation)
 	log.V(Log5Trace).Info("Reconciling parameter set")

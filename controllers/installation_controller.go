@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -62,6 +63,15 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
+	}
+
+	if inst.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(inst, porterv1.FinalizerName) {
+			controllerutil.RemoveFinalizer(inst, porterv1.FinalizerName)
+			if err := r.Update(ctx, inst); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
 	}
 
 	log = log.WithValues("resourceVersion", inst.ResourceVersion, "generation", inst.Generation, "observedGeneration", inst.Status.ObservedGeneration)

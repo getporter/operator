@@ -57,6 +57,14 @@ func (r *CredentialSetReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		return ctrl.Result{}, err
 	}
+	if cs.DeletionTimestamp != nil {
+		if controllerutil.ContainsFinalizer(cs, porterv1.FinalizerName) {
+			controllerutil.RemoveFinalizer(cs, porterv1.FinalizerName)
+			if err := r.Update(ctx, cs); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
 
 	log = log.WithValues("resourceVersion", cs.ResourceVersion, "generation", cs.Generation)
 	log.V(Log5Trace).Info("Reconciling credential set")

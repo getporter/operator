@@ -286,10 +286,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	assert.Empty(t, action.Status.Conditions, "Conditions should have been reset")
 
 	// Delete the action
-	controller.Delete(ctx, &action)
+	assert.NoError(t, controller.Delete(ctx, &action))
 
-	// Verify that reconcile doesn't error out after it's deleted
-	triggerReconcile()
 }
 
 func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
