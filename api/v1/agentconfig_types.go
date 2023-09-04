@@ -65,6 +65,11 @@ type AgentConfigSpec struct {
 	// +optional
 	VolumeSize string `json:"volumeSize,omitempty" mapstructure:"volumeSize,omitempty"`
 
+	// TTLSecondsAfterFinished set the time limit of the lifetime of a Job
+	// that has finished execution.
+	// +kubebuilder:default:=600
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty" mapstructure:"ttlSecondsAftterFinished,omitempty"`
+
 	// PullPolicy specifies when to pull the Porter Agent image. The default
 	// is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
 	// otherwise.
@@ -327,9 +332,14 @@ func (c AgentConfigSpecAdapter) GetInstallationServiceAccount() string {
 	return c.original.InstallationServiceAccount
 }
 
-// SetRetryAnnotation flags the resource to retry its last operation.
+// GetRetryLimit flags the resource to retry its last operation.
 func (c *AgentConfigSpecAdapter) GetRetryLimit() *int32 {
 	return c.original.RetryLimit
+}
+
+// GetTTLSecondsAfterFinished returns the config value of TTLSecondsAfterFinished
+func (c *AgentConfigSpecAdapter) GetTTLSecondsAfterFinished() *int32 {
+	return c.original.TTLSecondsAfterFinished
 }
 
 func (c AgentConfigSpecAdapter) ToPorterDocument() ([]byte, error) {

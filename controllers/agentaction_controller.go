@@ -420,8 +420,9 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			},
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  ptr.To(int32(1)),
-			BackoffLimit: agentCfg.GetRetryLimit(),
+			Completions:             ptr.To(int32(1)),
+			BackoffLimit:            agentCfg.GetRetryLimit(),
+			TTLSecondsAfterFinished: agentCfg.GetTTLSecondsAfterFinished(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: action.Name + "-",
