@@ -31,7 +31,9 @@ type InstallationReconciler struct {
 // +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=getporter.org,resources=porterconfigs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=getporter.org,resources=installations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=getporter.org,resources=installationoutputs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=getporter.org,resources=installations/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=getporter.org,resources=installationoutputs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=getporter.org,resources=installations/finalizers,verbs=update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete

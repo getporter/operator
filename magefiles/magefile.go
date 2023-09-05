@@ -640,12 +640,18 @@ func kustomize(args ...string) shx.PreparedCommand {
 
 // Ensure yq is installed.
 func EnsureYq() {
-	mgx.Must(pkg.EnsurePackage("github.com/mikefarah/yq/v4", "", ""))
+	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
+		Name: "github.com/mikefarah/yq/v4",
+	}))
 }
 
 // Ensure ginkgo is installed.
 func EnsureGinkgo() {
-	mgx.Must(pkg.EnsurePackage("github.com/onsi/ginkgo/ginkgo", "1.16.5", "version"))
+	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
+		Name:           "github.com/onsi/ginkgo/ginkgo",
+		DefaultVersion: "1.16.5",
+		VersionCommand: "version",
+	}))
 }
 
 // Ensure kustomize is installed.
@@ -664,7 +670,11 @@ func EnsureKustomize() {
 
 // Ensure controller-gen is installed.
 func EnsureControllerGen() {
-	mgx.Must(pkg.EnsurePackage("sigs.k8s.io/controller-tools/cmd/controller-gen", "v0.8.0", "--version"))
+	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
+		Name:           "sigs.k8s.io/controller-tools/cmd/controller-gen",
+		DefaultVersion: "v0.12.1",
+		VersionCommand: "--version",
+	}))
 }
 
 func pwd() string {
