@@ -418,16 +418,6 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 			GenerateName: action.Name + "-",
 			Namespace:    action.Namespace,
 			Labels:       labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion:         action.APIVersion,
-					Kind:               action.Kind,
-					Name:               action.Name,
-					UID:                action.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: batchv1.JobSpec{
 			Completions:             ptr.To(int32(1)),
@@ -471,6 +461,9 @@ func (r *AgentActionReconciler) createAgentJob(ctx context.Context, log logr.Log
 				},
 			},
 		},
+	}
+	if err := controllerutil.SetControllerReference(action, &porterJob, r.Scheme); err != nil {
+		return batchv1.Job{}, err
 	}
 
 	if err := r.Create(ctx, &porterJob); err != nil {

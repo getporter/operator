@@ -221,16 +221,6 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 			GenerateName: inst.Name + "-",
 			Labels:       labels,
 			Annotations:  inst.Annotations,
-			//	OwnerReferences: []metav1.OwnerReference{
-			//		{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-			//			APIVersion:         inst.APIVersion,
-			//			Kind:               inst.Kind,
-			//			Name:               inst.Name,
-			//			UID:                inst.UID,
-			//			Controller:         ptr.To(true),
-			//			BlockOwnerDeletion: ptr.To(true),
-			//		},
-			//	},
 		},
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig: inst.Spec.AgentConfig,
@@ -241,7 +231,7 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 		},
 	}
 
-	if err := controllerutil.SetOwnerReference(inst, action, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(inst, action, r.Scheme); err != nil {
 		return nil, err
 	}
 	if err := r.Create(ctx, action); err != nil {

@@ -11,7 +11,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -196,7 +195,7 @@ func (r *CredentialSetReconciler) runPorter(ctx context.Context, log logr.Logger
 	return r.syncStatus(ctx, log, cs, action)
 }
 
-func newAgentAction(cs *porterv1.CredentialSet) *porterv1.AgentAction {
+func (r *CredentialSetReconciler) newAgentAction(cs *porterv1.CredentialSet) (*porterv1.AgentAction, error) {
 	labels := getActionLabels(cs)
 	for k, v := range cs.Labels {
 		labels[k] = v
@@ -208,22 +207,15 @@ func newAgentAction(cs *porterv1.CredentialSet) *porterv1.AgentAction {
 			GenerateName: cs.Name + "-",
 			Labels:       labels,
 			Annotations:  cs.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         cs.APIVersion,
-					Kind:               cs.Kind,
-					Name:               cs.Name,
-					UID:                cs.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig: cs.Spec.AgentConfig,
 		},
 	}
-	return action
+	if err := controllerutil.SetControllerReference(cs, action, r.Scheme); err != nil {
+		return nil, err
+	}
+	return action, nil
 }
 
 // create a porter credentials AgentAction for applying or deleting credential sets
@@ -233,7 +225,10 @@ func (r *CredentialSetReconciler) createAgentAction(ctx context.Context, log log
 		return nil, err
 	}
 
-	action := newAgentAction(cs)
+	action, err := r.newAgentAction(cs)
+	if err != nil {
+		return nil, err
+	}
 	log.WithValues("action name", action.Name)
 	if r.shouldDelete(cs) {
 		log.V(Log5Trace).Info("Deleting porter credential set")
