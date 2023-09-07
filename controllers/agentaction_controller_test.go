@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	controllerruntime "sigs.k8s.io/controller-runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -193,7 +192,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 		fullname := types.NamespacedName{Namespace: namespace, Name: name}
 		key := client.ObjectKey{Namespace: namespace, Name: name}
 
-		request := controllerruntime.Request{
+		request := ctrl.Request{
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
