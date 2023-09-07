@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	porterv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -25,116 +26,116 @@ import (
 func TestPorterResourceStatus_ApplyAgentAction(t *testing.T) {
 	tests := []struct {
 		name       string
-		action     *porterv1.AgentAction
+		action     *v1.AgentAction
 		resource   PorterResource
-		wantStatus porterv1.PorterResourceStatus
+		wantStatus v1.PorterResourceStatus
 	}{
 		{
 			name:     "no action",
-			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
-			wantStatus: porterv1.PorterResourceStatus{
+			resource: &v1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 1,
-				Phase:              porterv1.PhaseUnknown,
+				Phase:              v1.PhaseUnknown,
 			},
 		},
 		{
 			name:     "action created",
-			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
-			action: &porterv1.AgentAction{
+			resource: &v1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
+			action: &v1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
-				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhasePending,
+				Status: v1.AgentActionStatus{
+					Phase: v1.PhasePending,
 					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
 					},
 				}},
-			wantStatus: porterv1.PorterResourceStatus{
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 1,
 				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhasePending,
+				Phase:              v1.PhasePending,
 				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "action started",
-			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
-			action: &porterv1.AgentAction{
+			resource: &v1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
+			action: &v1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
-				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseRunning,
+				Status: v1.AgentActionStatus{
+					Phase: v1.PhaseRunning,
 					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
 					},
 				}},
-			wantStatus: porterv1.PorterResourceStatus{
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 1,
 				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseRunning,
+				Phase:              v1.PhaseRunning,
 				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "action succeeded",
-			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
-			action: &porterv1.AgentAction{
+			resource: &v1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
+			action: &v1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
-				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseSucceeded,
+				Status: v1.AgentActionStatus{
+					Phase: v1.PhaseSucceeded,
 					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionComplete), Status: metav1.ConditionTrue},
 					},
 				}},
-			wantStatus: porterv1.PorterResourceStatus{
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 1,
 				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseSucceeded,
+				Phase:              v1.PhaseSucceeded,
 				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionComplete), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "action failed",
-			resource: &porterv1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
-			action: &porterv1.AgentAction{
+			resource: &v1.Installation{ObjectMeta: metav1.ObjectMeta{Generation: 1}},
+			action: &v1.AgentAction{
 				ObjectMeta: metav1.ObjectMeta{Name: "myaction"},
-				Status: porterv1.AgentActionStatus{
-					Phase: porterv1.PhaseFailed,
+				Status: v1.AgentActionStatus{
+					Phase: v1.PhaseFailed,
 					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionFailed), Status: metav1.ConditionTrue},
 					}}},
-			wantStatus: porterv1.PorterResourceStatus{
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 1,
 				Action:             &corev1.LocalObjectReference{Name: "myaction"},
-				Phase:              porterv1.PhaseFailed,
+				Phase:              v1.PhaseFailed,
 				Conditions: []metav1.Condition{
-					{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-					{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
+					{Type: string(v1.ConditionFailed), Status: metav1.ConditionTrue},
 				}},
 		},
 		{name: "update resets status",
-			resource: &porterv1.Installation{
+			resource: &v1.Installation{
 				ObjectMeta: metav1.ObjectMeta{Generation: 2},
-				Status: porterv1.InstallationStatus{PorterResourceStatus: porterv1.PorterResourceStatus{
+				Status: v1.InstallationStatus{PorterResourceStatus: v1.PorterResourceStatus{
 					ObservedGeneration: 1,
 					Action:             nil,
-					Phase:              porterv1.PhaseFailed,
+					Phase:              v1.PhaseFailed,
 					Conditions: []metav1.Condition{
-						{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue},
-						{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue},
+						{Type: string(v1.ConditionFailed), Status: metav1.ConditionTrue},
 					}}}},
-			wantStatus: porterv1.PorterResourceStatus{
+			wantStatus: v1.PorterResourceStatus{
 				ObservedGeneration: 2,
 				Action:             nil,
-				Phase:              porterv1.PhaseUnknown,
+				Phase:              v1.PhaseUnknown,
 			},
 		},
 	}
@@ -165,7 +166,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	namespace := "test"
 	name := "mybuns-install"
 	testdata := []client.Object{
-		&porterv1.AgentAction{
+		&v1.AgentAction{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 		},
 		&corev1.ServiceAccount{
@@ -175,19 +176,19 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 			},
 			},
 		},
-		&porterv1.AgentConfig{
+		&v1.AgentConfig{
 			ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: "default", Generation: 1},
-			Status: porterv1.AgentConfigStatus{
+			Status: v1.AgentConfigStatus{
 				Ready: true,
 			},
-			Spec: porterv1.AgentConfigSpec{
+			Spec: v1.AgentConfigSpec{
 				RetryLimit: &retryLimit,
 			},
 		},
 	}
 	controller := setupAgentActionController(testdata...)
 
-	var action porterv1.AgentAction
+	var action v1.AgentAction
 	triggerReconcile := func() {
 		fullname := types.NamespacedName{Namespace: namespace, Name: name}
 		key := client.ObjectKey{Namespace: namespace, Name: name}
@@ -199,7 +200,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, result.IsZero())
 
-		var updatedAction porterv1.AgentAction
+		var updatedAction v1.AgentAction
 		if err := controller.Get(ctx, key, &updatedAction); err == nil {
 			action = updatedAction
 		}
@@ -208,7 +209,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	triggerReconcile()
 
 	// Verify the action was picked up and the status initialized
-	assert.Equal(t, porterv1.PhaseUnknown, action.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Equal(t, v1.PhaseUnknown, action.Status.Phase, "New resources should be initialized to Phase: Unknown")
 
 	triggerReconcile()
 
@@ -220,8 +221,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 
 	require.NotNil(t, action.Status.Job, "expected ActiveJob to be set")
 	assert.Equal(t, job.Name, action.Status.Job.Name, "expected ActiveJob to contain the job name")
-	assert.Equal(t, porterv1.PhasePending, action.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionScheduled)))
+	assert.Equal(t, v1.PhasePending, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(v1.ConditionScheduled)))
 
 	// Start the job
 	job.Status.Active = 1
@@ -232,8 +233,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 	// Verify that the action status has the job
 	require.NotNil(t, action.Status.Job, "expected Job to be set")
 	assert.Equal(t, job.Name, action.Status.Job.Name, "expected Job to contain the job name")
-	assert.Equal(t, porterv1.PhaseRunning, action.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionStarted)))
+	assert.Equal(t, v1.PhaseRunning, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(v1.ConditionStarted)))
 
 	// Complete the job
 	job.Status.Active = 0
@@ -245,8 +246,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the action status shows the job is done
 	require.NotNil(t, action.Status.Job, "expected Job to still be set")
-	assert.Equal(t, porterv1.PhaseSucceeded, action.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionComplete)))
+	assert.Equal(t, v1.PhaseSucceeded, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(v1.ConditionComplete)))
 
 	// Fail the pod once
 	job.Status.Active = 0
@@ -259,8 +260,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the action status shows the job is still running
 	require.NotNil(t, action.Status.Job, "expected Job to still be set")
-	assert.Equal(t, porterv1.PhaseRunning, action.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionStarted)))
+	assert.Equal(t, v1.PhaseRunning, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(v1.ConditionStarted)))
 
 	// Fail the pod running the job second time should result the job to fail
 	job.Status.Failed += 1
@@ -271,8 +272,8 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the action status shows the job is failed
 	require.NotNil(t, action.Status.Job, "expected Job to still be set")
-	assert.Equal(t, porterv1.PhaseFailed, action.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(porterv1.ConditionFailed)))
+	assert.Equal(t, v1.PhaseFailed, action.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(action.Status.Conditions, string(v1.ConditionFailed)))
 
 	// Edit the action spec
 	action.Generation = 2
@@ -282,7 +283,7 @@ func TestAgentActionReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the action status was re-initialized
 	assert.Equal(t, int64(2), action.Status.ObservedGeneration)
-	assert.Equal(t, porterv1.PhaseUnknown, action.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Equal(t, v1.PhaseUnknown, action.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, action.Status.Conditions, "Conditions should have been reset")
 
 	// Delete the action
@@ -337,9 +338,9 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			controller := setupAgentActionController()
-			action := &porterv1.AgentAction{
+			action := &v1.AgentAction{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: porterv1.GroupVersion.String(),
+					APIVersion: v1.GroupVersion.String(),
 					Kind:       "AgentAction",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -353,7 +354,7 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 					},
 				},
 			}
-			agentCfg := porterv1.AgentConfigSpec{
+			agentCfg := v1.AgentConfigSpec{
 				VolumeSize:                 "128Mi",
 				PorterRepository:           "getporter/custom-agent",
 				PorterVersion:              "v1.0.0",
@@ -401,7 +402,7 @@ func TestAgentActionReconciler_createAgentVolume(t *testing.T) {
 				err := controller.Client.Create(context.Background(), existingPvc)
 				require.NoError(t, err)
 			}
-			spec := porterv1.NewAgentConfigSpecAdapter(agentCfg)
+			spec := v1.NewAgentConfigSpecAdapter(agentCfg)
 			pvc, err := controller.createAgentVolume(context.Background(), logr.Discard(), action, spec)
 			require.NoError(t, err)
 
@@ -469,9 +470,9 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			controller := setupAgentActionController()
-			action := &porterv1.AgentAction{
+			action := &v1.AgentAction{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: porterv1.GroupVersion.String(),
+					APIVersion: v1.GroupVersion.String(),
 					Kind:       "AgentAction",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -506,9 +507,9 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 				// Overwrite the labels with the action labels
 				if test.matchLabels {
 					sharedLabels = controller.getSharedAgentLabels(action)
-					sharedLabels[porterv1.LabelSecretType] = porterv1.SecretTypeConfig
+					sharedLabels[v1.LabelSecretType] = v1.SecretTypeConfig
 				}
-				porterCfg := porterv1.PorterConfigSpec{}
+				porterCfg := v1.PorterConfigSpec{}
 				porterCfgB, err := porterCfg.ToPorterDocument()
 				require.NoError(t, err)
 				secret := &corev1.Secret{
@@ -526,7 +527,7 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 				err = controller.Client.Create(context.Background(), secret)
 				require.NoError(t, err)
 			}
-			porterCfg := porterv1.PorterConfigSpec{}
+			porterCfg := v1.PorterConfigSpec{}
 			secret, err := controller.createConfigSecret(context.Background(), logr.Discard(), action, porterCfg)
 			require.NoError(t, err)
 
@@ -545,7 +546,7 @@ func TestAgentActionReconciler_createConfigSecret(t *testing.T) {
 			}
 			assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
 			assertSharedAgentLabels(t, secret.Labels)
-			assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeConfig, "incorrect label")
+			assertContains(t, secret.Labels, v1.LabelSecretType, v1.SecretTypeConfig, "incorrect label")
 			assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
 		})
 	}
@@ -599,9 +600,9 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			controller := setupAgentActionController()
 
-			action := &porterv1.AgentAction{
+			action := &v1.AgentAction{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: porterv1.GroupVersion.String(),
+					APIVersion: v1.GroupVersion.String(),
 					Kind:       "AgentAction",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -614,7 +615,7 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 						"testLabel": "abc123",
 					},
 				},
-				Spec: porterv1.AgentActionSpec{
+				Spec: v1.AgentActionSpec{
 					Files: map[string][]byte{
 						"installation.yaml": []byte(`{}`),
 					},
@@ -641,7 +642,7 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 				// Overwrite the labels with the action labels
 				if test.matchLabels {
 					sharedLabels = controller.getSharedAgentLabels(action)
-					sharedLabels[porterv1.LabelSecretType] = porterv1.SecretTypeWorkdir
+					sharedLabels[v1.LabelSecretType] = v1.SecretTypeWorkdir
 				}
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -675,7 +676,7 @@ func TestAgentActionReconciler_createWorkdirSecret(t *testing.T) {
 			}
 			assert.Equal(t, action.Namespace, secret.Namespace, "incorrect secret namespace")
 			assertSharedAgentLabels(t, secret.Labels)
-			assertContains(t, secret.Labels, porterv1.LabelSecretType, porterv1.SecretTypeWorkdir, "incorrect label")
+			assertContains(t, secret.Labels, v1.LabelSecretType, v1.SecretTypeWorkdir, "incorrect label")
 			assertContains(t, secret.Labels, "testLabel", "abc123", "incorrect label")
 		})
 	}
@@ -699,7 +700,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assert.Equal(t, action.Namespace, job.Namespace, "incorrect job namespace")
 	assert.Len(t, job.OwnerReferences, 1, "expected the job to have an owner reference")
 	wantOwnerRef := metav1.OwnerReference{
-		APIVersion:         porterv1.GroupVersion.String(),
+		APIVersion:         v1.GroupVersion.String(),
 		Kind:               "AgentAction",
 		Name:               "porter-hello",
 		UID:                "random-uid",
@@ -708,7 +709,7 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	}
 	assert.Equal(t, wantOwnerRef, job.OwnerReferences[0], "incorrect owner reference")
 	assertSharedAgentLabels(t, job.Labels)
-	assertContains(t, job.Labels, porterv1.LabelJobType, porterv1.JobTypeAgent, "incorrect label")
+	assertContains(t, job.Labels, v1.LabelJobType, v1.JobTypeAgent, "incorrect label")
 	assertContains(t, job.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Equal(t, ptr.To(int32(1)), job.Spec.Completions, "incorrect job completions")
 	assert.Nil(t, job.Spec.BackoffLimit, "incorrect job back off limit")
@@ -720,9 +721,9 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertSharedAgentLabels(t, podTemplate.Labels)
 	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Len(t, podTemplate.Spec.Volumes, 4, "incorrect pod volumes")
-	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
-	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
-	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, v1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, v1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, v1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
 	assert.Equal(t, ptr.To(int64(65532)), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
 	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
@@ -738,22 +739,22 @@ func TestAgentActionReconciler_createAgentJob(t *testing.T) {
 	assertEnvVar(t, agentContainer.Env, "KUBE_NAMESPACE", "test")
 	assertEnvVar(t, agentContainer.Env, "IN_CLUSTER", "true")
 	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_NAME", pvc.Name)
-	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", porterv1.VolumePorterSharedPath)
+	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", v1.VolumePorterSharedPath)
 	assertEnvVar(t, agentContainer.Env, "CLEANUP_JOBS", "false") // this will be configurable in the future
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
 	assertEnvVar(t, agentContainer.Env, "LABELS", "getporter.org/jobType=bundle-installer getporter.org/managed=true getporter.org/resourceGeneration=1 getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/resourceGeneration=1 getporter.org/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", ptr.To(true))
 	assert.Len(t, agentContainer.VolumeMounts, 4)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterConfigName, v1.VolumePorterConfigPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterSharedName, v1.VolumePorterSharedPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterWorkDirName, v1.VolumePorterWorkDirPath)
 
 }
-func testAgentAction() *porterv1.AgentAction {
-	return &porterv1.AgentAction{
+func testAgentAction() *v1.AgentAction {
+	return &v1.AgentAction{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
+			APIVersion: v1.GroupVersion.String(),
 			Kind:       "AgentAction",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -766,23 +767,23 @@ func testAgentAction() *porterv1.AgentAction {
 				"testLabel": "abc123",
 			},
 		},
-		Spec: porterv1.AgentActionSpec{
+		Spec: v1.AgentActionSpec{
 			Args: []string{"installation", "apply", "installation.yaml"},
 		},
 	}
 }
-func testAgentCfgSpec() porterv1.AgentConfigSpecAdapter {
-	spec := porterv1.AgentConfigSpec{
+func testAgentCfgSpec() v1.AgentConfigSpecAdapter {
+	spec := v1.AgentConfigSpec{
 		VolumeSize:                 "128Mi",
 		PorterRepository:           "getporter/custom-agent",
 		PorterVersion:              "v1.0.0",
 		PullPolicy:                 "Always",
 		ServiceAccount:             "porteraccount",
 		InstallationServiceAccount: "installeraccount",
-		PluginConfigFile:           &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
+		PluginConfigFile:           &v1.PluginFileSpec{Plugins: map[string]v1.Plugin{"kubernetes": {}}},
 	}
 
-	return porterv1.NewAgentConfigSpecAdapter(spec)
+	return v1.NewAgentConfigSpecAdapter(spec)
 }
 
 func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T) {
@@ -825,12 +826,12 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assertSharedAgentLabels(t, podTemplate.Labels)
 	assertContains(t, podTemplate.Labels, "testLabel", "abc123", "incorrect label")
 	assert.Len(t, podTemplate.Spec.Volumes, 5, "incorrect pod volumes")
-	assert.Equal(t, porterv1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
-	assert.Equal(t, porterv1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
-	assert.Equal(t, porterv1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
-	assert.Equal(t, porterv1.VolumeImgPullSecretName, podTemplate.Spec.Volumes[3].Name, "expected the img-pull-secret volume")
+	assert.Equal(t, v1.VolumePorterSharedName, podTemplate.Spec.Volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, v1.VolumePorterConfigName, podTemplate.Spec.Volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, v1.VolumePorterWorkDirName, podTemplate.Spec.Volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, v1.VolumeImgPullSecretName, podTemplate.Spec.Volumes[3].Name, "expected the img-pull-secret volume")
 	assert.Equal(t, testSA.ImagePullSecrets[0].Name, podTemplate.Spec.Volumes[3].Secret.SecretName, "expected the service account image pull secret name")
-	assert.Equal(t, porterv1.VolumePorterPluginsName, podTemplate.Spec.Volumes[4].Name, "expected the porter-workdir volume")
+	assert.Equal(t, v1.VolumePorterPluginsName, podTemplate.Spec.Volumes[4].Name, "expected the porter-workdir volume")
 	assert.Equal(t, "porteraccount", podTemplate.Spec.ServiceAccountName, "incorrect service account for the pod")
 	assert.Equal(t, ptr.To(int64(65532)), podTemplate.Spec.SecurityContext.RunAsUser, "incorrect RunAsUser")
 	assert.Equal(t, ptr.To(int64(0)), podTemplate.Spec.SecurityContext.RunAsGroup, "incorrect RunAsGroup")
@@ -846,18 +847,18 @@ func TestAgentActionReconciler_createAgentJob_withImagePullSecrets(t *testing.T)
 	assertEnvVar(t, agentContainer.Env, "KUBE_NAMESPACE", "test")
 	assertEnvVar(t, agentContainer.Env, "IN_CLUSTER", "true")
 	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_NAME", pvc.Name)
-	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", porterv1.VolumePorterSharedPath)
+	assertEnvVar(t, agentContainer.Env, "JOB_VOLUME_PATH", v1.VolumePorterSharedPath)
 	assertEnvVar(t, agentContainer.Env, "CLEANUP_JOBS", "false") // this will be configurable in the future
 	assertEnvVar(t, agentContainer.Env, "SERVICE_ACCOUNT", "installeraccount")
 	assertEnvVar(t, agentContainer.Env, "LABELS", "getporter.org/jobType=bundle-installer getporter.org/managed=true getporter.org/resourceGeneration=1 getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/retry= testLabel=abc123")
 	assertEnvVar(t, agentContainer.Env, "AFFINITY_MATCH_LABELS", "getporter.org/resourceKind=AgentAction getporter.org/resourceName=porter-hello getporter.org/resourceGeneration=1 getporter.org/retry=")
 	assertEnvFrom(t, agentContainer.EnvFrom, "porter-env", ptr.To(true))
 	assert.Len(t, agentContainer.VolumeMounts, 5)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumeImgPullSecretName, porterv1.VolumeImgPullSecretPath)
-	assertVolumeMount(t, agentContainer.VolumeMounts, porterv1.VolumePorterPluginsName, porterv1.VolumePorterPluginsPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterConfigName, v1.VolumePorterConfigPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterSharedName, v1.VolumePorterSharedPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterWorkDirName, v1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumeImgPullSecretName, v1.VolumeImgPullSecretPath)
+	assertVolumeMount(t, agentContainer.VolumeMounts, v1.VolumePorterPluginsName, v1.VolumePorterPluginsPath)
 
 }
 
@@ -871,32 +872,32 @@ func TestAgentActionReconciler_getAgentVolumes_agentconfigaction(t *testing.T) {
 	volumes, volumeMounts := controller.getAgentVolumes(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, nil)
 
 	assert.Len(t, volumes, 4, "incorrect pod volumes")
-	assert.Equal(t, porterv1.VolumePorterSharedName, volumes[0].Name, "expected the porter-shared volume")
-	assert.Equal(t, porterv1.VolumePorterConfigName, volumes[1].Name, "expected the porter-config volume")
-	assert.Equal(t, porterv1.VolumePorterWorkDirName, volumes[2].Name, "expected the porter-workdir volume")
-	assert.Equal(t, porterv1.VolumePorterPluginsName, volumes[3].Name, "expected the porter-plugins volume")
+	assert.Equal(t, v1.VolumePorterSharedName, volumes[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, v1.VolumePorterConfigName, volumes[1].Name, "expected the porter-config volume")
+	assert.Equal(t, v1.VolumePorterWorkDirName, volumes[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, v1.VolumePorterPluginsName, volumes[3].Name, "expected the porter-plugins volume")
 
 	assert.Len(t, volumeMounts, 4)
-	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
-	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
-	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
-	assertVolumeMount(t, volumeMounts, porterv1.VolumePorterPluginsName, porterv1.VolumePorterPluginsPath)
+	assertVolumeMount(t, volumeMounts, v1.VolumePorterConfigName, v1.VolumePorterConfigPath)
+	assertVolumeMount(t, volumeMounts, v1.VolumePorterSharedName, v1.VolumePorterSharedPath)
+	assertVolumeMount(t, volumeMounts, v1.VolumePorterWorkDirName, v1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, volumeMounts, v1.VolumePorterPluginsName, v1.VolumePorterPluginsPath)
 
 	// if the action is created by AgentConfig CRD, the plugin volume should not be mounted
 	action.OwnerReferences = append(action.OwnerReferences, metav1.OwnerReference{
-		APIVersion: porterv1.GroupVersion.String(),
+		APIVersion: v1.GroupVersion.String(),
 		Kind:       "AgentConfig",
 	})
 	volumesForAgentCfg, volumeMountsForAgentCfg := controller.getAgentVolumes(context.Background(), logr.Discard(), action, agentCfg, pvc, configSecret, workDirSecret, nil)
 	assert.Len(t, volumesForAgentCfg, 3, "incorrect pod volumes")
-	assert.Equal(t, porterv1.VolumePorterSharedName, volumesForAgentCfg[0].Name, "expected the porter-shared volume")
-	assert.Equal(t, porterv1.VolumePorterConfigName, volumesForAgentCfg[1].Name, "expected the porter-config volume")
-	assert.Equal(t, porterv1.VolumePorterWorkDirName, volumesForAgentCfg[2].Name, "expected the porter-workdir volume")
+	assert.Equal(t, v1.VolumePorterSharedName, volumesForAgentCfg[0].Name, "expected the porter-shared volume")
+	assert.Equal(t, v1.VolumePorterConfigName, volumesForAgentCfg[1].Name, "expected the porter-config volume")
+	assert.Equal(t, v1.VolumePorterWorkDirName, volumesForAgentCfg[2].Name, "expected the porter-workdir volume")
 
 	assert.Len(t, volumeMountsForAgentCfg, 3)
-	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterConfigName, porterv1.VolumePorterConfigPath)
-	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterSharedName, porterv1.VolumePorterSharedPath)
-	assertVolumeMount(t, volumeMountsForAgentCfg, porterv1.VolumePorterWorkDirName, porterv1.VolumePorterWorkDirPath)
+	assertVolumeMount(t, volumeMountsForAgentCfg, v1.VolumePorterConfigName, v1.VolumePorterConfigPath)
+	assertVolumeMount(t, volumeMountsForAgentCfg, v1.VolumePorterSharedName, v1.VolumePorterSharedPath)
+	assertVolumeMount(t, volumeMountsForAgentCfg, v1.VolumePorterWorkDirName, v1.VolumePorterWorkDirPath)
 }
 
 // Ensure that we can create a valid AgentAction when no plugins were specified for the AgentConfig
@@ -907,7 +908,7 @@ func TestAgentActionReconciler_NoPluginsSpecified(t *testing.T) {
 	agentCfg := testAgentCfgSpec()
 
 	// Do not set any plugins on the agent config
-	agentCfg.Plugins = porterv1.PluginsConfigList{}
+	agentCfg.Plugins = v1.PluginsConfigList{}
 
 	pvc := &corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "mypvc"}}
 	configSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "my-agent-config"}}
@@ -916,32 +917,46 @@ func TestAgentActionReconciler_NoPluginsSpecified(t *testing.T) {
 
 	assert.Len(t, volumes, 3, "incorrect pod volumes")
 	for _, v := range volumes {
-		assert.NotEqual(t, porterv1.VolumePorterPluginsName, v.Name, "the porter-plugins volume should not be present when no plugins are specified")
+		assert.NotEqual(t, v1.VolumePorterPluginsName, v.Name, "the porter-plugins volume should not be present when no plugins are specified")
 	}
 
 	assert.Len(t, volumeMounts, 3)
 	for _, v := range volumeMounts {
-		assert.NotEqual(t, porterv1.VolumePorterPluginsName, v.Name, "the porter-plugins volume mount should not be present when no plugins are specified")
+		assert.NotEqual(t, v1.VolumePorterPluginsName, v.Name, "the porter-plugins volume mount should not be present when no plugins are specified")
 	}
 }
 
+func TestDeletionTimeStampAgentAction(t *testing.T) {
+	action := &v1.AgentAction{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "fake-name",
+			Namespace:         "fake-ns",
+			DeletionTimestamp: ptr.To(metav1.Now()),
+			Finalizers:        []string{v1.FinalizerName},
+		},
+	}
+	ctx := context.Background()
+	r := setupAgentActionController(action)
+	_, err := r.Reconcile(ctx, ctrl.Request{})
+	assert.NoError(t, err)
+}
 func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
-	systemCfg := porterv1.AgentConfig{
+	systemCfg := v1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: operatorNamespace},
-		Status: porterv1.AgentConfigStatus{
+		Status: v1.AgentConfigStatus{
 			Ready: true,
 		},
-		Spec: porterv1.AgentConfigSpec{
+		Spec: v1.AgentConfigSpec{
 			PorterVersion: "v1.0",
 		},
 	}
 	actionWithOverride := testAgentAction()
-	overrideCfg := porterv1.AgentConfig{
+	overrideCfg := v1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: actionWithOverride.Namespace},
-		Status: porterv1.AgentConfigStatus{
+		Status: v1.AgentConfigStatus{
 			Ready: false,
 		},
-		Spec: porterv1.AgentConfigSpec{
+		Spec: v1.AgentConfigSpec{
 			PorterVersion: "v2",
 		},
 	}
@@ -960,7 +975,7 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 
 	// verify when action is created by AgentConfig controller, the AgentConfig is resolved correctly
 	agentCfgRef := []metav1.OwnerReference{
-		{Kind: porterv1.KindAgentConfig},
+		{Kind: v1.KindAgentConfig},
 	}
 	actionWithOverride.SetOwnerReferences(agentCfgRef)
 	cfg, err = controller.resolveAgentConfig(context.Background(), logr.Discard(), actionWithOverride)
@@ -969,11 +984,11 @@ func TestAgentActionReconciler_resolveAgentConfig(t *testing.T) {
 }
 
 func assertSharedAgentLabels(t *testing.T, labels map[string]string) {
-	assertContains(t, labels, porterv1.LabelManaged, "true", "incorrect label")
-	assertContains(t, labels, porterv1.LabelResourceKind, "AgentAction", "incorrect label")
-	assertContains(t, labels, porterv1.LabelResourceName, "porter-hello", "incorrect label")
-	assertContains(t, labels, porterv1.LabelResourceGeneration, "1", "incorrect label")
-	assertContains(t, labels, porterv1.LabelRetry, "", "incorrect label")
+	assertContains(t, labels, v1.LabelManaged, "true", "incorrect label")
+	assertContains(t, labels, v1.LabelResourceKind, "AgentAction", "incorrect label")
+	assertContains(t, labels, v1.LabelResourceName, "porter-hello", "incorrect label")
+	assertContains(t, labels, v1.LabelResourceGeneration, "1", "incorrect label")
+	assertContains(t, labels, v1.LabelRetry, "", "incorrect label")
 }
 
 func assertContains(t *testing.T, labels map[string]string, key string, value string, msg string) {
@@ -1016,7 +1031,7 @@ func assertVolumeMount(t *testing.T, mounts []corev1.VolumeMount, name string, p
 
 func setupAgentActionController(objs ...client.Object) AgentActionReconciler {
 	scheme := runtime.NewScheme()
-	porterv1.AddToScheme(scheme)
+	v1.AddToScheme(scheme)
 	batchv1.AddToScheme(scheme)
 	corev1.AddToScheme(scheme)
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	porterv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +20,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -280,6 +282,21 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	assert.Empty(t, action.Spec.EnvFrom, "incorrect EnvFrom")
 	assert.Empty(t, action.Spec.Volumes, "incorrect Volumes")
 	assert.Empty(t, action.Spec.VolumeMounts, "incorrect VolumeMounts")
+}
+
+func TestDeletionTimeStampInstallation(t *testing.T) {
+	action := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "fake-name",
+			Namespace:         "fake-ns",
+			DeletionTimestamp: ptr.To(metav1.Now()),
+			Finalizers:        []string{v1.FinalizerName},
+		},
+	}
+	ctx := context.Background()
+	r := setupInstallationController(action)
+	_, err := r.Reconcile(ctx, ctrl.Request{})
+	assert.NoError(t, err)
 }
 
 func setupInstallationController(objs ...client.Object) *InstallationReconciler {
