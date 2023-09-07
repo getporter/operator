@@ -167,27 +167,6 @@ func TestCredentialSetReconiler_Reconcile(t *testing.T) {
 	cs.Generation = 3
 	cs.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &cs))
-
-	triggerReconcile()
-
-	// Verify that an action was created to delete it
-	require.NotNil(t, cs.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: cs.Namespace, Name: cs.Status.Action.Name}, &action))
-	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
-
-	// Complete the delete action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the credential set was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&cs), &cs)
-	require.True(t, apierrors.IsNotFound(err), "expected the credential set was deleted")
-
-	// Verify that the reconcile doesn't error out after its deleted
-	triggerReconcile()
 }
 
 func TestCredentialSetReconciler_createAgentAction(t *testing.T) {

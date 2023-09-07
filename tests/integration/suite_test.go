@@ -10,7 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -25,8 +25,7 @@ import (
 
 	"get.porter.sh/operator/controllers"
 
-	portershv1 "get.porter.sh/operator/api/v1"
-	porterv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -57,13 +56,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(cfg).NotTo(BeNil())
 
 	Expect(clientgoscheme.AddToScheme(scheme.Scheme)).To(Succeed())
-	Expect(porterv1.AddToScheme(scheme.Scheme)).To(Succeed())
-
-	err = portershv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = portershv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	Expect(v1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	// +kubebuilder:scaffold:scheme
 
@@ -78,30 +71,35 @@ var _ = BeforeSuite(func(done Done) {
 
 	err = (&controllers.InstallationReconciler{
 		Client: k8sManager.GetClient(),
+		Scheme: scheme.Scheme,
 		Log:    ctrl.Log.WithName("controllers").WithName("Installation"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.CredentialSetReconciler{
 		Client: k8sManager.GetClient(),
+		Scheme: scheme.Scheme,
 		Log:    ctrl.Log.WithName("controllers").WithName("CredentialSet"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.ParameterSetReconciler{
 		Client: k8sManager.GetClient(),
+		Scheme: scheme.Scheme,
 		Log:    ctrl.Log.WithName("controllers").WithName("ParameterSet"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.AgentActionReconciler{
 		Client: k8sManager.GetClient(),
+		Scheme: scheme.Scheme,
 		Log:    ctrl.Log.WithName("controllers").WithName("AgentAction"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.AgentConfigReconciler{
 		Client: k8sManager.GetClient(),
+		Scheme: scheme.Scheme,
 		Log:    ctrl.Log.WithName("controllers").WithName("AgentConfig"),
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
@@ -124,7 +122,7 @@ var _ = AfterSuite(func() {
 })
 
 func createTestNamespace(ctx context.Context) string {
-	ns := &v1.Namespace{
+	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "ginkgo-tests-",
 			Labels: map[string]string{
@@ -135,7 +133,7 @@ func createTestNamespace(ctx context.Context) string {
 	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 
 	// porter-agent service account
-	svc := &v1.ServiceAccount{
+	svc := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "porter-agent",
 			Namespace: ns.Name,
@@ -165,7 +163,7 @@ func createTestNamespace(ctx context.Context) string {
 	Expect(k8sClient.Create(ctx, svcRole)).To(Succeed())
 
 	// installation image service account
-	instsa := &v1.ServiceAccount{
+	instsa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "installation-agent",
 			Namespace: ns.Name,
@@ -180,23 +178,23 @@ func createTestNamespace(ctx context.Context) string {
 	agentVersion := os.Getenv("PORTER_AGENT_VERSION")
 	if agentVersion == "" {
 		// We can switch this back to latest when 1.0.0 of porter releases
-		agentVersion = porterv1.DefaultPorterAgentVersion
+		agentVersion = v1.DefaultPorterAgentVersion
 	}
 	var retryLimit int32 = 2
 	// Tweak porter agent config for testing
-	agentCfg := &porterv1.AgentConfig{
+	agentCfg := &v1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: ns.Name,
 		},
-		Spec: porterv1.AgentConfigSpec{
-			PullPolicy:                 v1.PullAlways,
+		Spec: v1.AgentConfigSpec{
+			PullPolicy:                 corev1.PullAlways,
 			PorterRepository:           agentRepo,
 			PorterVersion:              agentVersion,
 			RetryLimit:                 &retryLimit,
 			ServiceAccount:             svc.Name,
 			InstallationServiceAccount: "installation-agent",
-			PluginConfigFile:           &porterv1.PluginFileSpec{SchemaVersion: "1.0.0", Plugins: map[string]porterv1.Plugin{"kubernetes": {FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.1"}}},
+			PluginConfigFile:           &v1.PluginFileSpec{SchemaVersion: "1.0.0", Plugins: map[string]v1.Plugin{"kubernetes": {FeedURL: "https://cdn.porter.sh/plugins/atom.xml", Version: "v1.0.1"}}},
 		},
 	}
 	Expect(k8sClient.Create(ctx, agentCfg)).To(Succeed())

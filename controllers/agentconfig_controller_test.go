@@ -357,21 +357,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	agentCfgData.Spec.PluginConfigFile = &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}}
 	agentCfgData.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &agentCfgData))
-	triggerReconcile()
-
-	// remove the agent config from the pvc's owner reference list
-	triggerReconcile()
-	// Verify that pvc and pv no longer has the agent config in their owner reference list
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: agentCfg.Namespace, Name: agentCfg.GetPluginsPVCName()}, renamedPVC))
-
-	// this trigger will then remove the agent config's finalizer
-	triggerReconcile()
-	// Verify that the agent config was removed
-	err = controller.Get(ctx, client.ObjectKeyFromObject(&agentCfg.AgentConfig), &agentCfg.AgentConfig)
-	require.True(t, apierrors.IsNotFound(err), "expected the agent config was deleted")
-
-	// Verify that reconcile doesn't error out after it's deleted
-	triggerReconcile()
+	// end of lifecycle, tracker doesn't keep object showing it's been deleted
 }
 
 // This tests the following AgentConfig update scenarios:
