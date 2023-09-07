@@ -68,6 +68,13 @@ parameters:
     default: "13.6.2"
     applyTo:
       - install
+  - name: operatorNamespace
+    description: Namespace to install the operator into
+    type: string
+    default: "porter-operator-system"
+    applyTo:
+      - install
+      - upgrade
   - name: mongodbVals
     description: Helm values file to use when installing the mongodb chart
     type: file
@@ -89,6 +96,12 @@ mixins:
 
 install:
   - exec:
+      description: "Set custom namespace for operator if present"
+      command: ./helpers.sh
+      arguments:
+        - setCustomNamespaceForOperator
+        - ${bundle.parameters.operatorNamespace}
+  - exec:
       description: "Set manager image reference"
       command: ./helpers.sh
       arguments:
@@ -101,7 +114,7 @@ install:
       wait: true
   - helm3:
       description: "Install a mongo database for Porter"
-      namespace: porter-operator-system
+      namespace: ${bundle.parameters.operatorNamespace}
       name: mongodb
       chart: bitnami/mongodb
       version: ${bundle.parameters.mongodbChartVersion}
@@ -115,8 +128,15 @@ install:
       command: ./helpers.sh
       arguments:
         - waitForDeployment
+        - ${bundle.parameters.operatorNamespace}
 
 upgrade:
+  - exec:
+      description: "Set custom namespace for operator if present"
+      command: ./helpers.sh
+      arguments:
+        - setCustomNamespaceForOperator
+        - ${bundle.parameters.operatorNamespace}
   - exec:
       description: "Set manager image reference"
       command: ./helpers.sh

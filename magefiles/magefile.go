@@ -284,7 +284,7 @@ func TestIntegration() {
 	// are responding to the same events.
 	// For now, it's up to the caller to use a fresh cluster with CRDs installed until we can fix it.
 
-	kubectl("delete", "deployment", "porter-operator-controller-manager", "-n=porter-operator-system").RunV()
+	kubectl("delete", "deployment", "porter-operator-controller-manager", "-n="+operatorNamespace).RunV()
 
 	if os.Getenv("PORTER_AGENT_REPOSITORY") != "" && os.Getenv("PORTER_AGENT_VERSION") != "" {
 		porterAgentImgRepository = os.Getenv("PORTER_AGENT_REPOSITORY")
@@ -334,7 +334,7 @@ func Deploy() {
 		buildPorterCmd("credentials", "apply", "hack/creds.yaml", "-n=operator").Must().RunV()
 	}
 	bundleRef := Env.BundlePrefix + meta.Version
-	installCmd := buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator").Must()
+	installCmd := buildPorterCmd("install", "operator", "-r", bundleRef, "-c=kind", "--force", "-n=operator", "--param", "operatorNamespace="+operatorNamespace).Must()
 	applyHackParameters(installCmd)
 	installCmd.RunV()
 }

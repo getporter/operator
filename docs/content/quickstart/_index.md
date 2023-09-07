@@ -50,6 +50,7 @@ Let's update your local porter CLI to read the data from the operator's datastor
 This isn't necessary for the operator to work, but will allow us to see what's happening and understand how the operator works.
 
 Run the following command to expose the operator's mongodb server to your localhost:
+* NOTE: Use your custom namespace if you have installed with the non-default one (porter-operator-system)
 ```
 kubectl port-forward --namespace porter-operator-system svc/mongodb 27020:27017 >/dev/null &
 ```

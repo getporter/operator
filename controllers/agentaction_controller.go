@@ -572,7 +572,7 @@ func (r *AgentActionReconciler) resolvePorterConfig(ctx context.Context, log log
 			{PluginConfig: porterv1.PluginConfig{
 				Name:         "in-cluster-mongodb",
 				PluginSubKey: "mongodb",
-				Config:       runtime.RawExtension{Raw: []byte(`{"url":"mongodb://mongodb.porter-operator-system.svc.cluster.local"}`)},
+				Config:       runtime.RawExtension{Raw: []byte(`{"url":"mongodb://mongodb.` + operatorNamespace + `.svc.cluster.local"}`)},
 			}},
 		},
 	}
