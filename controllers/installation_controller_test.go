@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	v1 "get.porter.sh/operator/api/v1"
+	mocks "get.porter.sh/operator/mocks/grpc"
+	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -297,6 +301,162 @@ func TestDeletionTimeStampInstallation(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestCreateInstallationOutputsCR(t *testing.T) {
+	ctx := context.Background()
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "install-name",
+			Namespace: "install-ns",
+		},
+	}
+	in := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("this is an output"),
+			},
+		},
+	}
+	tests := map[string]struct {
+		wantError bool
+		outputs   *installationv1.ListInstallationLatestOutputResponse
+	}{
+		"success": {wantError: false, outputs: in},
+		"failure": {wantError: true, outputs: &installationv1.ListInstallationLatestOutputResponse{}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			rec := setupInstallationController()
+			cr, err := rec.CreateInstallationOutputsCR(ctx, install, test.outputs)
+			if test.wantError {
+				assert.Error(t, err)
+			}
+			if !test.wantError {
+				assert.NoError(t, err)
+				assert.IsType(t, &v1.InstallationOutput{}, cr)
+			}
+		})
+	}
+}
+
+func TestCreateStatusOutputs(t *testing.T) {
+	ctx := context.Background()
+	rec := setupInstallationController()
+	install := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-name",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationOutputSpec{
+			Name:      "fake-porterName",
+			Namespace: "fake-porter-namespace",
+		},
+	}
+	in := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("this is an output"),
+			},
+		},
+	}
+	installOut, err := rec.CreateStatusOutputs(ctx, install, in)
+	assert.NoError(t, err)
+	assert.IsType(t, v1.InstallationOutputStatus{}, installOut.Status)
+}
+
+func TestCheckOrCreateInstallationOutputsCR(t *testing.T) {
+	ctx := context.Background()
+	output := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupInstallationController(output)
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	assert.NoError(t, err)
+}
+
+func TestCheckOrCreateInstallationOutputsCRCreate(t *testing.T) {
+	ctx := context.Background()
+	grpcClient := &mocks.PorterClient{}
+	outputs := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("output that is fake"),
+			},
+		},
+	}
+	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
+	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(outputs, nil)
+	rec := setupInstallationController()
+	rec.PorterGRPCClient = grpcClient
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	// NOTE: This errors because of the limitation we have with fake in
+	// controller-runtime. https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/client/fake
+	// There is some support for sub resources which
+	// can cause issues with tests if you're trying to update e.g.
+	// metadata and status in the same reconcile. We update the status in the
+	// same reconcile when creating the object but it can't find it after it
+	// creates it. This limitation isn't an issue when running live.
+	assert.Error(t, err)
+}
+
+func TestCheckOrCreateInstallationOutputsCRCreateFail(t *testing.T) {
+	ctx := context.Background()
+	grpcClient := &mocks.PorterClient{}
+	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
+	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(nil, fmt.Errorf("this is an error"))
+	rec := setupInstallationController()
+	rec.PorterGRPCClient = grpcClient
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	// NOTE: This will return nil if the output of the grpc call fails.  We do not
+	// want to requeue if this fails.  We will not include outputs of
+	// installations that do not have it stored in the grpc server.
+	assert.NoError(t, err)
+}
 func setupInstallationController(objs ...client.Object) *InstallationReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

@@ -19,7 +19,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -158,7 +158,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 		fullname := types.NamespacedName{Namespace: namespace, Name: testAgentCfg.Name}
 		key := client.ObjectKey{Namespace: namespace, Name: testAgentCfg.Name}
 
-		request := controllerruntime.Request{
+		request := ctrl.Request{
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
@@ -389,7 +389,7 @@ func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
 		fullname := types.NamespacedName{Namespace: namespace, Name: testAgentCfg.Name}
 		key := client.ObjectKey{Namespace: namespace, Name: testAgentCfg.Name}
 
-		request := controllerruntime.Request{
+		request := ctrl.Request{
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
