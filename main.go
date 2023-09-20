@@ -66,17 +66,19 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	// TODO: Set this with credentials on the server side
-	// TODO: This needs to be set so we don't fail when instantiating client
+	// NOTE: Pass in nil client if connection isn't established
+	var client controllers.PorterClient
 	conn, err := grpc.DialContext(context.Background(), "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		setupLog.Error(err, "unable to set up listener")
-		os.Exit(1)
 	}
 	defer conn.Close()
+	if conn != nil {
+		client = porterv1alpha1.NewPorterClient(conn)
+	}
 	if err = (&controllers.InstallationReconciler{
 		Client:           mgr.GetClient(),
-		PorterGRPCClient: porterv1alpha1.NewPorterClient(conn),
+		PorterGRPCClient: client,
 		Log:              ctrl.Log.WithName("controllers").WithName("Installation"),
 		Scheme:           mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

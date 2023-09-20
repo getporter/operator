@@ -156,9 +156,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-	// TODO: make this one function (not a fan of doing this) and call when
-	// connection has been established. Add annotation about installation output
-	// being true.
 	if r.PorterGRPCClient != nil {
 		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
