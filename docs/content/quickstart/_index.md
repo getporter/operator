@@ -12,7 +12,7 @@ In this QuickStart you will learn how to install and use the [Porter Operator] o
 
 * [Install the most recent Porter v1 prerelease][install-porter]
 * Docker, either a local installation or a remote Docker Host.
-* A Kubernetes cluster. [KinD] or [Minikube] work well but follow the links for required configuration.
+* A Kubernetes cluster. [KinD][configure-kind] or [Minikube][configure-minikube] work well but follow the links for required configuration.
 * kubectl, with its kubeconfig configured to use the cluster.
 
 ## Install the Operator
@@ -345,4 +345,6 @@ You now know how to install and configure the Porter Operator. The project is st
 [install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
 [KinD]: /best-practices/kind/
 [Minikube]: /best-practices/minikube/
+[configure-kind]: https://github.com/getporter/porter/blob/main/docs/content/docs/integrations/kind.md
+[configure-minikube]: https://github.com/getporter/porter/blob/main/docs/content/docs/integrations/minikube.md
 [getporter/hello-llama]: https://hub.docker.com/r/getporter/hello-llama
