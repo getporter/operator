@@ -101,7 +101,7 @@ install:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${ bundle.parameters.repository }@${bundle.parameters.digest}
+        - ${bundle.parameters.repository}@{bundle.parameters.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -130,7 +130,7 @@ upgrade:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${ bundle.parameters.repository }@${bundle.parameters.digest}
+        - ${bundle.parameters.repository}@{bundle.parameters.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
