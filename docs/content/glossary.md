@@ -134,7 +134,7 @@ Values are merged from all resolved PorterConfig resources, so that you can defi
 
 [PorterConfig]: /operator/file-formats/#porterconfig
 [configuration file]: /configuration/#config-file
-[Desired State QuickStart]: /quickstart/desired-state/
+[Desired State QuickStart](https://porter.sh/docs/introduction/concepts-and-components/intro-desired-state/)
 
 
 ## Next Steps

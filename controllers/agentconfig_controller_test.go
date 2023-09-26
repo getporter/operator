@@ -139,10 +139,12 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
+	ttl := int32(0)
 	testAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 		Spec: porterv1.AgentConfigSpec{
-			PluginConfigFile: &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
+			TTLSecondsAfterFinished: &ttl,
+			PluginConfigFile:        &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
 		},
 	}
 	testdata := testAgentCfg
@@ -300,7 +302,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	require.NoError(t, controller.Update(ctx, renamedPVC))
 
 	triggerReconcile()
-	require.True(t, agentCfg.Status.Ready)
+	require.True(t, agentCfg.Status.Ready, "status after reconcile is %s", agentCfg.Status.Ready)
 
 	// Fail the action
 	action.Status.Phase = porterv1.PhaseFailed
@@ -371,10 +373,12 @@ func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
+	ttl := int32(0)
 	testAgentCfg := &porterv1.AgentConfig{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1},
 		Spec: porterv1.AgentConfigSpec{
-			PluginConfigFile: &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
+			TTLSecondsAfterFinished: &ttl,
+			PluginConfigFile:        &porterv1.PluginFileSpec{Plugins: map[string]porterv1.Plugin{"kubernetes": {}}},
 		},
 	}
 	testdata := testAgentCfg
