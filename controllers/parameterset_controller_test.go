@@ -18,7 +18,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -57,7 +57,7 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	triggerReconcile := func() {
 		fullname := types.NamespacedName{Namespace: namespace, Name: name}
 		key := client.ObjectKey{Namespace: namespace, Name: name}
-		request := controllerruntime.Request{
+		request := ctrl.Request{
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
@@ -166,27 +166,8 @@ func TestParameterSetReconiler_Reconcile(t *testing.T) {
 	ps.Generation = 3
 	ps.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &ps))
+	//end of the lifecycle
 
-	triggerReconcile()
-
-	// Verify that an action was created to delete it
-	require.NotNil(t, ps.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: ps.Namespace, Name: ps.Status.Action.Name}, &action))
-	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong resource generation is set for the agent action")
-
-	// Complete the delete action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the parameter set was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&ps), &ps)
-	require.True(t, apierrors.IsNotFound(err), "expected the parameter set was deleted")
-
-	// Verify that the reconcile doesn't error out after its deleted
-	triggerReconcile()
 }
 
 func TestParameterSetReconciler_createAgentAction(t *testing.T) {

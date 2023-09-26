@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,6 +61,7 @@ func (r *AgentConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, err
 	}
+
 	agentCfg := porterv1.NewAgentConfigAdapter(*agentCfgData)
 
 	log = log.WithValues("resourceVersion", agentCfg.ResourceVersion, "generation", agentCfg.Generation, "observedGeneration", agentCfg.Status.ObservedGeneration, "status", agentCfg.Status.Ready)
@@ -208,16 +208,6 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 			Namespace:    agentCfg.Namespace,
 			Labels:       labels,
 			Annotations:  agentCfg.GetPluginsPVCNameAnnotation(),
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         agentCfg.APIVersion,
-					Kind:               agentCfg.Kind,
-					Name:               agentCfg.Name,
-					UID:                agentCfg.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -231,7 +221,9 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 	if storageClassName != "" {
 		pvc.Spec.StorageClassName = &storageClassName
 	}
-
+	if err := controllerutil.SetControllerReference(&agentCfg.AgentConfig, pvc, r.Scheme); err != nil {
+		return nil, false, err
+	}
 	if err := r.Create(ctx, pvc); err != nil {
 		return nil, false, errors.Wrap(err, "error creating the agent volume (pvc)")
 	}

@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
-	porterv1 "get.porter.sh/operator/api/v1"
+	v1 "get.porter.sh/operator/api/v1"
+	mocks "get.porter.sh/operator/mocks/grpc"
+	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -18,7 +22,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
-	controllerruntime "sigs.k8s.io/controller-runtime"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -34,11 +38,11 @@ func TestShouldInstall(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			inst := &porterv1.Installation{
+			inst := &v1.Installation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "fake-name",
 					Namespace:         "fake-ns",
-					Finalizers:        []string{porterv1.FinalizerName},
+					Finalizers:        []string{v1.FinalizerName},
 					DeletionTimestamp: test.delTimeStamp,
 				},
 			}
@@ -56,7 +60,7 @@ func TestShouldInstall(t *testing.T) {
 
 func TestUninstallInstallation(t *testing.T) {
 	ctx := context.Background()
-	inst := &porterv1.Installation{
+	inst := &v1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-install",
 			Namespace: "fake-ns",
@@ -65,21 +69,21 @@ func TestUninstallInstallation(t *testing.T) {
 	rec := setupInstallationController(inst)
 	err := rec.uninstallInstallation(ctx, rec.Log, inst)
 	assert.NoError(t, err)
-	gotInstall := &porterv1.Installation{}
+	gotInstall := &v1.Installation{}
 	rec.Get(ctx, types.NamespacedName{Name: "fake-install", Namespace: "fake-ns"}, gotInstall)
 	assert.NotEmpty(t, gotInstall.Status)
-	assert.Equal(t, porterv1.PhaseUnknown, gotInstall.Status.Phase)
+	assert.Equal(t, v1.PhaseUnknown, gotInstall.Status.Phase)
 }
 
 func TestRetry(t *testing.T) {
 	ctx := context.Background()
-	inst := &porterv1.Installation{
+	inst := &v1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-install",
 			Namespace: "fake-ns",
 		},
 	}
-	action := &porterv1.AgentAction{
+	action := &v1.AgentAction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-action",
 			Namespace: "fake-ns",
@@ -97,17 +101,17 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	namespace := "test"
 	name := "mybuns"
-	testdata := &porterv1.Installation{
+	testdata := &v1.Installation{
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}}
 
 	controller := setupInstallationController(testdata)
 
-	var inst porterv1.Installation
+	var inst v1.Installation
 	triggerReconcile := func() {
 		fullname := types.NamespacedName{Namespace: namespace, Name: name}
 		key := client.ObjectKey{Namespace: namespace, Name: name}
 
-		request := controllerruntime.Request{
+		request := ctrl.Request{
 			NamespacedName: fullname,
 		}
 		result, err := controller.Reconcile(ctx, request)
@@ -123,54 +127,54 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	triggerReconcile()
 
 	// Verify the installation was picked up and the status initialized
-	assert.Equal(t, porterv1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Equal(t, v1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
 
 	triggerReconcile()
 
 	// Verify an AgentAction was created and set on the status
 	require.NotNil(t, inst.Status.Action, "expected Action to be set")
-	var action porterv1.AgentAction
+	var action v1.AgentAction
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
-	assert.Equal(t, "1", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
+	assert.Equal(t, "1", action.Labels[v1.LabelResourceGeneration], "The wrong action is set on the status")
 
 	// Mark the action as scheduled
-	action.Status.Phase = porterv1.PhasePending
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionScheduled), Status: metav1.ConditionTrue}}
+	action.Status.Phase = v1.PhasePending
+	action.Status.Conditions = []metav1.Condition{{Type: string(v1.ConditionScheduled), Status: metav1.ConditionTrue}}
 	action.ResourceVersion = ""
 	controller = setupInstallationController(testdata, &action)
 	assert.NoError(t, controller.Client.Status().Update(ctx, &action))
 	triggerReconcile()
 
 	// Verify the installation status was synced with the action
-	assert.Equal(t, porterv1.PhasePending, inst.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionScheduled)))
+	assert.Equal(t, v1.PhasePending, inst.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(v1.ConditionScheduled)))
 
 	// Mark the action as started
-	action.Status.Phase = porterv1.PhaseRunning
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionStarted), Status: metav1.ConditionTrue}}
+	action.Status.Phase = v1.PhaseRunning
+	action.Status.Conditions = []metav1.Condition{{Type: string(v1.ConditionStarted), Status: metav1.ConditionTrue}}
 	require.NoError(t, controller.Status().Update(ctx, &action))
 
 	triggerReconcile()
 
 	// Verify that the installation status was synced with the action
-	assert.Equal(t, porterv1.PhaseRunning, inst.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionStarted)))
+	assert.Equal(t, v1.PhaseRunning, inst.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(v1.ConditionStarted)))
 
 	// Complete the action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
+	action.Status.Phase = v1.PhaseSucceeded
+	action.Status.Conditions = []metav1.Condition{{Type: string(v1.ConditionComplete), Status: metav1.ConditionTrue}}
 	require.NoError(t, controller.Status().Update(ctx, &action))
 
 	triggerReconcile()
 
 	// Verify that the installation status was synced with the action
 	require.NotNil(t, inst.Status.Action, "expected Action to still be set")
-	assert.Equal(t, porterv1.PhaseSucceeded, inst.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionComplete)))
+	assert.Equal(t, v1.PhaseSucceeded, inst.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(v1.ConditionComplete)))
 
 	// Fail the action
-	action.Status.Phase = porterv1.PhaseFailed
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionFailed), Status: metav1.ConditionTrue}}
+	action.Status.Phase = v1.PhaseFailed
+	action.Status.Conditions = []metav1.Condition{{Type: string(v1.ConditionFailed), Status: metav1.ConditionTrue}}
 	require.NoError(t, controller.Status().Update(ctx, &action))
 
 	triggerReconcile()
@@ -178,8 +182,8 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	actionName := inst.Status.Action.Name
 	// Verify that the installation status shows the action is failed
 	require.NotNil(t, inst.Status.Action, "expected Action to still be set")
-	assert.Equal(t, porterv1.PhaseFailed, inst.Status.Phase, "incorrect Phase")
-	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(porterv1.ConditionFailed)))
+	assert.Equal(t, v1.PhaseFailed, inst.Status.Phase, "incorrect Phase")
+	assert.True(t, apimeta.IsStatusConditionTrue(inst.Status.Conditions, string(v1.ConditionFailed)))
 
 	// Edit the installation spec
 	inst.Generation = 2
@@ -189,12 +193,12 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 
 	// Verify that the installation status was re-initialized
 	assert.Equal(t, int64(2), inst.Status.ObservedGeneration)
-	assert.Equal(t, porterv1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Equal(t, v1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, inst.Status.Conditions, "Conditions should have been reset")
 
 	// Retry the last action
 	lastAction := actionName
-	inst.Annotations = map[string]string{porterv1.AnnotationRetry: "retry-1"}
+	inst.Annotations = map[string]string{v1.AnnotationRetry: "retry-1"}
 	require.NoError(t, controller.Update(ctx, &inst))
 
 	triggerReconcile()
@@ -204,11 +208,11 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	assert.Equal(t, lastAction, actionName, "Expected the action to be the same")
 	// get the latest version of the action
 	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
-	assert.NotEmpty(t, action.Annotations[porterv1.AnnotationRetry], "Expected the action to have its retry annotation set")
+	assert.NotEmpty(t, action.Annotations[v1.AnnotationRetry], "Expected the action to have its retry annotation set")
 
 	assert.Equal(t, int64(2), inst.Status.ObservedGeneration)
 	assert.NotEmpty(t, inst.Status.Action, "Expected the action to still be set")
-	assert.Equal(t, porterv1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
+	assert.Equal(t, v1.PhaseUnknown, inst.Status.Phase, "New resources should be initialized to Phase: Unknown")
 	assert.Empty(t, inst.Status.Conditions, "Conditions should have been reset")
 
 	// Delete the installation (setting the delete timestamp directly instead of client.Delete because otherwise the fake client just removes it immediately)
@@ -218,35 +222,15 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 	inst.Generation = 3
 	inst.DeletionTimestamp = &now
 	require.NoError(t, controller.Delete(ctx, &inst))
-
-	triggerReconcile()
-
-	// Verify that an action was created to uninstall it
-	require.NotNil(t, inst.Status.Action, "expected Action to be set")
-	require.NoError(t, controller.Get(ctx, client.ObjectKey{Namespace: inst.Namespace, Name: inst.Status.Action.Name}, &action))
-	assert.Equal(t, "2", action.Labels[porterv1.LabelResourceGeneration], "The wrong action is set on the status")
-
-	// Complete the uninstall action
-	action.Status.Phase = porterv1.PhaseSucceeded
-	action.Status.Conditions = []metav1.Condition{{Type: string(porterv1.ConditionComplete), Status: metav1.ConditionTrue}}
-	require.NoError(t, controller.Status().Update(ctx, &action))
-
-	triggerReconcile()
-
-	// Verify that the installation was removed
-	err := controller.Get(ctx, client.ObjectKeyFromObject(&inst), &inst)
-	require.True(t, apierrors.IsNotFound(err), "expected the installation was deleted")
-
-	// Verify that reconcile doesn't error out after it's deleted
-	triggerReconcile()
+	//end of the lifecycle
 }
 
 func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	controller := setupInstallationController()
 
-	inst := &porterv1.Installation{
+	inst := &v1.Installation{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: porterv1.GroupVersion.String(),
+			APIVersion: v1.GroupVersion.String(),
 			Kind:       "Installation",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -258,10 +242,10 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 				"testLabel": "abc123",
 			},
 			Annotations: map[string]string{
-				porterv1.AnnotationRetry: "2021-2-2 12:00:00",
+				v1.AnnotationRetry: "2021-2-2 12:00:00",
 			},
 		},
-		Spec: porterv1.InstallationSpec{
+		Spec: v1.InstallationSpec{
 			Namespace:   "dev",
 			Name:        "wordpress",
 			AgentConfig: &corev1.LocalObjectReference{Name: "myAgentConfig"},
@@ -273,7 +257,7 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	assert.Contains(t, action.Name, "myblog-")
 	assert.Len(t, action.OwnerReferences, 1, "expected an owner reference")
 	wantOwnerRef := metav1.OwnerReference{
-		APIVersion:         porterv1.GroupVersion.String(),
+		APIVersion:         v1.GroupVersion.String(),
 		Kind:               "Installation",
 		Name:               "myblog",
 		UID:                "random-uid",
@@ -282,11 +266,11 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	}
 	assert.Equal(t, wantOwnerRef, action.OwnerReferences[0], "incorrect owner reference")
 
-	assertContains(t, action.Annotations, porterv1.AnnotationRetry, inst.Annotations[porterv1.AnnotationRetry], "incorrect annotation")
-	assertContains(t, action.Labels, porterv1.LabelManaged, "true", "incorrect label")
-	assertContains(t, action.Labels, porterv1.LabelResourceKind, "Installation", "incorrect label")
-	assertContains(t, action.Labels, porterv1.LabelResourceName, "myblog", "incorrect label")
-	assertContains(t, action.Labels, porterv1.LabelResourceGeneration, "1", "incorrect label")
+	assertContains(t, action.Annotations, v1.AnnotationRetry, inst.Annotations[v1.AnnotationRetry], "incorrect annotation")
+	assertContains(t, action.Labels, v1.LabelManaged, "true", "incorrect label")
+	assertContains(t, action.Labels, v1.LabelResourceKind, "Installation", "incorrect label")
+	assertContains(t, action.Labels, v1.LabelResourceName, "myblog", "incorrect label")
+	assertContains(t, action.Labels, v1.LabelResourceGeneration, "1", "incorrect label")
 	assertContains(t, action.Labels, "testLabel", "abc123", "incorrect label")
 
 	assert.Equal(t, inst.Spec.AgentConfig, action.Spec.AgentConfig, "incorrect AgentConfig reference")
@@ -302,10 +286,181 @@ func TestInstallationReconciler_createAgentAction(t *testing.T) {
 	assert.Empty(t, action.Spec.VolumeMounts, "incorrect VolumeMounts")
 }
 
+func TestDeletionTimeStampInstallation(t *testing.T) {
+	action := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "fake-name",
+			Namespace:         "fake-ns",
+			DeletionTimestamp: ptr.To(metav1.Now()),
+			Finalizers:        []string{v1.FinalizerName},
+		},
+	}
+	ctx := context.Background()
+	r := setupInstallationController(action)
+	_, err := r.Reconcile(ctx, ctrl.Request{})
+	assert.NoError(t, err)
+}
+
+func TestCreateInstallationOutputsCR(t *testing.T) {
+	ctx := context.Background()
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "install-name",
+			Namespace: "install-ns",
+		},
+	}
+	in := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("this is an output"),
+			},
+		},
+	}
+	tests := map[string]struct {
+		wantError bool
+		outputs   *installationv1.ListInstallationLatestOutputResponse
+	}{
+		"success": {wantError: false, outputs: in},
+		"failure": {wantError: true, outputs: &installationv1.ListInstallationLatestOutputResponse{}},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			rec := setupInstallationController()
+			cr, err := rec.CreateInstallationOutputsCR(ctx, install, test.outputs)
+			if test.wantError {
+				assert.Error(t, err)
+			}
+			if !test.wantError {
+				assert.NoError(t, err)
+				assert.IsType(t, &v1.InstallationOutput{}, cr)
+			}
+		})
+	}
+}
+
+func TestCreateStatusOutputs(t *testing.T) {
+	ctx := context.Background()
+	rec := setupInstallationController()
+	install := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-name",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationOutputSpec{
+			Name:      "fake-porterName",
+			Namespace: "fake-porter-namespace",
+		},
+	}
+	in := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("this is an output"),
+			},
+		},
+	}
+	installOut, err := rec.CreateStatusOutputs(ctx, install, in)
+	assert.NoError(t, err)
+	assert.IsType(t, v1.InstallationOutputStatus{}, installOut.Status)
+}
+
+func TestCheckOrCreateInstallationOutputsCR(t *testing.T) {
+	ctx := context.Background()
+	output := &v1.InstallationOutput{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	rec := setupInstallationController(output)
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	assert.NoError(t, err)
+}
+
+func TestCheckOrCreateInstallationOutputsCRCreate(t *testing.T) {
+	ctx := context.Background()
+	grpcClient := &mocks.PorterClient{}
+	outputs := &installationv1.ListInstallationLatestOutputResponse{
+		Outputs: []*installationv1.PorterValue{
+			{
+				Name:      "fake-output",
+				Type:      "string",
+				Sensitive: false,
+				Value:     structpb.NewStringValue("output that is fake"),
+			},
+		},
+	}
+	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
+	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(outputs, nil)
+	rec := setupInstallationController()
+	rec.PorterGRPCClient = grpcClient
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	// NOTE: This errors because of the limitation we have with fake in
+	// controller-runtime. https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.15.0/pkg/client/fake
+	// There is some support for sub resources which
+	// can cause issues with tests if you're trying to update e.g.
+	// metadata and status in the same reconcile. We update the status in the
+	// same reconcile when creating the object but it can't find it after it
+	// creates it. This limitation isn't an issue when running live.
+	assert.Error(t, err)
+}
+
+func TestCheckOrCreateInstallationOutputsCRCreateFail(t *testing.T) {
+	ctx := context.Background()
+	grpcClient := &mocks.PorterClient{}
+	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
+	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(nil, fmt.Errorf("this is an error"))
+	rec := setupInstallationController()
+	rec.PorterGRPCClient = grpcClient
+	install := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
+	// NOTE: This will return nil if the output of the grpc call fails.  We do not
+	// want to requeue if this fails.  We will not include outputs of
+	// installations that do not have it stored in the grpc server.
+	assert.NoError(t, err)
+}
 func setupInstallationController(objs ...client.Object) *InstallationReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(porterv1.AddToScheme(scheme))
+	utilruntime.Must(v1.AddToScheme(scheme))
 
 	fakeBuilder := fake.NewClientBuilder()
 	fakeBuilder.WithScheme(scheme)

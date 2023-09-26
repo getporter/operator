@@ -11,7 +11,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -190,7 +189,10 @@ func (r *ParameterSetReconciler) createAgentAction(ctx context.Context, log logr
 		return nil, err
 	}
 
-	action := newPSAgentAction(ps)
+	action, err := r.newPSAgentAction(ps)
+	if err != nil {
+		return nil, err
+	}
 	log.WithValues("action name", action.Name)
 	if r.shouldDelete(ps) {
 		log.V(Log5Trace).Info("Deleting porter parameter set")
@@ -241,7 +243,7 @@ func removeParamSetFinalizer(ctx context.Context, log logr.Logger, client client
 	return client.Update(ctx, ps)
 }
 
-func newPSAgentAction(ps *porterv1.ParameterSet) *porterv1.AgentAction {
+func (r *ParameterSetReconciler) newPSAgentAction(ps *porterv1.ParameterSet) (*porterv1.AgentAction, error) {
 	labels := getActionLabels(ps)
 	for k, v := range ps.Labels {
 		labels[k] = v
@@ -253,20 +255,13 @@ func newPSAgentAction(ps *porterv1.ParameterSet) *porterv1.AgentAction {
 			GenerateName: ps.Name + "-",
 			Labels:       labels,
 			Annotations:  ps.Annotations,
-			OwnerReferences: []metav1.OwnerReference{
-				{ // I'm not using controllerutil.SetControllerReference because I can't track down why that throws a panic when running our tests
-					APIVersion:         ps.APIVersion,
-					Kind:               ps.Kind,
-					Name:               ps.Name,
-					UID:                ps.UID,
-					Controller:         ptr.To(true),
-					BlockOwnerDeletion: ptr.To(true),
-				},
-			},
 		},
 		Spec: porterv1.AgentActionSpec{
 			AgentConfig: ps.Spec.AgentConfig,
 		},
 	}
-	return action
+	if err := controllerutil.SetControllerReference(ps, action, r.Scheme); err != nil {
+		return nil, err
+	}
+	return action, nil
 }
