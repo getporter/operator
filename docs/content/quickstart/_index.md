@@ -17,20 +17,22 @@ In this QuickStart you will learn how to install and use the [Porter Operator] o
 
 ## Install the Operator
 
+🚨 If you are using [KinD] or [Minikube] please make sure to visit the integration pages before starting. 🚨
+
 The Porter Operator is installed using Porter, and requires an existing Kubernetes cluster.
 First, generate a credential set that points to the location of your kubeconfig file, for example using the path $HOME/.kube/config.
 
-The commands below use the v0.7.1 release, but there may be a more recent release of the Operator.
+The commands below use the v1.0.0 release, but there may be a more recent release of the Operator.
 Check our [releases page](https://github.com/getporter/operator/releases) and use the most recent version number.
 
 ```
-porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v0.8.0
+porter credentials generate porterops -r ghcr.io/getporter/porter-operator:v1.0.0
 ```
 
 Now that Porter knows which cluster to target, install the Operator with the following command:
 
 ```
-porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v0.8.0
+porter install porterops -c porterops -r ghcr.io/getporter/porter-operator:v1.0.0
 ```
 
 Before you use the operator, you need to configure a Kubernetes namespace with the necessary configuration.
@@ -336,6 +338,43 @@ The operator will use `porter plugins install` to install defined plugins. Any b
 
 If no plugins are required, this field is optional.
 
+## Upgrade Operator Manager Image
+The Operator Manager Image will be built the the most recent version to run. However if you'd like to change the repository or SHA of the image here's how it can be done. 
+
+In the `porter.yaml` we specify the following parameters:
+
+```yaml
+  - name: operator-repository
+    description: Porter Operator Manager Image Repository
+    type: string
+    default: ""
+  - name: operator-digest
+    description: Porter Operator Manager Image Digest (defaults to a stable version)
+    type: string
+    default: ""
+```
+
+When upgrading, these could be passed in by using a paramter set or by CLI flags:
+
+```
+porter upgrade porterops -c porterops --param operator-repository=localhost:5000
+```
+
+## Injecting Kube Config via Parameters
+If you do not want to set the kube config credential by creating a credential set, then
+there is a way to inject the kube config into the bundle by utilizing parameters.
+
+🚨 This is a workaround and we will be working on building this out as a feature shortly
+
+By using a base64 encoded string containing the kube config it can be passed as a parameter:
+
+```yaml
+  parameters:
+    namespace: mysql
+    mysql-name: carolyn-mysql
+    kubeconfig: YXBpVmVyc2lvbjogdjEKY2x1c.... # generated with cat kube.config > base64 -w 0
+```
+
 ## Next Steps
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
@@ -343,6 +382,6 @@ You now know how to install and configure the Porter Operator. The project is st
 * [Porter Operator Custom Resources](/operator/file-formats/)
 
 [install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
-[KinD]: /best-practices/kind/
-[Minikube]: /best-practices/minikube/
+[KinD]:  https://porter.sh/docs/integrations/kind/
+[Minikube]: https://porter.sh/docs/integrations/minikube/
 [getporter/hello-llama]: https://hub.docker.com/r/getporter/hello-llama

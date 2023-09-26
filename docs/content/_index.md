@@ -26,5 +26,5 @@ The operator is still under development, but it is ready for you to try out and 
 * [QuickStart: Using the Porter Operator](/operator/quickstart/)
 * [Porter Operator File Formats](/operator/file-formats/)
 * [Configure the Porter Agent]
-[porter installation apply]: /cli/porter_installations_apply/
-[Desired State QuickStart]: /quickstart/desired-state/
+[porter installation apply]: https://porter.sh/cli/porter_installations_apply/
+[Desired State QuickStart]: https://porter.sh/docs/introduction/concepts-and-components/intro-desired-state/

@@ -6,11 +6,11 @@ registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 
 parameters:
-  - name: repository
+  - name: operator_repository
     description: Porter Operator Manager Image Repository
     type: string
     default: ""
-  - name: digest
+  - name: operator_digest
     description: Porter Operator Manager Image Digest (defaults to a stable version)
     type: string
     default: ""
@@ -101,7 +101,7 @@ install:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${bundle.parameters.repository}@{bundle.parameters.digest}
+        - ${bundle.images.manager.repository}@${bundle.images.manager.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -130,7 +130,7 @@ upgrade:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${bundle.parameters.repository}@{bundle.parameters.digest}
+        - ${bundle.images.manager.repository}@${bundle.images.manager.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -180,5 +180,5 @@ images:
   manager:
     description: "The porter operator manager"
     imageType: "docker"
-    repository: ${ bundle.parameters.repository }
-    digest: ${ bundle.parameters.digest }
+    repository: ${ bundle.parameters.operator_repository }
+    digest: ${ bundle.parameters.operator_digest }
