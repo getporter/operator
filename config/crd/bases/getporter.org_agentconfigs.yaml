@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.0
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: agentconfigs.getporter.org
 spec:
   group: getporter.org
@@ -102,6 +102,12 @@ spec:
                   Porter will request when running the Porter Agent. It is used to
                   determine what the storage class will be for the volume requested
                 type: string
+              ttlSecondsAfterFinished:
+                default: 600
+                description: TTLSecondsAfterFinished set the time limit of the lifetime
+                  of a Job that has finished execution.
+                format: int32
+                type: integer
               volumeSize:
                 description: VolumeSize is the size of the persistent volume that
                   Porter will request when running the Porter Agent. It is used to

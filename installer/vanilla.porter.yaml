@@ -1,11 +1,19 @@
 schemaVersion: 1.0.0
 name: porter-operator
-version: 0.0.0
+version: 1.0.0
 description: "The Porter Operator for Kubernetes. Execute bundles on a Kubernetes cluster."
 registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 
 parameters:
+  - name: repository
+    description: Porter Operator Manager Image Repository
+    type: string
+    default: ""
+  - name: digest
+    description: Porter Operator Manager Image Digest (defaults to a stable version)
+    type: string
+    default: ""
   - name: namespace
     description: Setup Porter in this namespace
     type: string
@@ -93,7 +101,7 @@ install:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${bundle.images.manager.repository}@${bundle.images.manager.digest}
+        - ${ bundle.parameters.repository }@${bundle.parameters.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -122,7 +130,7 @@ upgrade:
       command: ./helpers.sh
       arguments:
         - setControllerImage
-        - ${bundle.images.manager.repository}@{bundle.images.manager.digest}
+        - ${ bundle.parameters.repository }@${bundle.parameters.digest}
   - kubernetes:
       description: "Apply operator manifests"
       manifests:
@@ -172,5 +180,5 @@ images:
   manager:
     description: "The porter operator manager"
     imageType: "docker"
-    repository: "PLACEHOLDER"
-    digest: "PLACEHOLDER"
+    repository: ${ bundle.parameters.repository }
+    digest: ${ bundle.parameters.digest }
