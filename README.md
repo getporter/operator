@@ -25,8 +25,7 @@ pipeline with support for GitOps.
 
 # Project Status
 
-🚧 This is a proof of concept only, is currently being rewritten to work with the Porter v1 prerelease.
-**It is not safe to use in production or with production secrets.**
+🚧 **It is not safe to use in production or with production secrets.**🚧 
 
 We are planning a security review and audit before it is released.
 
