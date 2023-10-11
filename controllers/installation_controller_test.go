@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -468,8 +469,9 @@ func setupInstallationController(objs ...client.Object) *InstallationReconciler 
 	fakeClient := fakeBuilder.Build()
 
 	return &InstallationReconciler{
-		Log:    logr.Discard(),
-		Client: fakeClient,
-		Scheme: scheme,
+		Log:      logr.Discard(),
+		Client:   fakeClient,
+		Recorder: record.NewFakeRecorder(42),
+		Scheme:   scheme,
 	}
 }
