@@ -176,6 +176,7 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server for: %s:%s installation error: %s", inst.Spec.Name, inst.Spec.Namespace, err.Error()))
 				// NOTE: Stop installation output cr creation
+				r.Recorder.Event(inst, "Warning", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs failed for %s", inst.Name))
 				return ctrl.Result{}, nil
 			}
 			// TODO: Separate this into it's own func to test and extract what you
@@ -202,6 +203,7 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.Recorder.Event(inst, "Normal", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs for %s", inst.Name))
 			log.V(Log5Trace).Info("successfully created outputs cr")
 			patchInstall := client.MergeFrom(inst.DeepCopy())
 			inst.SetAnnotations(map[string]string{v1.AnnotationInstallationOutput: "true"})
@@ -352,6 +354,7 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 		return nil, errors.Wrap(err, "error creating the porter agent action")
 	}
 
+	r.Recorder.Event(inst, "Normal", "CreateAgentAction", fmt.Sprintf("created installation agent action for %s", inst.Name))
 	log.V(Log4Debug).Info("Created porter agent action", "name", action.Name)
 	return action, nil
 }
