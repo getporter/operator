@@ -256,6 +256,19 @@ func TestParameterSetReconciler_createAgentAction(t *testing.T) {
 	}
 }
 
+func TestRemoveParamSetFinalizer(t *testing.T) {
+	ctx := context.Background()
+	ps := &porterv1.ParameterSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+	client := setupParameterSetController(ps)
+
+	removeParamSetFinalizer(ctx, logr.Discard(), client.Client, ps)
+}
+
 func setupParameterSetController(objs ...client.Object) ParameterSetReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

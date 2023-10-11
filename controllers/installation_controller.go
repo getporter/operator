@@ -194,6 +194,7 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.Recorder.Event(inst, "Normal", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs for %s", inst.Name))
 			installOutputs, err := r.CreateStatusOutputs(ctx, outputs, resp)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -203,7 +204,6 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				return ctrl.Result{}, err
 			}
-			r.Recorder.Event(inst, "Normal", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs for %s", inst.Name))
 			log.V(Log5Trace).Info("successfully created outputs cr")
 			patchInstall := client.MergeFrom(inst.DeepCopy())
 			inst.SetAnnotations(map[string]string{v1.AnnotationInstallationOutput: "true"})

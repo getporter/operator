@@ -21,11 +21,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 func TestShouldInstall(t *testing.T) {
@@ -458,6 +461,18 @@ func TestCheckOrCreateInstallationOutputsCRCreateFail(t *testing.T) {
 	// installations that do not have it stored in the grpc server.
 	assert.NoError(t, err)
 }
+
+func TestSetupWithManager(t *testing.T) {
+	r := &InstallationReconciler{}
+	scheme := runtime.NewScheme()
+	v1.AddToScheme(scheme)
+	var restConfig *rest.Config
+	mgr, err := manager.New(restConfig, manager.Options{})
+	assert.Error(t, err)
+	err = r.SetupWithManager(mgr)
+	assert.Error(t, err)
+}
+
 func setupInstallationController(objs ...client.Object) *InstallationReconciler {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -474,4 +489,37 @@ func setupInstallationController(objs ...client.Object) *InstallationReconciler 
 		Recorder: record.NewFakeRecorder(42),
 		Scheme:   scheme,
 	}
+}
+
+func TestIsHandled(t *testing.T) {
+	ctx := context.Background()
+	inst := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	utilruntime.Must(v1.AddToScheme(scheme))
+	fakeBuilder := fake.NewClientBuilder()
+	fakeBuilder.WithScheme(scheme)
+	fakeBuilder.WithObjects(inst).WithStatusSubresource(inst)
+	fakeClient := fakeBuilder.Build()
+
+	client := interceptor.NewClient(fakeClient, interceptor.Funcs{
+		List: func(ctx context.Context, client client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			return fmt.Errorf("this is an error")
+		},
+	})
+	r := &InstallationReconciler{
+		Client: client,
+	}
+
+	_, _, err := r.isHandled(ctx, logr.Discard(), inst)
+	assert.Error(t, err)
 }
