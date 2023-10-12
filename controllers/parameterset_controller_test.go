@@ -266,7 +266,8 @@ func TestRemoveParamSetFinalizer(t *testing.T) {
 	}
 	client := setupParameterSetController(ps)
 
-	removeParamSetFinalizer(ctx, logr.Discard(), client.Client, ps)
+	err := removeParamSetFinalizer(ctx, logr.Discard(), client.Client, ps)
+	assert.NoError(t, err)
 }
 
 func setupParameterSetController(objs ...client.Object) ParameterSetReconciler {
