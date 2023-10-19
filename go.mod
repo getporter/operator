@@ -33,9 +33,9 @@ require (
 	google.golang.org/grpc v1.58.2
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.29.0-alpha.0
+	k8s.io/api v0.29.0-alpha.2
 	k8s.io/apimachinery v0.29.0-alpha.2
-	k8s.io/client-go v0.29.0-alpha.0
+	k8s.io/client-go v0.29.0-alpha.2
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	sigs.k8s.io/controller-runtime v0.16.1
 )
