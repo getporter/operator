@@ -6,6 +6,14 @@ registry: ghcr.io/getporter
 dockerfile: Dockerfile.tmpl
 
 parameters:
+  - name: operator_repository
+    description: Porter Operator Manager Image Repository
+    type: string
+    default: ""
+  - name: operator_digest
+    description: Porter Operator Manager Image Digest (defaults to a stable version)
+    type: string
+    default: ""
   - name: namespace
     description: Setup Porter in this namespace
     type: string
@@ -172,5 +180,5 @@ images:
   manager:
     description: "The porter operator manager"
     imageType: "docker"
-    repository: "PLACEHOLDER"
-    digest: "PLACEHOLDER"
+    repository: ${ bundle.parameters.operator_repository }
+    digest: ${ bundle.parameters.operator_digest }
