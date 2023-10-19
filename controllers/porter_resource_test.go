@@ -1,9 +1,11 @@
 package controllers
 
 import (
+	"context"
 	"testing"
 
 	porterv1 "get.porter.sh/operator/api/v1"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -119,4 +121,18 @@ func Test_isFinalizerSet(t *testing.T) {
 
 	inst.Finalizers = append(inst.Finalizers, porterv1.FinalizerName)
 	assert.True(t, isFinalizerSet(inst))
+}
+
+func TestRemoveFinalizer(t *testing.T) {
+	ctx := context.Background()
+	inst := &porterv1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-installation",
+			Namespace: "default",
+		},
+	}
+	client := setupInstallationController(inst)
+
+	err := removeFinalizer(ctx, logr.Discard(), client.Client, inst)
+	assert.NoError(t, err)
 }
