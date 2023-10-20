@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 
 # Build the manager binary
-FROM golang:1.20.5 as builder
+FROM --platform=$BUILDPLATFORM golang:1.21.3 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -17,9 +17,11 @@ COPY main.go main.go
 COPY --link api/ api/
 COPY --link controllers/ controllers/
 
+ARG TARGETARCH
+ARG TARGETOS
 # Build
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -o manager main.go
+    CGO_ENABLED=0 GOOS=$TARGETOS  GOARCH=$TARGETARCH GO111MODULE=on go build -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
