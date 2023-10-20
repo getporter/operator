@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -32,6 +33,7 @@ type InstallationReconciler struct {
 	client.Client
 	Log              logr.Logger
 	PorterGRPCClient PorterClient
+	Recorder         record.EventRecorder
 	Scheme           *runtime.Scheme
 }
 
@@ -174,6 +176,7 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server for: %s:%s installation error: %s", inst.Spec.Name, inst.Spec.Namespace, err.Error()))
 				// NOTE: Stop installation output cr creation
+				r.Recorder.Event(inst, "Warning", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs failed for %s", inst.Name))
 				return ctrl.Result{}, nil
 			}
 			// TODO: Separate this into it's own func to test and extract what you
@@ -191,6 +194,7 @@ func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+			r.Recorder.Event(inst, "Normal", "CreatingInstallationOutputs", fmt.Sprintf("created installation outputs for %s", inst.Name))
 			installOutputs, err := r.CreateStatusOutputs(ctx, outputs, resp)
 			if err != nil {
 				return ctrl.Result{}, err
@@ -350,6 +354,7 @@ func (r *InstallationReconciler) createAgentAction(ctx context.Context, log logr
 		return nil, errors.Wrap(err, "error creating the porter agent action")
 	}
 
+	r.Recorder.Event(inst, "Normal", "CreateAgentAction", fmt.Sprintf("created installation agent action for %s", inst.Name))
 	log.V(Log4Debug).Info("Created porter agent action", "name", action.Name)
 	return action, nil
 }

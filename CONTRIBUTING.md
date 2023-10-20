@@ -118,9 +118,9 @@ mage bump SAMPLE
 ```
 
 This mage target handles running `porter installation apply` for you and sets an annotation to force the installation to be reconciled.
-You can do this manually by following the instructions at [Retry the last operation](https://release-v1.porter.sh/operator/quickstart/#retry-the-last-operation).
+You can do this manually by following the instructions at [Retry the last operation](https://getporter.org/docs/operator/quickstart/#retry-the-last-operation).
 
-For example, to apply [config/samples/porter-hello.yaml](/config/samples]/porter-hello.yaml), run command below.
+For example, to apply [config/samples/porter-hello.yaml](/config/samples/porter-hello.yaml), run command below.
 If the installation does not already exist, it will be created
 Otherwise, the retry annotation on the installation to force the operator to reevaluate the installation.
 

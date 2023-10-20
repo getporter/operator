@@ -79,6 +79,7 @@ func main() {
 	if err = (&controllers.InstallationReconciler{
 		Client:           mgr.GetClient(),
 		PorterGRPCClient: client,
+		Recorder:         mgr.GetEventRecorderFor("installation"),
 		Log:              ctrl.Log.WithName("controllers").WithName("Installation"),
 		Scheme:           mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
