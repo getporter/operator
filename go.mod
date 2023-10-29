@@ -18,7 +18,7 @@ require (
 	get.porter.sh/porter v1.0.15
 	github.com/carolynvs/aferox v0.3.0
 	github.com/carolynvs/magex v0.9.0
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.3.0
 	github.com/magefile/mage v1.15.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/onsi/ginkgo v1.16.5
