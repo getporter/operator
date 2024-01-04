@@ -169,5 +169,5 @@ type PorterConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&PorterConfig{}, &PorterConfigList{})
+	objectTypes = append(objectTypes, &PorterConfig{}, &PorterConfigList{})
 }
