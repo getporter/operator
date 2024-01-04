@@ -218,7 +218,7 @@ type AgentConfigList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&AgentConfig{}, &AgentConfigList{})
+	objectTypes = append(objectTypes, &AgentConfig{}, &AgentConfigList{})
 }
 
 type PluginFileSpec struct {
