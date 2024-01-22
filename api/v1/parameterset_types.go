@@ -108,5 +108,5 @@ type ParameterSetList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&ParameterSet{}, &ParameterSetList{})
+	objectTypes = append(objectTypes, &ParameterSet{}, &ParameterSetList{})
 }

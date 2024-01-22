@@ -108,5 +108,5 @@ type CredentialSetList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&CredentialSet{}, &CredentialSetList{})
+	objectTypes = append(objectTypes, &CredentialSet{}, &CredentialSetList{})
 }

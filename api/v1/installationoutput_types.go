@@ -60,5 +60,5 @@ type InstallationOutputList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&InstallationOutput{}, &InstallationOutputList{})
+	objectTypes = append(objectTypes, &InstallationOutput{}, &InstallationOutputList{})
 }

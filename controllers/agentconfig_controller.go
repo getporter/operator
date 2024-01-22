@@ -211,7 +211,7 @@ func (r *AgentConfigReconciler) createEmptyPluginVolume(ctx context.Context, log
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: agentCfg.Spec.GetVolumeSize(),
 				},
@@ -396,7 +396,7 @@ func (r *AgentConfigReconciler) createHashPVC(ctx context.Context, log logr.Logg
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadOnlyMany},
 			Selector:    selector,
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: agentCfg.Spec.GetVolumeSize(),
 				},

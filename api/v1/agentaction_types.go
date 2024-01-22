@@ -104,5 +104,5 @@ type AgentActionList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&AgentAction{}, &AgentActionList{})
+	objectTypes = append(objectTypes, &AgentAction{}, &AgentActionList{})
 }

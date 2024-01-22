@@ -159,5 +159,5 @@ type InstallationList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&Installation{}, &InstallationList{})
+	objectTypes = append(objectTypes, &Installation{}, &InstallationList{})
 }
