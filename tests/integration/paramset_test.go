@@ -9,7 +9,7 @@ import (
 	"get.porter.sh/operator/controllers"
 	"get.porter.sh/porter/pkg/storage"
 	"github.com/go-logr/logr"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	"github.com/tidwall/gjson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
