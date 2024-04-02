@@ -14,7 +14,7 @@ import (
 	porterv1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
 	"github.com/carolynvs/magex/shx"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"

@@ -55,7 +55,7 @@ const (
 	operatorNamespace = "porter-operator-system"
 
 	// Porter cli version for running commands
-	porterVersion = "v1.0.14"
+	porterVersion = "v1.0.17"
 )
 
 var (
@@ -166,9 +166,9 @@ func getMixins() error {
 		feed    string
 		version string
 	}{
-		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v1.0.0"},
-		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.0"},
-		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.2"},
+		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v1.0.1"},
+		{name: "kubernetes", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.3"},
+		{name: "exec", feed: "https://cdn.porter.sh/mixins/atom.xml", version: "v1.0.16"},
 	}
 	var errG errgroup.Group
 	for _, mixin := range mixins {
@@ -586,7 +586,7 @@ func Logs() {
 
 // Ensure operator-sdk is installed.
 func EnsureOperatorSDK() {
-	const version = "v1.20.0"
+	const version = "v1.34.1"
 
 	if runtime.GOOS == "windows" {
 		mgx.Must(errors.New("Sorry, OperatorSDK does not support Windows. In order to contribute to this repository, you will need to use WSL."))
@@ -648,8 +648,8 @@ func EnsureYq() {
 // Ensure ginkgo is installed.
 func EnsureGinkgo() {
 	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
-		Name:           "github.com/onsi/ginkgo/ginkgo",
-		DefaultVersion: "1.16.5",
+		Name:           "github.com/onsi/ginkgo/v2/ginkgo",
+		DefaultVersion: "2.17.1",
 		VersionCommand: "version",
 	}))
 }
@@ -660,7 +660,7 @@ func EnsureKustomize() {
 		DownloadOptions: downloads.DownloadOptions{
 			UrlTemplate: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F{{.VERSION}}/kustomize_{{.VERSION}}_{{.GOOS}}_{{.GOARCH}}.tar.gz",
 			Name:        "kustomize",
-			Version:     "v4.5.4",
+			Version:     "v5.3.0",
 		},
 		ArchiveExtensions:  map[string]string{"darwin": ".tar.gz", "linux": ".tar.gz", "windows": ".tar.gz"},
 		TargetFileTemplate: "kustomize{{.EXT}}",
@@ -672,7 +672,7 @@ func EnsureKustomize() {
 func EnsureControllerGen() {
 	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
 		Name:           "sigs.k8s.io/controller-tools/cmd/controller-gen",
-		DefaultVersion: "v0.12.1",
+		DefaultVersion: "v0.14.0",
 		VersionCommand: "--version",
 	}))
 }

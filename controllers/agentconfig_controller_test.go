@@ -259,7 +259,7 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 	pvc.Finalizers = append(pvc.Finalizers, "kubernetes.io/pvc-protection")
 	require.NoError(t, controller.Create(ctx, pvc))
 
-	triggerReconcile()
+	triggerReconcile() // TODO: Here is the PVC later renamed created
 
 	// Verify that the agent config status was synced with the action
 	var actionList porterv1.AgentAction
@@ -296,8 +296,9 @@ func TestAgentConfigReconciler_Reconcile(t *testing.T) {
 
 	// the renamed pvc should eventually be bounded the to pv
 	renamedPVC.Spec.VolumeName = pv.Name
-	renamedPVC.Status.Phase = corev1.ClaimBound
 	require.NoError(t, controller.Update(ctx, renamedPVC))
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Status().Update(ctx, renamedPVC))
 
 	triggerReconcile()
 	require.True(t, agentCfg.Status.Ready)
@@ -640,8 +641,9 @@ func TestAgentConfigReconciler_AgentConfigUpdates(t *testing.T) {
 
 	// the renamed pvc should eventually be bounded the to pv
 	renamedPVC.Spec.VolumeName = pv2.Name
-	renamedPVC.Status.Phase = corev1.ClaimBound
 	require.NoError(t, controller.Update(ctx, renamedPVC))
+	renamedPVC.Status.Phase = corev1.ClaimBound
+	require.NoError(t, controller.Status().Update(ctx, renamedPVC))
 
 	triggerReconcile()
 	require.True(t, agentCfg.Status.Ready)
