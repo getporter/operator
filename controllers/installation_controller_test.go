@@ -523,3 +523,78 @@ func TestIsHandled(t *testing.T) {
 	_, _, err := r.isHandled(ctx, logr.Discard(), inst)
 	assert.Error(t, err)
 }
+
+func TestApplyDeletionPolicyWithNoAnnotation(t *testing.T) {
+	tests := map[string]struct {
+		wantPolicy string
+		policy     string
+	}{
+		"empty-string":  {policy: "", wantPolicy: v1.PorterDeletePolicyDelete},
+		"policy-orphan": {policy: v1.PorterDeletePolicyOrphan, wantPolicy: v1.PorterDeletePolicyOrphan},
+		"policy-delete": {policy: v1.PorterDeletePolicyDelete, wantPolicy: v1.PorterDeletePolicyDelete},
+	}
+	ctx := context.Background()
+	inst := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	utilruntime.Must(v1.AddToScheme(scheme))
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(inst).WithStatusSubresource(inst).Build()
+	rc := &InstallationReconciler{
+		Client: fakeClient,
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := rc.applyDeletionPolicy(ctx, logr.Discard(), inst, test.policy)
+			assert.NoError(t, err)
+			assert.Equal(t, inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation], test.wantPolicy)
+		})
+	}
+}
+
+func TestApplyDeletionPolicyWithAnnotation(t *testing.T) {
+	ctx := context.Background()
+	inst := &v1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+			Annotations: map[string]string{
+				v1.PorterDeletePolicyAnnotation: v1.PorterDeletePolicyDelete,
+			},
+		},
+		Spec: v1.InstallationSpec{
+			Name:      "fake-install",
+			Namespace: "fake-ns",
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	utilruntime.Must(v1.AddToScheme(scheme))
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(inst).WithStatusSubresource(inst).Build()
+	rc := &InstallationReconciler{
+		Client: fakeClient,
+	}
+
+	tests := map[string]struct {
+		policy     string
+		wantPolicy string
+	}{
+		"no-policy":               {policy: "", wantPolicy: v1.PorterDeletePolicyDelete},
+		"delete-update-to-orphan": {policy: v1.PorterDeletePolicyOrphan, wantPolicy: v1.PorterDeletePolicyOrphan},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := rc.applyDeletionPolicy(ctx, logr.Discard(), inst, test.policy)
+			assert.NoError(t, err)
+			assert.Equal(t, inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation], test.wantPolicy)
+		})
+	}
+}
