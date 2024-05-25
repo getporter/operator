@@ -6,7 +6,7 @@ layout: single
 
 In this QuickStart you will learn how to install and use the [Porter Operator] on a non-production cluster.
 
-[Porter Operator]: /operator/
+[Porter Operator]: /docs/operator/
 
 ## Prerequisites
 
@@ -379,7 +379,7 @@ By using a base64 encoded string containing the kube config it can be passed as 
 
 You now know how to install and configure the Porter Operator. The project is still incomplete, so watch this repository for updates!
 
-* [Porter Operator Custom Resources](/operator/file-formats/)
+* [Porter Operator Custom Resources](/docs/operator/file-formats/)
 
 [install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
 [KinD]:  https://porter.sh/docs/integrations/kind/

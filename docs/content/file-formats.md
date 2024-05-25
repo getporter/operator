@@ -9,12 +9,13 @@ This allows you to run the operator in a Kubernetes namespace, and target a diff
 although they both use the term namespace, there is no relation between Kubernetes namespaces and Porter namespaces.
 The same goes for the name and labels fields.
 
-* [Installation](#installation)
-* [CredentialSet](#credentialset)
-* [ParameterSet](#parameterset)
-* [AgentAction](#agentaction)
-* [AgentConfig](#agentconfig)
-* [PorterConfig](#porterconfig)
+- [Installation](#installation)
+- [CredentialSet](#credentialset)
+- [ParameterSet](#parameterset)
+- [AgentAction](#agentaction)
+- [AgentConfig](#agentconfig)
+  - [Service Account](#service-account)
+- [PorterConfig](#porterconfig)
 
 ## Installation
 
@@ -29,7 +30,7 @@ In addition to the normal fields available on a [Porter Installation document](/
 |--------------|----------|-------------------------------------|-------------------------------------------------------------|
 | agentConfig  | false    | See [Agent Config](#agentconfig)   | Reference to an AgentConfig resource in the same namespace. |
 
-[Installation]: /operator/glossary/#installation
+[Installation]: /docs/operator/glossary/#installation
 
 ## CredentialSet
 
@@ -38,7 +39,7 @@ See the glossary for more information about the [CredentialSet] resource.
 The CredentialSet spec is the same schema as the CredentialSet resource in Porter.
 You can copy/paste the output of the `porter credentials show NAME -o yaml` command into the CredentialSet resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Credential Set document](/reference/file-formats/#credential-set), the following fields are supported:
+In addition to the normal fields available on a [Porter Credential Set document](/docs/references/file-formats/credential-set/), the following fields are supported:
 
 ```yaml
 apiVersion: getporter.org/v1
@@ -63,7 +64,7 @@ spec:
 | credentials.source        | true     |                                    | The credential type. Currently `secret` is the only supported source |
 | credentials.source.secret | true     |                                    | The name of the secret |
 
-[CredentialSet]: /operator/glossary/#credentialset
+[CredentialSet]: /docs/operator/glossary/#credentialset
 
 ## ParameterSet
 
@@ -72,7 +73,7 @@ See the glossary for more information about the [ParameterSet] resource.
 The ParameterSet spec is the same schema as the ParameterSet resource in Porter.
 You can copy/paste the output of the `porter parameters show NAME -o yaml` command into the ParameterSet resource spec (removing the status section).
 
-In addition to the normal fields available on a [Porter Parameter Set document](/reference/file-formats/#parameter-set), the following fields are supported:
+In addition to the normal fields available on a [Porter Parameter Set document](/docs/references/file-formats/parameter-set/), the following fields are supported:
 
 
 ```yaml
@@ -101,7 +102,7 @@ spec:
 | parameters.source         | true     |                                    | The parameters type. Currently `vaule` and `secret` are the only supported sources |
 | **oneof** `parameters.source.secret` `parameters.source.value`   | true     |                                    | The plaintext value to use or the name of the secret that holds the parameter |
 
-[ParameterSet]: /operator/glossary/#parameterset
+[ParameterSet]: /docs/operator/glossary/#parameterset
 
 ## AgentAction
 
@@ -131,7 +132,7 @@ spec:
 | volumeMounts | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                                                                      |
 | volumes      | false    | Porter's config and working directory. | Additional volumes that should be mounted into the Porter Agent.                                                                      |                
 
-[AgentAction]: /operator/glossary/#agentaction
+[AgentAction]: /docs/operator/glossary/#agentaction
 
 ## AgentConfig
 
@@ -171,7 +172,7 @@ spec:
 | plugiConfigFiles.plugins.<plugin>.feedURL | false | https://cdn.porter.sh/plugins/atom.xml | The url of an atom feed where the plugin can be downloaded |
 | plugiConfigFiles.plugins.<plugin>.url | false | https://cdn.porter.sh/plugins/<plugin-name> | The url from where the plugin can be downloaded |
 | plugiConfigFiles.plugins.<plugin>.mirror | false | https://cdn.porter.sh/ | The mirror of the official Porter assets |
-[AgentConfig]: /operator/glossary/#agentconfig
+[AgentConfig]: /docs/operator/glossary/#agentconfig
 
 ### Service Account
 
@@ -182,7 +183,7 @@ The configureNamespace action of the porter operator bundle creates a service ac
 
 See the glossary for more information about the [PorterConfig] resource.
 
-ℹ️ The PorterConfig resource uses the same naming convention as the [Porter Configuration File](/configuration/#config-file), hyphenated instead of camelCase, so that you can copy/paste between the two without changing the field names.
+ℹ️ The PorterConfig resource uses the same naming convention as the [Porter Configuration File](/docs/configuration/configuration/#config-file), hyphenated instead of camelCase, so that you can copy/paste between the two without changing the field names.
 
 ```yaml
 apiVersion: getporter.org/v1
@@ -213,6 +214,6 @@ spec:
 | storage                | false    | The mongodb server installed with the operator. | A list of named storage configurations.                                                                             |
 | secrets                | false    | (empty)                                         | A list of named secrets configurations.                                                                             |
 
-[PorterConfig]: /operator/glossary/#porterconfig
+[PorterConfig]: /docs/operator/glossary/#porterconfig
 
-[Porter Feature Flags]: /configuration/#experimental-feature-flags
+[Porter Feature Flags]: /docs/configuration/configuration/#experimental-feature-flags

@@ -22,9 +22,9 @@ The operator is still under development, but it is ready for you to try out and 
 
 ## Next Steps
 
-* [Porter Operator Glossary](/operator/glossary/)
-* [QuickStart: Using the Porter Operator](/operator/quickstart/)
-* [Porter Operator File Formats](/operator/file-formats/)
+* [Porter Operator Glossary](/docs/operator/glossary/)
+* [QuickStart: Using the Porter Operator](/docs/operator/quickstart/)
+* [Porter Operator File Formats](/docs/operator/file-formats/)
 * [Configure the Porter Agent]
 [porter installation apply]: https://porter.sh/cli/porter_installations_apply/
 [Desired State QuickStart]: https://porter.sh/docs/introduction/concepts-and-components/intro-desired-state/
