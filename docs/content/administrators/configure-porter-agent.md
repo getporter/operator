@@ -5,7 +5,7 @@ description: Customize how Porter runs on Kubernetes
 
 The [Porter Agent] is a containerized version of the Porter CLI that is optimized for running Porter commands on a Kubernetes cluster. With the AgentConfig Custom Resource Definition (CRD), you can customize how the Porter Agent is run to meet your specific needs and requirements. For example, you can specify the version of Porter to use, install additional Porter plugins, or provide a custom Porter config file.
 
-This guide will show some ways to configure the Porter Agent through the [AgentConfig CRD](/operator/file-format/#agentconfig).
+This guide will show some ways to configure the Porter Agent through the [AgentConfig CRD](/docs/operator/file-formats/#agentconfig).
 
 First, let's create a new file with the AgentConfig CRD:
 
@@ -49,7 +49,7 @@ spec:
 
 The porter operator ships two pre-defined ClusterRole, agentconfigs-editor-role and agentconfigs-viewer-role, for AgentConfig resources to help you to properly assign permissions to a custom service account.
 
-For more information on working with private registry images, see [this section of the Porter Operator Quickstart Guide](/quickstart/#private-bundle-registries).
+For more information on working with private registry images, see [this section of the Porter Operator Quickstart Guide](/docs/operator/quickstart/#private-bundle-registries).
 
 ## Configuring Porter Plugins
 
@@ -70,7 +70,7 @@ spec:
         version: v1.0.1
 ```
 
-The schema for the pluginConfigFile field is defined [in the Porter reference documentation](/reference/file-formats/#plugins).
+The schema for the pluginConfigFile field is defined [in the Porter reference documentation](/docs/references/file-formats/plugins/).
 
 🚨 WARNING: By default, the plugin version is set to `latest`. We recommend pinning to specific version of any plugins used to avoid undesired behavior caused by a stale plugin cache. Porter currently does not expire cached installations of plugins, so installing "latest" will not pick up new versions of plugins when they are released.
 
@@ -110,4 +110,4 @@ This matrix will be updated as more clusters and CSI drivers are determined to b
 | AKS          | azureblob-nfs-premium      | v1.25.4         |
 | KinD         | default                    | v1.23.4         |
 
-[Porter Agent]: /operator/glossary/#porter-agent
+[Porter Agent]: /docs/operator/glossary/#porteragent

@@ -156,8 +156,8 @@ Follow the instructions in [Connect to the in-cluster mongo database][connect] t
 
 ## Next Steps
 
-* [Configure the Porter Agent](/operator/administrators/configure-porter-agent.md)
+* [Configure the Porter Agent](/docs/operator/administrators/configure-porter-agent/)
 
 [install-porter]: https://github.com/getporter/porter/releases?q=v1.0.0&expanded=true
-[Porter Agent]: /operator/glossary/#porter-agent
+[Porter Agent]: /docs/operator/glossary/#porteragent
 
