@@ -9,8 +9,11 @@ import (
 
 	v1 "get.porter.sh/operator/api/v1"
 	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
+	porterv1alpha1 "get.porter.sh/porter/gen/proto/go/porterapis/porter/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,10 +124,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Nothing for us to do at this point
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has already been dispatched.")
-		if r.PorterGRPCClient != nil {
-			return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
+		r.PorterGRPCClient, err = createPorterGRPCClient()
+		if err != nil {
+			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, nil
+		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
 
 	// Should we uninstall the bundle?
@@ -165,10 +169,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-	if r.PorterGRPCClient != nil {
-		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
+	r.PorterGRPCClient, err = createPorterGRPCClient()
+	if err != nil {
+		return ctrl.Result{}, nil
 	}
-	return ctrl.Result{}, nil
+	return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 }
 
 func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.Context, log logr.Logger, inst *v1.Installation) (ctrl.Result, error) {
@@ -435,4 +440,16 @@ func (r *InstallationReconciler) applyDeletionPolicy(ctx context.Context, log lo
 	annotations[v1.PorterDeletePolicyAnnotation] = policy
 	inst.SetAnnotations(annotations)
 	return r.Update(ctx, inst)
+}
+
+func createPorterGRPCClient() (porterv1alpha1.PorterClient, error) {
+	conn, err := grpc.DialContext(context.Background(), "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("error setting up listener for porter grpc client")
+	}
+	defer conn.Close()
+	if conn != nil {
+		return porterv1alpha1.NewPorterClient(conn), nil
+	}
+	return nil, fmt.Errorf("error creating porter grpc client")
 }
