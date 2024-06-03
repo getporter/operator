@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	Prefix          = "getporter.org/"
-	AnnotationRetry = Prefix + "retry"
+	Prefix                       = "getporter.org/"
+	AnnotationRetry              = Prefix + "retry"
+	PorterDeletePolicyAnnotation = "getporter.org/deletion-policy"
+	PorterDeletePolicyDelete     = "delete"
+	PorterDeletePolicyOrphan     = "orphan"
 )
 
 // We marshal installation spec to yaml when converting to a porter object

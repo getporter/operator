@@ -158,6 +158,13 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
+	// NOTE:  If this is nil, it will use the default policy of Delete
+	err = r.applyDeletionPolicy(ctx, log, inst, inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation])
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
 	if r.PorterGRPCClient != nil {
 		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
@@ -403,4 +410,29 @@ func (r *InstallationReconciler) retry(ctx context.Context, log logr.Logger, ins
 
 	log.V(Log4Debug).Info("Retried associated porter agent action", "name", "retry", action.Name, retry)
 	return nil
+}
+
+func (r *InstallationReconciler) applyDeletionPolicy(ctx context.Context, log logr.Logger, inst *v1.Installation, policy string) error {
+	log.V(Log5Trace).Info("updating deletion policy")
+	annotations := inst.GetAnnotations()
+	if len(annotations) < 1 {
+		annotations = map[string]string{}
+	}
+
+	if _, ok := annotations[v1.PorterDeletePolicyAnnotation]; !ok {
+		annotations[v1.PorterDeletePolicyAnnotation] = v1.PorterDeletePolicyDelete
+		inst.SetAnnotations(annotations)
+		return r.Update(ctx, inst)
+	}
+
+	if strings.ToLower(policy) != v1.PorterDeletePolicyOrphan && strings.ToLower(policy) != v1.PorterDeletePolicyDelete {
+		log.V(Log4Debug).Info("this policy doesn't exist: ", policy)
+		annotations[v1.PorterDeletePolicyAnnotation] = v1.PorterDeletePolicyDelete
+		inst.SetAnnotations(annotations)
+		return r.Update(ctx, inst)
+	}
+
+	annotations[v1.PorterDeletePolicyAnnotation] = policy
+	inst.SetAnnotations(annotations)
+	return r.Update(ctx, inst)
 }
