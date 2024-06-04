@@ -124,11 +124,13 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Nothing for us to do at this point
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has already been dispatched.")
-		r.PorterGRPCClient, err = createPorterGRPCClient(ctx)
+		var conn *grpc.ClientConn
+		r.PorterGRPCClient, conn, err = createPorterGRPCClient(ctx)
 		if err != nil {
 			log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
 			return ctrl.Result{}, nil
 		}
+		defer conn.Close()
 		log.V(Log4Debug).Info(fmt.Sprintf("performing installation outputs for %s", inst.Name))
 		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
@@ -171,11 +173,13 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-	r.PorterGRPCClient, err = createPorterGRPCClient(ctx)
+	var conn *grpc.ClientConn
+	r.PorterGRPCClient, conn, err = createPorterGRPCClient(ctx)
 	if err != nil {
 		log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
 		return ctrl.Result{}, nil
 	}
+	defer conn.Close()
 	log.V(Log4Debug).Info(fmt.Sprintf("performing installation outputs for %s", inst.Name))
 	return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 }
@@ -446,14 +450,13 @@ func (r *InstallationReconciler) applyDeletionPolicy(ctx context.Context, log lo
 	return r.Update(ctx, inst)
 }
 
-func createPorterGRPCClient(ctx context.Context) (porterv1alpha1.PorterClient, error) {
+func createPorterGRPCClient(ctx context.Context) (porterv1alpha1.PorterClient, *grpc.ClientConn, error) {
 	conn, err := grpc.DialContext(ctx, "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, fmt.Errorf("error setting up listener for porter grpc client")
+		return nil, nil, fmt.Errorf("error setting up listener for porter grpc client")
 	}
-	defer conn.Close()
 	if conn != nil {
-		return porterv1alpha1.NewPorterClient(conn), nil
+		return porterv1alpha1.NewPorterClient(conn), conn, nil
 	}
-	return nil, fmt.Errorf("error creating porter grpc client")
+	return nil, nil, fmt.Errorf("error creating porter grpc client")
 }
