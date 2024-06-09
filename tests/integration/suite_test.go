@@ -70,10 +70,11 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&controllers.InstallationReconciler{
-		Client:   k8sManager.GetClient(),
-		Scheme:   scheme.Scheme,
-		Recorder: k8sManager.GetEventRecorderFor("installation"),
-		Log:      ctrl.Log.WithName("controllers").WithName("Installation"),
+		Client:           k8sManager.GetClient(),
+		Scheme:           scheme.Scheme,
+		Recorder:         k8sManager.GetEventRecorderFor("installation"),
+		Log:              ctrl.Log.WithName("controllers").WithName("Installation"),
+		CreateGRPCClient: controllers.CreatePorterGRPCClient,
 	}).SetupWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
