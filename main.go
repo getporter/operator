@@ -64,10 +64,11 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controllers.InstallationReconciler{
-		Client:   mgr.GetClient(),
-		Recorder: mgr.GetEventRecorderFor("installation"),
-		Log:      ctrl.Log.WithName("controllers").WithName("Installation"),
-		Scheme:   mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Recorder:         mgr.GetEventRecorderFor("installation"),
+		Log:              ctrl.Log.WithName("controllers").WithName("Installation"),
+		Scheme:           mgr.GetScheme(),
+		CreateGRPCClient: controllers.CreatePorterGRPCClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Installation")
 		os.Exit(1)

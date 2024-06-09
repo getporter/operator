@@ -9,6 +9,7 @@ import (
 	v1 "get.porter.sh/operator/api/v1"
 	mocks "get.porter.sh/operator/mocks/grpc"
 	installationv1 "get.porter.sh/porter/gen/proto/go/porterapis/installation/v1alpha1"
+	porterv1alpha1 "get.porter.sh/porter/gen/proto/go/porterapis/porter/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -109,6 +110,11 @@ func TestInstallationReconciler_Reconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, Generation: 1}}
 
 	controller := setupInstallationController(testdata)
+	clientConn := &mocks.ClientConn{}
+	clientConn.On("Close").Return(nil)
+	controller.CreateGRPCClient = func(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error) {
+		return nil, clientConn, fmt.Errorf("this is not needed for this test")
+	}
 
 	var inst v1.Installation
 	triggerReconcile := func() {
@@ -416,7 +422,6 @@ func TestCheckOrCreateInstallationOutputsCRCreate(t *testing.T) {
 	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
 	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(outputs, nil)
 	rec := setupInstallationController()
-	rec.PorterGRPCClient = grpcClient
 	install := &v1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-install",
@@ -426,6 +431,11 @@ func TestCheckOrCreateInstallationOutputsCRCreate(t *testing.T) {
 			Name:      "fake-install",
 			Namespace: "fake-ns",
 		},
+	}
+	clientConn := &mocks.ClientConn{}
+	clientConn.On("Close").Return(nil)
+	rec.CreateGRPCClient = func(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error) {
+		return grpcClient, clientConn, nil
 	}
 	_, err := rec.CheckOrCreateInstallationOutputsCR(ctx, logr.Discard(), install)
 	// NOTE: This errors because of the limitation we have with fake in
@@ -444,7 +454,6 @@ func TestCheckOrCreateInstallationOutputsCRCreateFail(t *testing.T) {
 	listInstallationRequest := &installationv1.ListInstallationLatestOutputRequest{Name: "fake-install", Namespace: ptr.To("fake-ns")}
 	grpcClient.On("ListInstallationLatestOutputs", ctx, listInstallationRequest).Return(nil, fmt.Errorf("this is an error"))
 	rec := setupInstallationController()
-	rec.PorterGRPCClient = grpcClient
 	install := &v1.Installation{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "fake-install",
@@ -483,11 +492,16 @@ func setupInstallationController(objs ...client.Object) *InstallationReconciler 
 	fakeBuilder.WithObjects(objs...).WithStatusSubresource(objs...)
 	fakeClient := fakeBuilder.Build()
 
+	clientConn := &mocks.ClientConn{}
+	clientConn.On("Close").Return(nil)
 	return &InstallationReconciler{
 		Log:      logr.Discard(),
 		Client:   fakeClient,
 		Recorder: record.NewFakeRecorder(42),
 		Scheme:   scheme,
+		CreateGRPCClient: func(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error) {
+			return &mocks.PorterClient{}, clientConn, fmt.Errorf("error with grpc")
+		},
 	}
 }
 

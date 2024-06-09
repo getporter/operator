@@ -35,9 +35,9 @@ const (
 type InstallationReconciler struct {
 	client.Client
 	Log              logr.Logger
-	PorterGRPCClient PorterClient
 	Recorder         record.EventRecorder
 	Scheme           *runtime.Scheme
+	CreateGRPCClient func(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error)
 }
 
 // +kubebuilder:rbac:groups=getporter.org,resources=agentconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -124,13 +124,6 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Nothing for us to do at this point
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has already been dispatched.")
-		var conn *grpc.ClientConn
-		r.PorterGRPCClient, conn, err = createPorterGRPCClient(ctx)
-		if err != nil {
-			log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
-			return ctrl.Result{}, nil
-		}
-		defer conn.Close()
 		log.V(Log4Debug).Info(fmt.Sprintf("performing installation outputs for %s", inst.Name))
 		return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 	}
@@ -173,26 +166,26 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to apply changes to the installation.")
-	var conn *grpc.ClientConn
-	r.PorterGRPCClient, conn, err = createPorterGRPCClient(ctx)
-	if err != nil {
-		log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
-		return ctrl.Result{}, nil
-	}
-	defer conn.Close()
 	log.V(Log4Debug).Info(fmt.Sprintf("performing installation outputs for %s", inst.Name))
 	return r.CheckOrCreateInstallationOutputsCR(ctx, log, inst)
 }
 
 func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.Context, log logr.Logger, inst *v1.Installation) (ctrl.Result, error) {
 	// NOTE: May not want to requeue if this fails
+	porterGRPCClient, conn, err := r.CreateGRPCClient(ctx)
+	if err != nil {
+		log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
+		r.Recorder.Event(inst, "Warning", "CreateInstallationOutputs", "no grpc client not creating installation outputs")
+		return ctrl.Result{}, nil
+	}
+	defer conn.Close()
 	installCr := &v1.InstallationOutput{}
-	err := r.Get(ctx, types.NamespacedName{Name: inst.Spec.Name, Namespace: inst.Spec.Namespace}, installCr)
+	err = r.Get(ctx, types.NamespacedName{Name: inst.Spec.Name, Namespace: inst.Spec.Namespace}, installCr)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.V(Log4Debug).Info("installation output cr doesn't exist, seeing if we should create")
 			in := &installationv1.ListInstallationLatestOutputRequest{Name: inst.Spec.Name, Namespace: ptr.To(inst.Spec.Namespace)}
-			resp, err := r.PorterGRPCClient.ListInstallationLatestOutputs(ctx, in)
+			resp, err := porterGRPCClient.ListInstallationLatestOutputs(ctx, in)
 			if err != nil {
 				log.V(Log4Debug).Info(fmt.Sprintf("failed to get output from grpc server for: %s:%s installation error: %s", inst.Spec.Name, inst.Spec.Namespace, err.Error()))
 				// NOTE: Stop installation output cr creation
@@ -450,7 +443,9 @@ func (r *InstallationReconciler) applyDeletionPolicy(ctx context.Context, log lo
 	return r.Update(ctx, inst)
 }
 
-func createPorterGRPCClient(ctx context.Context) (porterv1alpha1.PorterClient, *grpc.ClientConn, error) {
+func CreatePorterGRPCClient(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error) {
+	// TODO: Make this not a hard coded value of grpc deployment/service.
+	// Have a controller create deployment of grpc server and service
 	conn, err := grpc.DialContext(ctx, "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("error setting up listener for porter grpc client")
