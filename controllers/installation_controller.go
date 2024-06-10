@@ -401,7 +401,7 @@ func (r *InstallationReconciler) saveStatus(ctx context.Context, log logr.Logger
 
 func (r *InstallationReconciler) shouldUninstall(inst *v1.Installation) bool {
 	// ignore a deleted CRD with no finalizers
-	return isDeleted(inst) && isFinalizerSet(inst)
+	return isDeleted(inst) && isFinalizerSet(inst) && inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation] == v1.PorterDeletePolicyDelete
 }
 
 // Sync the retry annotation from the installation to the agent action to trigger another run.
