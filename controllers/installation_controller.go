@@ -172,6 +172,12 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *InstallationReconciler) CheckOrCreateInstallationOutputsCR(ctx context.Context, log logr.Logger, inst *v1.Installation) (ctrl.Result, error) {
 	// NOTE: May not want to requeue if this fails
+	if r.CreateGRPCClient == nil {
+		log.V(Log4Debug).Info("no grpc client function set on controller")
+		r.Recorder.Event(inst, "Warning", "CreateInstallationOutputs", "not creating installation outputs")
+		return ctrl.Result{}, nil
+	}
+
 	porterGRPCClient, conn, err := r.CreateGRPCClient(ctx)
 	if err != nil {
 		log.V(Log4Debug).Info("no grpc client... Not performing installation outputs")
