@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +19,6 @@ import (
 
 	v1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
-	porterv1alpha1 "get.porter.sh/porter/gen/proto/go/porterapis/porter/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -66,22 +63,12 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	// NOTE: Pass in nil client if connection isn't established
-	var client controllers.PorterClient
-	conn, err := grpc.DialContext(context.Background(), "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		setupLog.Error(err, "unable to set up listener")
-	}
-	defer conn.Close()
-	if conn != nil {
-		client = porterv1alpha1.NewPorterClient(conn)
-	}
 	if err = (&controllers.InstallationReconciler{
 		Client:           mgr.GetClient(),
-		PorterGRPCClient: client,
 		Recorder:         mgr.GetEventRecorderFor("installation"),
 		Log:              ctrl.Log.WithName("controllers").WithName("Installation"),
 		Scheme:           mgr.GetScheme(),
+		CreateGRPCClient: controllers.CreatePorterGRPCClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Installation")
 		os.Exit(1)
