@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -9,10 +10,12 @@ import (
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -34,14 +37,17 @@ func init() {
 }
 
 func main() {
+	ctx := context.Background()
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var createGrpc bool
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&createGrpc, "create-grpc", true, "create grpc deployment for use in operator")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -114,6 +120,26 @@ func main() {
 	if err := mgr.AddReadyzCheck("check", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
+	}
+
+	if createGrpc {
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			k8sClient := mgr.GetClient()
+			return k8sClient.Create(ctx, controllers.GrpcDeployment, &client.CreateOptions{})
+		})
+
+		g.Go(func() error {
+			k8sClient := mgr.GetClient()
+			return k8sClient.Create(ctx, controllers.GrpcService, &client.CreateOptions{})
+		})
+
+		go func() {
+			if err := g.Wait(); err != nil {
+				setupLog.Error(err, "error with async operation of creating grpc deployment")
+				os.Exit(1)
+			}
+		}()
 	}
 
 	setupLog.Info("starting manager")
