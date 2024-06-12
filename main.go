@@ -11,7 +11,11 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"golang.org/x/sync/errgroup"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -126,12 +130,29 @@ func main() {
 		g, ctx := errgroup.WithContext(ctx)
 		g.Go(func() error {
 			k8sClient := mgr.GetClient()
-			return k8sClient.Create(ctx, controllers.GrpcDeployment, &client.CreateOptions{})
+			// GET deployment to see if it exists first before creating it
+			deployment := &appsv1.Deployment{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllers.GrpcDeployment.Name, Namespace: controllers.GrpcDeployment.Namespace}, deployment)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return k8sClient.Create(ctx, controllers.GrpcDeployment, &client.CreateOptions{})
+				}
+			}
+			// NOTE: Don't crash, just don't deploy if Get fails for any other reason than not found
+			return nil
 		})
 
 		g.Go(func() error {
 			k8sClient := mgr.GetClient()
-			return k8sClient.Create(ctx, controllers.GrpcService, &client.CreateOptions{})
+			service := &corev1.Service{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllers.GrpcService.Name, Namespace: controllers.GrpcService.Namespace}, service)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return k8sClient.Create(ctx, controllers.GrpcService, &client.CreateOptions{})
+				}
+			}
+			// NOTE: Don't crash, just don't deploy if Get fails for any other reason than not found
+			return nil
 		})
 
 		go func() {
