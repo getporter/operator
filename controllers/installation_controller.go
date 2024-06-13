@@ -133,6 +133,10 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		err = r.uninstallInstallation(ctx, log, inst)
 		log.V(Log4Debug).Info("Reconciliation complete: A porter agent has been dispatched to uninstall the installation.")
 		return ctrl.Result{}, err
+	} else if r.shouldOrphan(inst) {
+		log.V(Log4Debug).Info("Reconciliation complete: Your installation is being deleted. Please clean up installation resources")
+		err = removeFinalizer(ctx, log, r.Client, inst)
+		return ctrl.Result{}, err
 	} else if isDeleted(inst) {
 		// This is installation without a finalizer that was deleted We remove the
 		// finalizer after we successfully uninstall (or someone is manually cleaning
@@ -402,6 +406,10 @@ func (r *InstallationReconciler) saveStatus(ctx context.Context, log logr.Logger
 func (r *InstallationReconciler) shouldUninstall(inst *v1.Installation) bool {
 	// ignore a deleted CRD with no finalizers
 	return isDeleted(inst) && isFinalizerSet(inst) && inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation] == v1.PorterDeletePolicyDelete
+}
+
+func (r *InstallationReconciler) shouldOrphan(inst *v1.Installation) bool {
+	return isDeleted(inst) && isFinalizerSet(inst) && inst.GetAnnotations()[v1.PorterDeletePolicyAnnotation] == v1.PorterDeletePolicyOrphan
 }
 
 // Sync the retry annotation from the installation to the agent action to trigger another run.
