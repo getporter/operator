@@ -127,6 +127,7 @@ func main() {
 	}
 
 	if createGrpc {
+		// TODO: should this be one go routine or several?
 		g, ctx := errgroup.WithContext(ctx)
 		g.Go(func() error {
 			k8sClient := mgr.GetClient()
@@ -135,6 +136,7 @@ func main() {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllers.GrpcDeployment.Name, Namespace: controllers.GrpcDeployment.Namespace}, deployment)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
+					setupLog.Info("creating grpc deployment")
 					return k8sClient.Create(ctx, controllers.GrpcDeployment, &client.CreateOptions{})
 				}
 			}
@@ -148,7 +150,22 @@ func main() {
 			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllers.GrpcService.Name, Namespace: controllers.GrpcService.Namespace}, service)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
+					setupLog.Info("creating grpc service")
 					return k8sClient.Create(ctx, controllers.GrpcService, &client.CreateOptions{})
+				}
+			}
+			// NOTE: Don't crash, just don't deploy if Get fails for any other reason than not found
+			return nil
+		})
+
+		g.Go(func() error {
+			k8sClient := mgr.GetClient()
+			cm := &corev1.ConfigMap{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: controllers.GrpcConfigMap.Name, Namespace: controllers.GrpcConfigMap.Namespace}, cm)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					setupLog.Info("creating grpc configmap")
+					return k8sClient.Create(ctx, controllers.GrpcConfigMap, &client.CreateOptions{})
 				}
 			}
 			// NOTE: Don't crash, just don't deploy if Get fails for any other reason than not found
@@ -160,6 +177,7 @@ func main() {
 				setupLog.Error(err, "error with async operation of creating grpc deployment")
 				os.Exit(1)
 			}
+			setupLog.Info("grpc server has been created")
 		}()
 	}
 

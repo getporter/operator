@@ -10,6 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	PorterNamespace = "porter-operator-system"
+)
+
 type PorterClient interface {
 	ListInstallations(ctx context.Context, in *installationv1.ListInstallationsRequest, opts ...grpc.CallOption) (*installationv1.ListInstallationsResponse, error)
 	ListInstallationLatestOutputs(ctx context.Context, in *installationv1.ListInstallationLatestOutputRequest, opts ...grpc.CallOption) (*installationv1.ListInstallationLatestOutputResponse, error)
@@ -20,9 +24,22 @@ type ClientConn interface {
 }
 
 var GrpcDeployment = &appsv1.Deployment{
-	ObjectMeta: metav1.ObjectMeta{},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "",
+		Namespace: PorterNamespace,
+	},
 }
 
 var GrpcService = &corev1.Service{
-	ObjectMeta: metav1.ObjectMeta{},
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "",
+		Namespace: PorterNamespace,
+	},
+}
+
+var GrpcConfigMap = &corev1.ConfigMap{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "",
+		Namespace: PorterNamespace,
+	},
 }
