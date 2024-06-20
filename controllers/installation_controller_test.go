@@ -64,6 +64,38 @@ func TestShouldInstall(t *testing.T) {
 	}
 }
 
+func TestShouldOrphan(t *testing.T) {
+	now := metav1.Now()
+	tests := map[string]struct {
+		wantTrue     bool
+		delTimeStamp *metav1.Time
+	}{
+		"true":  {wantTrue: true, delTimeStamp: &now},
+		"false": {wantTrue: false, delTimeStamp: nil},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			inst := &v1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "fake-name",
+					Namespace:         "fake-ns",
+					Finalizers:        []string{v1.FinalizerName},
+					DeletionTimestamp: test.delTimeStamp,
+					Annotations:       map[string]string{v1.PorterDeletePolicyAnnotation: v1.PorterDeletePolicyOrphan},
+				},
+			}
+			rec := setupInstallationController(inst)
+			isTrue := rec.shouldOrphan(inst)
+			if test.wantTrue {
+				assert.True(t, isTrue)
+			}
+			if !test.wantTrue {
+				assert.False(t, isTrue)
+			}
+		})
+	}
+}
+
 func TestUninstallInstallation(t *testing.T) {
 	ctx := context.Background()
 	inst := &v1.Installation{
