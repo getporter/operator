@@ -49,6 +49,7 @@ func TestShouldInstall(t *testing.T) {
 					Namespace:         "fake-ns",
 					Finalizers:        []string{v1.FinalizerName},
 					DeletionTimestamp: test.delTimeStamp,
+					Annotations:       map[string]string{v1.PorterDeletePolicyAnnotation: v1.PorterDeletePolicyDelete},
 				},
 			}
 			rec := setupInstallationController(inst)
