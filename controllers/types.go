@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -72,6 +73,21 @@ var GrpcDeployment = &appsv1.Deployment{
 						},
 					},
 				},
+				Volumes: []corev1.Volume{
+					{
+						Name: "porter-grpc-service-config-volume",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								Items: []corev1.KeyToPath{
+									{
+										Key:  "config",
+										Path: "config.yaml",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	},
@@ -79,14 +95,41 @@ var GrpcDeployment = &appsv1.Deployment{
 
 var GrpcService = &corev1.Service{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "",
+		Name:      PorterGRPCName,
 		Namespace: PorterNamespace,
+		Labels: map[string]string{
+			"app": "porter-grpc-service",
+		},
+	},
+	Spec: corev1.ServiceSpec{
+		Ports: []corev1.ServicePort{
+			{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromString("3001"),
+				Port:       int32(3001),
+			},
+		},
+		Selector: map[string]string{"app": "porter-grpc-service"},
+		Type:     corev1.ServiceTypeClusterIP,
 	},
 }
 
 var GrpcConfigMap = &corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
-		Name:      "",
+		Name:      "porter-grpc-service-config",
 		Namespace: PorterNamespace,
 	},
+	Data: map[string]string{
+		"config": ConfigmMapConfig,
+	},
 }
+
+var ConfigmMapConfig = `
+default-secrets-plugin: "kubernetes.secrets"
+default-storage: "mongodb"
+storage:
+  - name: "mongodb"
+    plugin: "mongodb"
+    config:
+      url: "mongodb://root:demopasswd@porter-operator-mongodb.demo.svc.cluster.local"
+`
