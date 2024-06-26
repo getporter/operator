@@ -43,6 +43,11 @@ var GrpcDeployment = &appsv1.Deployment{
 			},
 		},
 		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app": "porter-grpc-service",
+				},
+			},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
@@ -78,6 +83,9 @@ var GrpcDeployment = &appsv1.Deployment{
 						Name: "porter-grpc-service-config-volume",
 						VolumeSource: corev1.VolumeSource{
 							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "porter-grpc-service-config",
+								},
 								Items: []corev1.KeyToPath{
 									{
 										Key:  "config",
@@ -105,7 +113,7 @@ var GrpcService = &corev1.Service{
 		Ports: []corev1.ServicePort{
 			{
 				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromString("3001"),
+				TargetPort: intstr.FromInt(3001),
 				Port:       int32(3001),
 			},
 		},
