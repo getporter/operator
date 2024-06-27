@@ -124,26 +124,25 @@ func main() {
 	}
 
 	if createGrpc {
-		// TODO: should this be one go routine or several?
 		g, ctx := errgroup.WithContext(ctx)
 		g.Go(func() error {
 			k8sClient := mgr.GetClient()
 			err := k8sClient.Create(ctx, controllers.GrpcConfigMap, &client.CreateOptions{})
 			if err != nil {
 				if apierrors.IsAlreadyExists(err) {
-					setupLog.Error(err, "configmap already exists, not creating")
+					setupLog.Info("configmap already exists, not creating")
 					return nil
 				}
-				setupLog.Error(err, "error creating configmap")
+				setupLog.Info("error creating configmap, %s", err.Error())
 			}
 
 			err = k8sClient.Create(ctx, controllers.GrpcDeployment, &client.CreateOptions{})
 			if err != nil {
 				if apierrors.IsAlreadyExists(err) {
-					setupLog.Error(err, "deployment already exists, not creating")
+					setupLog.Info("deployment already exists, not creating")
 					return nil
 				}
-				setupLog.Error(err, "error creating configmap")
+				setupLog.Info("error creating deployment, %s", err.Error())
 			}
 			// NOTE: Don't crash, just don't deploy if Get fails for any other reason than not found
 			return nil
@@ -154,10 +153,10 @@ func main() {
 			err := k8sClient.Create(ctx, controllers.GrpcService, &client.CreateOptions{})
 			if err != nil {
 				if apierrors.IsAlreadyExists(err) {
-					setupLog.Error(err, "service already exists, not creating")
+					setupLog.Info("service already exists, not creating")
 					return nil
 				}
-				setupLog.Error(err, "error creating service")
+				setupLog.Info("error creating service, %s", err.Error())
 			}
 			return nil
 		})
