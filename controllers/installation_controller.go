@@ -460,7 +460,7 @@ func (r *InstallationReconciler) applyDeletionPolicy(ctx context.Context, log lo
 func CreatePorterGRPCClient(ctx context.Context) (porterv1alpha1.PorterClient, ClientConn, error) {
 	// TODO: Make this not a hard coded value of grpc deployment/service.
 	// Have a controller create deployment of grpc server and service
-	conn, err := grpc.DialContext(ctx, "porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient("porter-grpc-service:3001", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("error setting up listener for porter grpc client")
 	}
