@@ -52,14 +52,14 @@ var GrpcDeployment = &appsv1.Deployment{
 				Containers: []corev1.Container{
 					{
 						Name:  "porter-grpc-service",
-						Image: "ghcr.io/bdegeeter/porter/server:v1.0.0-alpha.5-794-g7168418d",
+						Image: "ghcr.io/getporter/server:v1.1.0",
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          "grpc",
 								ContainerPort: 3001,
 							},
 						},
-						Args: []string{"server", "run"},
+						Args: []string{"api-server", "run"},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								MountPath: "/porter-config",
