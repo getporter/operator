@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	PorterNamespace = "porter-operator-system"
-	PorterGRPCName  = "porter-grpc-service"
+	PorterGRPCName        = "porter-grpc-service"
+	PorterDeploymentImage = "ghcr.io/getporter/server:v1.1.0"
 )
 
 type PorterClient interface {
@@ -30,7 +30,7 @@ type ClientConn interface {
 var GrpcDeployment = &appsv1.Deployment{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      PorterGRPCName,
-		Namespace: PorterNamespace,
+		Namespace: operatorNamespace,
 		Labels: map[string]string{
 			"app": "porter-grpc-service",
 		},
@@ -52,7 +52,7 @@ var GrpcDeployment = &appsv1.Deployment{
 				Containers: []corev1.Container{
 					{
 						Name:  "porter-grpc-service",
-						Image: "ghcr.io/getporter/server:v1.1.0",
+						Image: PorterDeploymentImage,
 						Ports: []corev1.ContainerPort{
 							{
 								Name:          "grpc",
@@ -104,7 +104,7 @@ var GrpcDeployment = &appsv1.Deployment{
 var GrpcService = &corev1.Service{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      PorterGRPCName,
-		Namespace: PorterNamespace,
+		Namespace: operatorNamespace,
 		Labels: map[string]string{
 			"app": "porter-grpc-service",
 		},
@@ -125,7 +125,7 @@ var GrpcService = &corev1.Service{
 var GrpcConfigMap = &corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "porter-grpc-service-config",
-		Namespace: PorterNamespace,
+		Namespace: operatorNamespace,
 	},
 	Data: map[string]string{
 		"config": ConfigmMapConfig,
