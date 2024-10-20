@@ -13,8 +13,8 @@ cloud.google.com/go/storage v1.0.0/go.mod h1:IhtSnM/ZTZV8YYJWCY8RULGVqBDmpoyjwiy
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 get.porter.sh/magefiles v0.6.8 h1:1q0CmKgOtlP8IBXtRNLv2+r9tLiC96tpIPhTHX+HlUw=
 get.porter.sh/magefiles v0.6.8/go.mod h1:w37oTKICvvaEKR5KVB9UfN2EX30uYO9Qk0oRoz80DOU=
-get.porter.sh/porter v1.1.0 h1:SYjwt+NzUadL0yj7OdV15sRdsHU3pzflXEVi2ipsHsc=
-get.porter.sh/porter v1.1.0/go.mod h1:kLQhjfSQbuhksAKf+11942NSo9jCjYtF+WoAaaaMKfk=
+get.porter.sh/porter v1.1.1 h1:dxbh//PhZYRdXKEb0I/yCXJQlZPqkyTa9EuiA+BrhGI=
+get.porter.sh/porter v1.1.1/go.mod h1:5e8rmICXHddF2FxSdlCtkB26B5lJmwEgBJMGokdS95s=
 github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 h1:bvDV9vkmnHYOMsOr4WLk+Vo07yKIzd94sVoIqshQ4bU=
 github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24/go.mod h1:8o94RPi1/7XTJvwPpRSzSUedZrtlirdB3r9Z20bi2f8=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25UVaW/CKtUDjefjrs0SPonmDGUVOYP0=
