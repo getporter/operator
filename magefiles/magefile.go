@@ -101,7 +101,7 @@ func Vet() {
 }
 
 func Lint() {
-	mg.Deps(tools.EnsureStaticCheck)
+	mg.Deps(func() { tools.EnsureStaticCheckAt("2025.1.1") })
 	must.RunV("staticcheck", "./...")
 }
 
