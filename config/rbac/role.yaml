@@ -8,29 +8,7 @@ rules:
   - ""
   resources:
   - persistentvolumeclaims
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumes
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
   - secrets
   verbs:
   - create
@@ -64,6 +42,12 @@ rules:
   - getporter.org
   resources:
   - agentactions
+  - agentconfigs
+  - credentialsets
+  - installationoutputs
+  - installations
+  - parametersets
+  - porterconfigs
   verbs:
   - create
   - delete
@@ -76,136 +60,19 @@ rules:
   - getporter.org
   resources:
   - agentactions/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - agentactions/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - agentconfigs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - getporter.org
-  resources:
   - agentconfigs/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - agentconfigs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - credentialsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - getporter.org
-  resources:
   - credentialsets/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - credentialsets/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - installationoutputs
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - getporter.org
-  resources:
-  - installationoutputs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - installations
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - getporter.org
-  resources:
-  - installations/finalizers
-  verbs:
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - installations/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - getporter.org
-  resources:
-  - parametersets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - getporter.org
-  resources:
   - parametersets/finalizers
   verbs:
   - update
 - apiGroups:
   - getporter.org
   resources:
+  - agentactions/status
+  - agentconfigs/status
+  - credentialsets/status
+  - installationoutputs/status
+  - installations/status
   - parametersets/status
   verbs:
   - get
@@ -214,12 +81,7 @@ rules:
 - apiGroups:
   - getporter.org
   resources:
-  - porterconfigs
+  - installations/finalizers
   verbs:
-  - create
-  - delete
-  - get
-  - list
   - patch
   - update
-  - watch

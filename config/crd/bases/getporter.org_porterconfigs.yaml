@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.17.3
   name: porterconfigs.getporter.org
 spec:
   group: getporter.org
@@ -37,9 +37,9 @@ spec:
           metadata:
             type: object
           spec:
-            description: "PorterConfigSpec defines the desired state of PorterConfig\n\n\nSERIALIZATION
-              NOTE:\n\n\n\tUse json to persist this resource to Kubernetes.\n\tUse
-              yaml to convert to Porter's representation of the resource.\n\tThe mapstructure
+            description: "PorterConfigSpec defines the desired state of PorterConfig\n\nSERIALIZATION
+              NOTE:\n\n\tUse json to persist this resource to Kubernetes.\n\tUse yaml
+              to convert to Porter's representation of the resource.\n\tThe mapstructure
               tags are used internally for PorterConfigSpec.MergeConfig."
             properties:
               build-driver:
