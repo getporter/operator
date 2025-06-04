@@ -672,7 +672,7 @@ func EnsureKustomize() {
 func EnsureControllerGen() {
 	mgx.Must(pkg.EnsurePackageWith(pkg.EnsurePackageOptions{
 		Name:           "sigs.k8s.io/controller-tools/cmd/controller-gen",
-		DefaultVersion: "v0.14.0",
+		DefaultVersion: "v0.17.3",
 		VersionCommand: "--version",
 	}))
 }
