@@ -40,17 +40,9 @@ spec:
             description: ParameterSetSpec defines the desired state of ParameterSet
             properties:
               agentConfig:
+                $ref: '#/definitions/k8s.io~1api~1core~1v1~0LocalObjectReference'
                 description: AgentConfig is the name of an AgentConfig to use instead
                   of the AgentConfig defined at the namespace or system level.
-                properties:
-                  name:
-                    description: |-
-                      Name of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
               name:
                 description: Name is the name of the parameter set in Porter. Immutable.
                 type: string
@@ -100,16 +92,8 @@ spec:
             description: ParameterSetStatus defines the observed state of ParameterSet
             properties:
               action:
+                $ref: '#/definitions/k8s.io~1api~1core~1v1~0LocalObjectReference'
                 description: The most recent action executed for the resource
-                properties:
-                  name:
-                    description: |-
-                      Name of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
               conditions:
                 description: |-
                   Conditions store a list of states that have been reached.

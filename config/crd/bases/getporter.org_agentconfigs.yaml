@@ -88,11 +88,11 @@ spec:
                   Users SHOULD override this to use more recent versions.
                 type: string
               pullPolicy:
+                $ref: '#/definitions/k8s.io~1api~1core~1v1~0PullPolicy'
                 description: |-
                   PullPolicy specifies when to pull the Porter Agent image. The default
                   is to use PullAlways when the tag is canary or latest, and PullIfNotPresent
                   otherwise.
-                type: string
               retryLimit:
                 description: |-
                   RetryLimit specifies the maximum number of retries that a failed agent job will run before being marked as failure.
@@ -129,16 +129,8 @@ spec:
             description: AgentConfigStatus defines the observed state of AgentConfig
             properties:
               action:
+                $ref: '#/definitions/k8s.io~1api~1core~1v1~0LocalObjectReference'
                 description: The most recent action executed for the resource
-                properties:
-                  name:
-                    description: |-
-                      Name of the referent.
-                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
               conditions:
                 description: |-
                   Conditions store a list of states that have been reached.
