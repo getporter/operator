@@ -14,7 +14,7 @@ replace (
 )
 
 require (
-	get.porter.sh/magefiles v0.6.9
+	get.porter.sh/magefiles v0.6.11
 	get.porter.sh/porter v1.2.1
 	github.com/carolynvs/aferox v0.3.0
 	github.com/carolynvs/magex v0.9.0
@@ -29,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/pretty v1.2.1
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.13.0
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
@@ -140,6 +140,7 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/ulikunitz/xz v0.5.12 // indirect
+	github.com/uwu-tools/magex v0.10.1 // indirect
 	github.com/vbatts/tar-split v0.11.6 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
