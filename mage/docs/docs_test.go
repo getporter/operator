@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/carolynvs/magex/shx"
 	"github.com/stretchr/testify/require"
+	"github.com/uwu-tools/magex/shx"
 )
 
 func TestEnsurePorterRepository(t *testing.T) {

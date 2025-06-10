@@ -13,11 +13,11 @@ import (
 
 	porterv1 "get.porter.sh/operator/api/v1"
 	"get.porter.sh/operator/controllers"
-	"github.com/carolynvs/magex/shx"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/tidwall/pretty"
+	"github.com/uwu-tools/magex/shx"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
