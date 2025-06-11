@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/carolynvs/magex/mgx"
-	"github.com/carolynvs/magex/shx"
+	"github.com/uwu-tools/magex/mgx"
+	"github.com/uwu-tools/magex/shx"
 )
 
 const (
