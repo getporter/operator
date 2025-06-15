@@ -29,7 +29,7 @@ require (
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/pretty v1.2.1
 	github.com/uwu-tools/magex v0.10.1
-	golang.org/x/sync v0.13.0
+	golang.org/x/sync v0.15.0
 	google.golang.org/grpc v1.69.2
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
