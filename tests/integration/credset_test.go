@@ -286,8 +286,8 @@ func NewTestInstallation(iName string) *porterv1.Installation {
 			SchemaVersion: string(storage.DefaultInstallationSchemaVersion),
 			Name:          iName,
 			Bundle: porterv1.OCIReferenceParts{
-				Repository: "ghcr.io/bdegeeter/porter-test-me",
-				Version:    "0.3.0",
+				Repository: "ghcr.io/sgettys/porter-test-me",
+				Version:    "0.6.4",
 			},
 		},
 	}
