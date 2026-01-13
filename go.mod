@@ -17,7 +17,7 @@ require (
 	get.porter.sh/magefiles v0.6.11
 	get.porter.sh/porter v1.2.1
 	github.com/carolynvs/aferox v0.3.0
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/magefile/mage v1.15.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/onsi/ginkgo/v2 v2.23.4
