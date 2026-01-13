@@ -1,6 +1,9 @@
-<img align="right" src="https://getporter.org/images/porter-docs-header.svg" width="300px" />
+<img align="right" src="https://porter.sh/images/porter-docs-header.svg" width="300px" />
 
 [![Build Status](https://github.com/getporter/operator/workflows/build/badge.svg)](https://github.com/getporter/operator/actions?query=workflow:pr)
+
+> [!WARNING]
+> This repository has been archived and is no longer actively maintained. The code remains available under its existing license — please feel free to fork, reuse, or adapt it for your own use. If you do build on this work, we'd love to hear about it.
 
 # Porter Operator
 
