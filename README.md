@@ -1,4 +1,4 @@
-<img align="right" src="https://getporter.org/images/porter-docs-header.svg" width="300px" />
+<img align="right" src="https://porter.sh/images/porter-docs-header.svg" width="300px" />
 
 [![Build Status](https://github.com/getporter/operator/workflows/build/badge.svg)](https://github.com/getporter/operator/actions?query=workflow:pr)
 
